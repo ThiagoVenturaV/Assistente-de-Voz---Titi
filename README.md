@@ -13,6 +13,10 @@ Titi é um aplicativo desktop para Windows que reúne conversa por texto, voz lo
 - aperte-para-falar e conversa ao vivo;
 - transcrição local com `whisper.cpp` e Whisper Small multilíngue;
 - resposta falada com as vozes instaladas no Windows;
+- chamadas de ferramentas pelo modelo local para abrir Chrome, Brave, Spotify, Codex e Antigravity;
+- navegação e pesquisa na web com validação de endereços HTTP/HTTPS;
+- pesquisa no Spotify e controles de reprodução, faixa e volume;
+- botão **Ao vivo** diretamente na janela flutuante do mascote;
 - onboarding com nome personalizado para o mascote;
 - detecção e preparação assistida da IA local.
 
@@ -55,12 +59,14 @@ Dependências oficiais utilizadas:
 | Mascote animado e flutuante | Implementado |
 | Histórico e configurações locais | Implementado |
 | Preparação assistida de Ollama e modelo | Implementado |
-| Controle de Chrome/Brave e Spotify | Próxima etapa |
-| Integração com Codex App e Antigravity | Próxima etapa |
+| Abrir e navegar no Chrome/Brave | Implementado |
+| Abrir, pesquisar e controlar mídia no Spotify | Implementado |
+| Abrir Codex App e Antigravity | Implementado |
+| Delegar tarefas completas ao Codex e Antigravity | Próxima etapa |
 | Standby automático durante jogos | Próxima etapa |
 | Escolha entre IA local, OAuth e APIs | Backlog do produto |
 
-As ferramentas que controlam outros aplicativos ainda não estão habilitadas nesta versão. Elas serão adicionadas com permissões explícitas, confirmação para ações sensíveis e registro local das execuções.
+As primeiras ferramentas seguras já estão habilitadas. Elas trabalham com uma lista permitida de aplicativos e protocolos; ações destrutivas, compras, mensagens e comandos arbitrários continuam bloqueados até existir um fluxo explícito de confirmação.
 
 ## Desenvolvimento
 

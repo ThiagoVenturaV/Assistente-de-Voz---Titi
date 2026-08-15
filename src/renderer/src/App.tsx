@@ -32,6 +32,9 @@ export function App(): React.JSX.Element {
   const recorder = useRef<PcmRecorder | null>(null)
   const recordingStarting = useRef(false)
   const stopRequested = useRef(false)
+  const settingsRef = useRef<TitiSettings | null>(null)
+  const currentRef = useRef<Conversation | null>(null)
+  const sendingRef = useRef(false)
 
   useEffect(() => {
     let active = true
@@ -41,19 +44,32 @@ export function App(): React.JSX.Element {
       window.titi.runtime.status()
     ]).then(async ([loadedSettings, summaries, loadedRuntime]) => {
       if (!active) return
+      settingsRef.current = loadedSettings
       setSettings(loadedSettings)
       setConversations(summaries)
       setRuntime(loadedRuntime)
-      if (summaries[0]) setCurrent(await window.titi.conversations.get(summaries[0].id))
+      if (summaries[0]) {
+        const firstConversation = await window.titi.conversations.get(summaries[0].id)
+        currentRef.current = firstConversation
+        setCurrent(firstConversation)
+      }
     })
     const unsubscribe = window.titi.mascot.onStateChanged(setMascotState)
     const unsubscribeRuntime = window.titi.runtime.onSetupProgress(
       (progress: RuntimeSetupProgress) => setNotice(progress.message)
     )
+    const unsubscribeLive = window.titi.voice.onLiveConversationRequested(() => {
+      void window.titi.settings.get().then((latestSettings) => {
+        settingsRef.current = latestSettings
+        setSettings(latestSettings)
+        void beginListening(true)
+      })
+    })
     return () => {
       active = false
       unsubscribe()
       unsubscribeRuntime()
+      unsubscribeLive()
       recorder.current?.cancel()
       window.speechSynthesis?.cancel()
     }
@@ -62,17 +78,24 @@ export function App(): React.JSX.Element {
   async function refreshConversations(selectedId?: string): Promise<void> {
     const summaries = await window.titi.conversations.list()
     setConversations(summaries)
-    if (selectedId) setCurrent(await window.titi.conversations.get(selectedId))
+    if (selectedId) {
+      const selected = await window.titi.conversations.get(selectedId)
+      currentRef.current = selected
+      setCurrent(selected)
+    }
   }
 
   async function createConversation(): Promise<void> {
     const conversation = await window.titi.conversations.create()
+    currentRef.current = conversation
     setCurrent(conversation)
     await refreshConversations(conversation.id)
   }
 
   async function selectConversation(id: string): Promise<void> {
-    setCurrent(await window.titi.conversations.get(id))
+    const selected = await window.titi.conversations.get(id)
+    currentRef.current = selected
+    setCurrent(selected)
   }
 
   async function removeConversation(id: string): Promise<void> {
@@ -80,37 +103,44 @@ export function App(): React.JSX.Element {
     const remaining = await window.titi.conversations.list()
     setConversations(remaining)
     if (current?.id === id) {
-      setCurrent(remaining[0] ? await window.titi.conversations.get(remaining[0].id) : null)
+      const next = remaining[0] ? await window.titi.conversations.get(remaining[0].id) : null
+      currentRef.current = next
+      setCurrent(next)
     }
   }
 
   async function sendMessage(value = draft): Promise<void> {
     const content = value.trim()
-    if (!content || sending) return
+    if (!content || sendingRef.current) return
     setDraft('')
+    sendingRef.current = true
     setSending(true)
     setNotice(null)
     try {
       const response = await window.titi.conversations.send({
-        conversationId: current?.id,
+        conversationId: currentRef.current?.id,
         content
       })
+      currentRef.current = response.conversation
       setCurrent(response.conversation)
       setRuntime(response.runtime)
       await refreshConversations(response.conversation.id)
-      if (settings?.voice.enabled) {
-        await speakText(response.assistantMessage.content, settings.voice.speechRate)
-        if (settings.voice.liveMode) void beginListening(true)
+      const activeSettings = settingsRef.current
+      if (activeSettings?.voice.enabled) {
+        await speakText(response.assistantMessage.content, activeSettings.voice.speechRate)
+        if (activeSettings.voice.liveMode) void beginListening(true)
       }
     } catch (error) {
       setNotice(error instanceof Error ? error.message : 'Não foi possível enviar a mensagem.')
     } finally {
+      sendingRef.current = false
       setSending(false)
     }
   }
 
   async function saveSettings(patch: Partial<TitiSettings>): Promise<void> {
     const saved = await window.titi.settings.update(patch)
+    settingsRef.current = saved
     setSettings(saved)
   }
 
@@ -132,7 +162,7 @@ export function App(): React.JSX.Element {
   }
 
   async function beginListening(autoStop = false): Promise<void> {
-    if (!settings?.voice.enabled) {
+    if (!settingsRef.current?.voice.enabled) {
       setNotice('Ative os recursos de voz nas configurações.')
       return
     }

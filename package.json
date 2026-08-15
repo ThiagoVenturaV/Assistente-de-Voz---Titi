@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "electron-vite dev",
     "typecheck": "tsc --noEmit -p tsconfig.web.json && tsc --noEmit -p tsconfig.node.json",
-    "test": "vitest run",
+    "test": "vitest run src",
     "build": "pnpm typecheck && electron-vite build",
     "package:dir": "pnpm build && electron-builder --dir --win",
     "package:win": "pnpm build && electron-builder --win nsis"

@@ -6,6 +6,7 @@ import type {
 } from '../../shared/contracts'
 import { ConversationStore } from '../storage/conversation-store'
 import { SettingsStore } from '../storage/settings-store'
+import { DesktopToolkit } from '../tools/desktop-toolkit'
 import { OllamaProvider } from './ollama-provider'
 import type { AssistantProvider } from './provider'
 
@@ -16,7 +17,7 @@ export class AssistantHarness {
     private readonly settings: SettingsStore,
     private readonly conversations: ConversationStore
   ) {
-    this.provider = new OllamaProvider()
+    this.provider = new OllamaProvider(new DesktopToolkit())
   }
 
   async status(): Promise<RuntimeStatus> {

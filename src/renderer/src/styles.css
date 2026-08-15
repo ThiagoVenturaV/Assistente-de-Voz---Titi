@@ -306,11 +306,18 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .overlay-close { position: absolute; z-index: 5; width: 27px; height: 27px; right: 3px; top: 5px; display: none; place-items: center; padding: 0; color: #b1b7ae; background: rgba(27, 30, 27, .86); border: 1px solid var(--line-strong); border-radius: 50%; cursor: pointer; }
 .mascot-overlay:hover .overlay-close { display: grid; }
 .overlay-close svg { width: 13px; }
-.mascot-status { width: 100%; min-height: 57px; display: flex; align-items: center; gap: 9px; padding: 7px 10px; color: #dce1d9; background: rgba(25, 28, 25, .94); border: 1px solid rgba(255, 255, 255, .12); border-radius: 17px; box-shadow: 0 10px 25px rgba(0, 0, 0, .36), inset 0 1px rgba(255, 255, 255, .035); backdrop-filter: blur(12px); cursor: pointer; text-align: left; }
+.mascot-controls { width: 100%; display: flex; align-items: stretch; gap: 6px; }
+.mascot-status { min-width: 0; min-height: 57px; flex: 1; display: flex; align-items: center; gap: 8px; padding: 7px 9px; color: #dce1d9; background: rgba(25, 28, 25, .94); border: 1px solid rgba(255, 255, 255, .12); border-radius: 17px; box-shadow: 0 10px 25px rgba(0, 0, 0, .36), inset 0 1px rgba(255, 255, 255, .035); backdrop-filter: blur(12px); cursor: pointer; text-align: left; }
 .mascot-status > span:nth-child(2) { min-width: 0; flex: 1; display: grid; gap: 2px; }
 .mascot-status strong { font-size: 11px; font-weight: 600; }
 .mascot-status small { overflow: hidden; color: #939b91; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
 .mascot-status svg { width: 17px; color: var(--accent); }
+.mascot-live { width: 61px; min-height: 57px; display: grid; place-items: center; align-content: center; gap: 3px; padding: 6px; color: #aeb6ad; background: rgba(25, 28, 25, .94); border: 1px solid rgba(255, 255, 255, .12); border-radius: 17px; box-shadow: 0 10px 25px rgba(0, 0, 0, .36), inset 0 1px rgba(255, 255, 255, .035); backdrop-filter: blur(12px); cursor: pointer; }
+.mascot-live svg { width: 18px; color: var(--accent); }
+.mascot-live span { font-size: 8px; font-weight: 600; }
+.mascot-live:hover, .mascot-live.is-active { color: #102019; background: var(--accent); border-color: var(--accent); }
+.mascot-live:hover svg, .mascot-live.is-active svg { color: #102019; }
+.mascot-live:disabled { opacity: .52; cursor: default; }
 .status-pulse { width: 8px; height: 8px; flex: none; background: #858c83; border-radius: 50%; }
 .status-pulse--listening, .status-pulse--speaking { background: var(--accent); box-shadow: 0 0 0 4px rgba(112, 214, 189, .10), 0 0 9px rgba(112, 214, 189, .5); animation: status-pulse 1s infinite; }
 .status-pulse--thinking, .status-pulse--review { background: #ddbf70; }

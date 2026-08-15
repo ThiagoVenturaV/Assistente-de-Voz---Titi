@@ -23,11 +23,17 @@ Para o computador de teste de Thiago, manter a decisão local-first:
 
 ## Ferramentas do computador
 
-Adicionar uma camada segura de ferramentas, separada do provedor de IA:
+Camada segura inicial implementada no harness do Ollama:
 
-- abrir, focar e fechar aplicativos conhecidos;
-- pesquisar e navegar no Chrome ou Brave;
-- controlar reprodução e volume do Spotify;
+- abrir Chrome, Brave, Spotify, Codex App e Antigravity;
+- navegar ou pesquisar na web usando apenas HTTP/HTTPS;
+- pesquisar no Spotify e acionar controles de mídia do Windows;
+- devolver cada resultado da ferramenta ao modelo antes da resposta final;
+- limitar aplicativos, protocolos e comandos a uma lista permitida.
+
+Próximos incrementos:
+
+- focar e fechar aplicativos conhecidos com confirmação;
 - encaminhar tarefas de programação para o Codex App;
 - abrir e operar fluxos do Antigravity;
 - reconhecer processos de jogos e colocar o modelo local em standby;

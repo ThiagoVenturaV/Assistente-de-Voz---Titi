@@ -4,17 +4,37 @@ import type {
   TitiSettings
 } from '../../shared/contracts'
 import type { AssistantProvider } from './provider'
+import type { ToolExecutor } from '../tools/contracts'
 
 interface OllamaTagsResponse {
   models?: Array<{ name?: string; model?: string }>
 }
 
+interface OllamaToolCall {
+  type?: 'function'
+  function: {
+    index?: number
+    name: string
+    arguments?: unknown
+  }
+}
+
+interface OllamaMessage {
+  role: string
+  content?: string
+  thinking?: string
+  tool_calls?: OllamaToolCall[]
+  tool_name?: string
+}
+
 interface OllamaChatResponse {
-  message?: { content?: string }
+  message?: OllamaMessage
   error?: string
 }
 
 export class OllamaProvider implements AssistantProvider {
+  constructor(private readonly tools: ToolExecutor) {}
+
   async status(settings: TitiSettings): Promise<RuntimeStatus> {
     const endpoint = normalizeEndpoint(settings.provider.endpoint)
     try {
@@ -52,42 +72,46 @@ export class OllamaProvider implements AssistantProvider {
     settings: TitiSettings
   ): Promise<string> {
     const endpoint = normalizeEndpoint(settings.provider.endpoint)
-    const response = await fetchWithTimeout(
-      `${endpoint}/api/chat`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: settings.provider.model,
-          stream: false,
-          think: false,
-          keep_alive: '5m',
-          messages: [
-            {
-              role: 'system',
-              content: systemPrompt(settings.mascotName)
-            },
-            ...messages.map(({ role, content }) => ({ role, content }))
-          ],
-          options: {
-            temperature: 0.55,
-            num_ctx: 8192
-          }
+    const agentMessages: OllamaMessage[] = [
+      { role: 'system', content: systemPrompt(settings.mascotName) },
+      ...messages.map(({ role, content }) => ({ role, content }))
+    ]
+    const completedActions: string[] = []
+
+    for (let turn = 0; turn < 5; turn += 1) {
+      const payload = await requestChat(endpoint, settings, agentMessages, this.tools)
+      const message = payload.message
+      if (!message) throw new Error('O modelo local não retornou uma mensagem.')
+
+      const toolCalls = message.tool_calls ?? []
+      if (!toolCalls.length) {
+        const content = message.content?.trim()
+        if (content) return content
+        if (completedActions.length) return completedActions.join('\n')
+        throw new Error('O modelo local retornou uma resposta vazia.')
+      }
+
+      agentMessages.push({
+        role: 'assistant',
+        content: message.content ?? '',
+        ...(message.thinking ? { thinking: message.thinking } : {}),
+        tool_calls: toolCalls
+      })
+
+      for (const call of toolCalls) {
+        const result = await this.tools.execute(call.function.name, call.function.arguments)
+        completedActions.push(result.message)
+        agentMessages.push({
+          role: 'tool',
+          tool_name: call.function.name,
+          content: JSON.stringify(result)
         })
-      },
-      120_000
-    )
-
-    const payload = (await response.json()) as OllamaChatResponse
-    if (!response.ok || payload.error) {
-      throw new Error(payload.error ?? `Falha local: HTTP ${response.status}`)
+      }
     }
 
-    const content = payload.message?.content?.trim()
-    if (!content) {
-      throw new Error('O modelo local retornou uma resposta vazia.')
-    }
-    return content
+    return completedActions.length
+      ? completedActions.join('\n')
+      : 'Não consegui concluir a ação solicitada.'
   }
 }
 
@@ -95,9 +119,46 @@ function systemPrompt(mascotName: string): string {
   return [
     `Você é ${mascotName}, um assistente pessoal local para Windows.`,
     'Responda em português brasileiro, com clareza, simpatia e objetividade.',
-    'Nunca afirme que executou uma ação no computador sem receber a confirmação do harness.',
-    'Quando uma ação sensível for necessária, explique-a e aguarde confirmação.'
+    'Você possui ferramentas reais para abrir aplicativos, navegar na web, controlar mídia e consultar a hora.',
+    'Sempre chame a ferramenta adequada quando o usuário pedir uma ação no computador; não responda apenas com instruções.',
+    'Considere o resultado da ferramenta como a única fonte de verdade e nunca afirme que executou algo se ela falhar.',
+    'Só execute uma ferramenta quando a solicitação do usuário deixar a ação clara.',
+    'Ações sensíveis, destrutivas, compras, mensagens e operações fora das ferramentas disponíveis exigem confirmação e não devem ser improvisadas.'
   ].join(' ')
+}
+
+async function requestChat(
+  endpoint: string,
+  settings: TitiSettings,
+  messages: OllamaMessage[],
+  tools: ToolExecutor
+): Promise<OllamaChatResponse> {
+  const response = await fetchWithTimeout(
+    `${endpoint}/api/chat`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: settings.provider.model,
+        stream: false,
+        think: false,
+        keep_alive: '5m',
+        messages,
+        tools: tools.definitions,
+        options: {
+          temperature: 0.2,
+          num_ctx: 8192
+        }
+      })
+    },
+    120_000
+  )
+
+  const payload = (await response.json()) as OllamaChatResponse
+  if (!response.ok || payload.error) {
+    throw new Error(payload.error ?? `Falha local: HTTP ${response.status}`)
+  }
+  return payload
 }
 
 function normalizeEndpoint(endpoint: string): string {

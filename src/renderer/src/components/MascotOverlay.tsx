@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { MascotState, TitiSettings } from '../../../shared/contracts'
 import { TitiSprite } from './TitiSprite'
-import { CloseIcon, MessageIcon } from './icons'
+import { CloseIcon, LiveIcon, MessageIcon } from './icons'
 
 const stateLabels: Record<MascotState, string> = {
   idle: 'Pronto quando você estiver',
@@ -34,11 +34,23 @@ export function MascotOverlay(): React.JSX.Element {
           <TitiSprite state={state} size={148} label={name} />
         </button>
       </div>
-      <button className="mascot-status no-drag" onClick={() => window.titi.mascot.openApp()}>
-        <span className={`status-pulse status-pulse--${state}`} />
-        <span><strong>{name}</strong><small>{stateLabels[state]}</small></span>
-        <MessageIcon />
-      </button>
+      <div className="mascot-controls no-drag">
+        <button className="mascot-status" onClick={() => window.titi.mascot.openApp()}>
+          <span className={`status-pulse status-pulse--${state}`} />
+          <span><strong>{name}</strong><small>{stateLabels[state]}</small></span>
+          <MessageIcon />
+        </button>
+        <button
+          className={`mascot-live ${state === 'listening' ? 'is-active' : ''}`}
+          title="Iniciar conversa ao vivo"
+          aria-label="Iniciar conversa ao vivo"
+          disabled={state === 'thinking' || state === 'speaking'}
+          onClick={() => window.titi.voice.startLiveConversation()}
+        >
+          <LiveIcon />
+          <span>{state === 'listening' ? 'Ouvindo' : 'Ao vivo'}</span>
+        </button>
+      </div>
     </main>
   )
 }

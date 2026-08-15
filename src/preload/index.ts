@@ -33,7 +33,13 @@ const api: TitiDesktopApi = {
   },
   voice: {
     transcribe: (wavAudio: ArrayBuffer) =>
-      ipcRenderer.invoke('voice:transcribe', wavAudio)
+      ipcRenderer.invoke('voice:transcribe', wavAudio),
+    startLiveConversation: () => ipcRenderer.invoke('voice:start-live'),
+    onLiveConversationRequested: (callback) => {
+      const listener = (): void => callback()
+      ipcRenderer.on('voice:live-requested', listener)
+      return () => ipcRenderer.removeListener('voice:live-requested', listener)
+    }
   },
   mascot: {
     setState: (state: MascotState) =>

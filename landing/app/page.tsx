@@ -52,7 +52,7 @@ export default function Home() {
                 <div className="live-pill"><i /> AO VIVO</div>
                 <p className="user-bubble">Titi, abre o Spotify e coloca minha playlist de foco.</p>
                 <div className="titi-message"><img src="/titi-icon.png" alt="" /><p><b>Deixa comigo.</b><br />Abrindo o Spotify e preparando sua playlist.</p></div>
-                <div className="action-chip"><span>♪</span><div><small>VISÃO · EM DESENVOLVIMENTO</small><strong>Playlist Foco</strong></div><i>Pronto</i></div>
+                <div className="action-chip"><span>♪</span><div><small>FERRAMENTA LOCAL</small><strong>Playlist Foco</strong></div><i>Pronto</i></div>
                 <div className="composer">Converse com o Titi… <span>⌁ · ➤</span></div>
               </div>
             </div>
@@ -137,7 +137,7 @@ export default function Home() {
               <article><b>03</b><h3>Pede permissão</h3><p>Ações sensíveis só avançam com a sua confirmação explícita.</p></article>
             </div>
           </div>
-          <p className="roadmap-disclaimer">Controle de aplicativos está no roadmap e ainda não faz parte do beta 0.1.0.</p>
+          <p className="roadmap-disclaimer">Abertura de apps, navegação e mídia já funcionam; automações profundas continuam no roadmap.</p>
         </div>
       </section>
 
@@ -164,7 +164,7 @@ export default function Home() {
             <h2>Dê voz ao<br />seu computador.</h2>
             <p className="poster-lead">Converse por texto, teste os dois modos de voz e conheça o Titi no seu próprio PC.</p>
             <a className="download-button download-button--light" href={DOWNLOAD_URL}><span className="windows-glyph">⊞</span><span><strong>Baixar Titi Beta</strong><small>Windows 10/11 · x64 · aprox. 519 MB</small></span><b>↓</b></a>
-            <small className="checksum">SHA-256: <code>85D20AEB29A58D45…ECC3117DD3</code></small>
+            <small className="checksum">SHA-256: <code>88883E1FB890B814…EEF729A90203</code></small>
           </div>
           <div className="download-visual"><div className="poster-orbit poster-orbit--one" /><div className="poster-orbit poster-orbit--two" /><div className="titi-sprite titi-sprite--poster" role="img" aria-label="Mascote Titi" /><span>HELLO,<br />HUMAN.</span></div>
         </div>
@@ -177,7 +177,7 @@ export default function Home() {
         <div className="faq-list-new">
           <details><summary><span>01</span>Preciso instalar o Ollama antes?<i /></summary><p>Não. Se ele não estiver instalado, o Titi oferece uma preparação assistida usando o instalador oficial. Se o serviço estiver parado, tenta iniciá-lo automaticamente.</p></details>
           <details><summary><span>02</span>O modelo já vem no instalador?<i /></summary><p>Não. O modelo de conversa tem aproximadamente 6,6 GB e só é baixado após sua confirmação. A transcrição de voz local já acompanha o instalador.</p></details>
-          <details><summary><span>03</span>O beta já controla todos os aplicativos?<i /></summary><p>Ainda não. Chat, voz, configurações e mascote já funcionam. Controle de Chrome, Brave, Spotify, Codex e Antigravity está na próxima etapa.</p></details>
+          <details><summary><span>03</span>O beta já controla todos os aplicativos?<i /></summary><p>Ainda não todos. O Titi já abre Chrome, Brave, Spotify, Codex e Antigravity, navega na web e controla mídia. Automações mais profundas continuam em desenvolvimento.</p></details>
           <details><summary><span>04</span>Meus dados são enviados para a nuvem?<i /></summary><p>No modo atual, conversa, histórico e reconhecimento de voz são locais. Provedores online serão opcionais no futuro e claramente identificados.</p></details>
         </div>
       </section>

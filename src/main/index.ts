@@ -86,7 +86,8 @@ function createMainWindow(): BrowserWindow {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
       sandbox: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      backgroundThrottling: false
     }
   })
 
@@ -273,6 +274,15 @@ function registerIpcHandlers(): void {
       throw error
     }
   })
+  ipcMain.handle('voice:start-live', async () => {
+    const current = await settingsStore.get()
+    const settings = await settingsStore.update({
+      voice: { ...current.voice, enabled: true, liveMode: true }
+    })
+    broadcast('settings:changed', settings)
+    requestLiveConversationFromMainWindow()
+    return undefined
+  })
   ipcMain.handle('mascot:set-state', (_event, state: MascotState) => {
     setMascotState(state)
   })
@@ -312,6 +322,18 @@ function showMainWindow(): void {
   mainWindow?.show()
   if (mainWindow?.isMinimized()) mainWindow.restore()
   mainWindow?.focus()
+}
+
+function requestLiveConversationFromMainWindow(): void {
+  if (!mainWindow || mainWindow.isDestroyed()) createMainWindow()
+  if (!mainWindow) return
+  if (mainWindow.webContents.isLoading()) {
+    mainWindow.webContents.once('did-finish-load', () => {
+      mainWindow?.webContents.send('voice:live-requested')
+    })
+    return
+  }
+  mainWindow.webContents.send('voice:live-requested')
 }
 
 function syncMascotVisibility(settings: TitiSettings): void {
