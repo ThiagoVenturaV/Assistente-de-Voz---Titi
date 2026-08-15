@@ -1,0 +1,9 @@
+{
+  "status": "pass",
+  "source": "decoded/jumping.png",
+  "extraction": "components",
+  "registration": "qa/jumping-arc-registration.json",
+  "operation": "one shared scale of 0.92 with target bottoms 203, 195, 187, 195, 203",
+  "reason": "Image generation supplied the coherent five-pose artwork, while deterministic registration preserved normal pet scale and restored the intended planted, airborne, apex, airborne, planted vertical arc.",
+  "visual_qa": "Five frames preserve identity and compatible scale; frames 0 and 4 are planted, 1 and 3 are airborne, and 2 is the highest apex, with no clipping, effects, or incoherent jitter."
+}

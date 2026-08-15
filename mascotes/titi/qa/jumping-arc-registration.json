@@ -1,0 +1,94 @@
+{
+  "ok": true,
+  "operation": "shared-scale-deterministic-jump-arc",
+  "scale": 0.92,
+  "bottoms": [
+    203,
+    195,
+    187,
+    195,
+    203
+  ],
+  "frames": [
+    {
+      "frame": 0,
+      "source_bbox": [
+        16,
+        5,
+        176,
+        203
+      ],
+      "output_bbox": [
+        22,
+        21,
+        169,
+        203
+      ],
+      "target_bottom": 203
+    },
+    {
+      "frame": 1,
+      "source_bbox": [
+        20,
+        5,
+        171,
+        203
+      ],
+      "output_bbox": [
+        26,
+        13,
+        165,
+        195
+      ],
+      "target_bottom": 195
+    },
+    {
+      "frame": 2,
+      "source_bbox": [
+        22,
+        5,
+        169,
+        203
+      ],
+      "output_bbox": [
+        28,
+        5,
+        163,
+        187
+      ],
+      "target_bottom": 187
+    },
+    {
+      "frame": 3,
+      "source_bbox": [
+        22,
+        5,
+        170,
+        203
+      ],
+      "output_bbox": [
+        28,
+        13,
+        164,
+        195
+      ],
+      "target_bottom": 195
+    },
+    {
+      "frame": 4,
+      "source_bbox": [
+        17,
+        5,
+        175,
+        203
+      ],
+      "output_bbox": [
+        23,
+        21,
+        168,
+        203
+      ],
+      "target_bottom": 203
+    }
+  ]
+}

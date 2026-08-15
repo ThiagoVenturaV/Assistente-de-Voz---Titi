@@ -1,0 +1,14 @@
+{
+  "status": "fail",
+  "directions": [
+    { "direction": "180", "verdict": "pass" },
+    { "direction": "202.5", "verdict": "pass" },
+    { "direction": "225", "verdict": "pass" },
+    { "direction": "247.5", "verdict": "fail" },
+    { "direction": "270", "verdict": "pass" },
+    { "direction": "292.5", "verdict": "pass" },
+    { "direction": "315", "verdict": "pass" },
+    { "direction": "337.5", "verdict": "pass" }
+  ],
+  "note": "Rejected before packaging because direction 247.5 visibly reversed toward screen-right between the approved 225 and 270 poses. The entire coherent row was regenerated."
+}

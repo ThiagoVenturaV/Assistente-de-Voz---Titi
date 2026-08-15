@@ -1,0 +1,6 @@
+{
+  "status": "fail",
+  "semantics": "All directions and quadrants were correct, with no reversal.",
+  "failure": "Direction 157.5 became excessively crouched, compact, and low. The 135 to 157.5 to 180 boundary produced a severe visual pop in center, area, and posture.",
+  "required_repair": "Regenerate the entire row with the lower body, baseline, apparent area, and scale locked. Express down-right through eyes and restrained head motion instead of whole-body crouching."
+}

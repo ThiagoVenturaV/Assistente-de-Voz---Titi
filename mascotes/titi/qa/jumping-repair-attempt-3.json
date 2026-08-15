@@ -1,0 +1,5 @@
+{
+  "status": "fail",
+  "note": "The source again used an excessively tall shared vertical viewport. Stable-slot extraction preserved the arc but reduced all five poses, so the row still broke the pet's scale.",
+  "required_repair": "Use a compact 10% total vertical arc so stable-slot extraction can preserve both airborne spacing and the standard character scale."
+}

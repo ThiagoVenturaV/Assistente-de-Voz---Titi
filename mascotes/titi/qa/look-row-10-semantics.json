@@ -1,0 +1,15 @@
+{
+  "row": 10,
+  "status": "pass",
+  "directions": [
+    { "direction": "180", "verdict": "pass" },
+    { "direction": "202.5", "verdict": "pass" },
+    { "direction": "225", "verdict": "pass" },
+    { "direction": "247.5", "verdict": "pass" },
+    { "direction": "270", "verdict": "pass" },
+    { "direction": "292.5", "verdict": "pass" },
+    { "direction": "315", "verdict": "pass" },
+    { "direction": "337.5", "verdict": "pass" }
+  ],
+  "note": "The accepted third attempt forms a continuous screen-left arc from down to up. Direction 247.5 is unambiguously down-left between 225 and 270; identity, scale, baseline, and loop boundaries remain coherent."
+}

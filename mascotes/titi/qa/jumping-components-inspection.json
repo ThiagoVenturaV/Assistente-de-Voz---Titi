@@ -1,0 +1,97 @@
+{
+  "ok": true,
+  "frames_root": "C:\\Users\\thiag\\OneDrive\\Documentos\\ChatGPT\\assistente de voz do pc\\mascotes\\titi\\frames",
+  "states": [
+    "jumping"
+  ],
+  "errors": [],
+  "warnings": [],
+  "rows": [
+    {
+      "state": "jumping",
+      "expected_frames": 5,
+      "actual_frames": 5,
+      "extraction_method": "components",
+      "ok": true,
+      "errors": [],
+      "warnings": [],
+      "frames": [
+        {
+          "index": 0,
+          "file": "C:\\Users\\thiag\\OneDrive\\Documentos\\ChatGPT\\assistente de voz do pc\\mascotes\\titi\\frames\\jumping\\00.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 21081,
+          "bbox": [
+            16,
+            5,
+            176,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 194
+        },
+        {
+          "index": 1,
+          "file": "C:\\Users\\thiag\\OneDrive\\Documentos\\ChatGPT\\assistente de voz do pc\\mascotes\\titi\\frames\\jumping\\01.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 19526,
+          "bbox": [
+            20,
+            5,
+            171,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 232
+        },
+        {
+          "index": 2,
+          "file": "C:\\Users\\thiag\\OneDrive\\Documentos\\ChatGPT\\assistente de voz do pc\\mascotes\\titi\\frames\\jumping\\02.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 19118,
+          "bbox": [
+            22,
+            5,
+            169,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 245
+        },
+        {
+          "index": 3,
+          "file": "C:\\Users\\thiag\\OneDrive\\Documentos\\ChatGPT\\assistente de voz do pc\\mascotes\\titi\\frames\\jumping\\03.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 19194,
+          "bbox": [
+            22,
+            5,
+            170,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 221
+        },
+        {
+          "index": 4,
+          "file": "C:\\Users\\thiag\\OneDrive\\Documentos\\ChatGPT\\assistente de voz do pc\\mascotes\\titi\\frames\\jumping\\04.png",
+          "width": 192,
+          "height": 208,
+          "nontransparent_pixels": 20885,
+          "bbox": [
+            17,
+            5,
+            175,
+            203
+          ],
+          "edge_pixels": 0,
+          "chroma_adjacent_pixels": 249
+        }
+      ]
+    }
+  ]
+}

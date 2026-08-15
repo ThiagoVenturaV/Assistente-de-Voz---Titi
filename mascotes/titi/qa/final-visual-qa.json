@@ -1,0 +1,8 @@
+{
+  "visual_qa": "pass",
+  "qa_note": "The disconnected running-left artifact was eliminated. All nine standard states, the jumping arc, sixteen look directions, identity, scale, cropping, v2 layout, and transparency are approved.",
+  "direction_semantics": "000 up pass; 022.5 up-right pass; 045 up-right warning; 067.5 up-right warning; 090 right pass; 112.5 down-right warning; 135 down-right warning; 157.5 down-right pass; 180 down pass; 202.5 down-left pass; 225 down-left pass; 247.5 down-left pass; 270 left pass; 292.5 up-left pass; 315 up-left pass; 337.5 up-left pass",
+  "review_warnings": "Only subtle vertical readability in intermediate directions 045, 067.5, 112.5, and 135; labeled review confirms correct quadrants and progression.",
+  "repair_rows": [],
+  "repair_notes": "none"
+}

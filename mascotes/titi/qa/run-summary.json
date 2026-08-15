@@ -1,0 +1,20 @@
+{
+  "ok": true,
+  "completed_at": "2026-08-15T16:11:01.5232629Z",
+  "pet_id": "titi",
+  "sprite_version_number": 2,
+  "atlas": "C:\\Users\\thiag\\OneDrive\\Documentos\\ChatGPT\\assistente de voz do pc\\mascotes\\titi\\final\\spritesheet-extended.webp",
+  "package": "C:\\Users\\thiag\\OneDrive\\Documentos\\ChatGPT\\assistente de voz do pc\\mascotes\\titi\\package\\titi",
+  "contact_sheet": "C:\\Users\\thiag\\OneDrive\\Documentos\\ChatGPT\\assistente de voz do pc\\mascotes\\titi\\qa\\contact-sheet-extended.png",
+  "validation": "C:\\Users\\thiag\\OneDrive\\Documentos\\ChatGPT\\assistente de voz do pc\\mascotes\\titi\\final\\validation-extended.json",
+  "validation_ok": true,
+  "visual_qa": "pass",
+  "blind_direction_validation_ok": true,
+  "standard_states": 9,
+  "look_directions": 16,
+  "notes": [
+    "Jumping uses image-generated poses plus documented shared-scale deterministic arc registration.",
+    "Running-left is a complete framewise mirror of the approved running-right cells.",
+    "Intermediate vertical direction cues at 045, 067.5, 112.5, and 135 are subtle but retain correct labeled quadrants."
+  ]
+}

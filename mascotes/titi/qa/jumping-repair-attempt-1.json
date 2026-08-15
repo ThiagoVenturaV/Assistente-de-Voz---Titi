@@ -1,0 +1,5 @@
+{
+  "status": "fail",
+  "note": "The regenerated strip contained five coherent frames and no effects, but frames 1 and 3 remained on the baseline and frame 2 only tucked the legs instead of translating the whole body upward.",
+  "required_repair": "Regenerate the complete row with explicit vertical placement: takeoff and descent feet above baseline, apex body and feet much higher, start and landing planted."
+}

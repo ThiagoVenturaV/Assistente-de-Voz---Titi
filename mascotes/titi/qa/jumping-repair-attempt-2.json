@@ -1,0 +1,5 @@
+{
+  "status": "fail",
+  "note": "Stable-slot extraction preserved the correct planted-airborne-apex-airborne-planted arc, but the generated poses occupied only about half the cell width and became visibly smaller than the rest of the pet.",
+  "required_repair": "Regenerate the complete row with one shared larger scale while keeping a moderate vertical arc inside the cell bounds."
+}

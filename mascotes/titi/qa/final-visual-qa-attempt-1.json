@@ -1,0 +1,9 @@
+{
+  "visual_qa": "fail",
+  "repair_rows": ["jumping", "look-row-9"],
+  "note": "Identity, scale, transparency, cropping, and the other loops were coherent, but jumping lacked truly airborne frames and look-row-9 visibly reversed at 022.5 and 157.5.",
+  "repair_notes": {
+    "jumping": "Regenerate a five-frame arc with the full body and feet visibly off the baseline during lift, apex, and descent.",
+    "look-row-9": "Regenerate the complete row so 022.5 retains a subtle screen-right component after 000, 157.5 retains a subtle screen-right component before 180, and 135 advances smoothly."
+  }
+}

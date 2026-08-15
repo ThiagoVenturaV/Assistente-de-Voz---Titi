@@ -1,0 +1,15 @@
+{
+  "row": 9,
+  "status": "pass",
+  "directions": [
+    { "direction": "000", "verdict": "pass" },
+    { "direction": "022.5", "verdict": "pass" },
+    { "direction": "045", "verdict": "pass" },
+    { "direction": "067.5", "verdict": "pass" },
+    { "direction": "090", "verdict": "pass" },
+    { "direction": "112.5", "verdict": "pass" },
+    { "direction": "135", "verdict": "pass" },
+    { "direction": "157.5", "verdict": "pass" }
+  ],
+  "note": "The accepted second final repair preserves all eight direction semantics and locks the body upright at stable scale and baseline. Direction 157.5 stays down-right without crouching or shrinking; its transition to 180 has area ratio 1.01, center shift about 7.2 pixels, and no severe visual pop."
+}

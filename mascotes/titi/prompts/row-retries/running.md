@@ -1,0 +1,13 @@
+Create Codex pet row `running` for `titi`: exactly 6 full-body frames in one horizontal strip on flat pure magenta #FF00FF.
+
+Use the attached canonical base for identity and the layout guide only for spacing. Same pet in every frame: Original gender-neutral digital companion, a subtle animal-and-soft-robot hybrid: compact rounded body, slightly oversized head, two short expressive ears, large oval eyes, a simple visible mouth suitable for speech animation, tiny paws, and one flexible cable-like tail. Graphite and warm cream body with a restrained teal accent. Friendly, calm, capable, inclusive for all ages. No clothing, logos, text, weapons, floating effects, or separate props.. Preserve silhouette, face, palette, material, proportions, markings, and props.
+
+Keep apparent pet scale and baseline stable within the row unless the state itself intentionally changes vertical position, such as `jumping`.
+
+Action: Working loop: focused active-task processing, thinking, typing, scanning, or effortful concentration; not literal foot-running, jogging, sprinting, treadmill motion, raised knees, long steps, pumping arms, or directional travel.
+
+State requirements:
+- Show the pet actively working or processing, as if running a task: focused posture, busy hands or paws, purposeful bobbing, thinking motion, tool or prop motion only if already part of the pet identity, or other non-locomotion activity.
+- Do not show literal foot-running, jogging, sprinting, treadmill motion, raised knees, long steps, pumping arms, directional travel, speed lines, dust clouds, floor shadows, motion trails, or detached motion effects.
+
+One centered complete pose per invisible slot. No text, boxes, guide marks, scenery, shadows, glows, motion blur, speed lines, dust, detached effects, stray pixels, or #FF00FF colors in the pet.

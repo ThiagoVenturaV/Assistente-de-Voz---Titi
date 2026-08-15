@@ -1,0 +1,46 @@
+{
+  "ok": true,
+  "operation": "framewise-horizontal-mirror-preserving-order",
+  "frames": [
+    {
+      "frame": 0,
+      "source": "C:\\Users\\thiag\\OneDrive\\Documentos\\ChatGPT\\assistente de voz do pc\\mascotes\\titi\\frames\\running-right\\00.png",
+      "output": "C:\\Users\\thiag\\OneDrive\\Documentos\\ChatGPT\\assistente de voz do pc\\mascotes\\titi\\frames\\running-left\\00.png"
+    },
+    {
+      "frame": 1,
+      "source": "C:\\Users\\thiag\\OneDrive\\Documentos\\ChatGPT\\assistente de voz do pc\\mascotes\\titi\\frames\\running-right\\01.png",
+      "output": "C:\\Users\\thiag\\OneDrive\\Documentos\\ChatGPT\\assistente de voz do pc\\mascotes\\titi\\frames\\running-left\\01.png"
+    },
+    {
+      "frame": 2,
+      "source": "C:\\Users\\thiag\\OneDrive\\Documentos\\ChatGPT\\assistente de voz do pc\\mascotes\\titi\\frames\\running-right\\02.png",
+      "output": "C:\\Users\\thiag\\OneDrive\\Documentos\\ChatGPT\\assistente de voz do pc\\mascotes\\titi\\frames\\running-left\\02.png"
+    },
+    {
+      "frame": 3,
+      "source": "C:\\Users\\thiag\\OneDrive\\Documentos\\ChatGPT\\assistente de voz do pc\\mascotes\\titi\\frames\\running-right\\03.png",
+      "output": "C:\\Users\\thiag\\OneDrive\\Documentos\\ChatGPT\\assistente de voz do pc\\mascotes\\titi\\frames\\running-left\\03.png"
+    },
+    {
+      "frame": 4,
+      "source": "C:\\Users\\thiag\\OneDrive\\Documentos\\ChatGPT\\assistente de voz do pc\\mascotes\\titi\\frames\\running-right\\04.png",
+      "output": "C:\\Users\\thiag\\OneDrive\\Documentos\\ChatGPT\\assistente de voz do pc\\mascotes\\titi\\frames\\running-left\\04.png"
+    },
+    {
+      "frame": 5,
+      "source": "C:\\Users\\thiag\\OneDrive\\Documentos\\ChatGPT\\assistente de voz do pc\\mascotes\\titi\\frames\\running-right\\05.png",
+      "output": "C:\\Users\\thiag\\OneDrive\\Documentos\\ChatGPT\\assistente de voz do pc\\mascotes\\titi\\frames\\running-left\\05.png"
+    },
+    {
+      "frame": 6,
+      "source": "C:\\Users\\thiag\\OneDrive\\Documentos\\ChatGPT\\assistente de voz do pc\\mascotes\\titi\\frames\\running-right\\06.png",
+      "output": "C:\\Users\\thiag\\OneDrive\\Documentos\\ChatGPT\\assistente de voz do pc\\mascotes\\titi\\frames\\running-left\\06.png"
+    },
+    {
+      "frame": 7,
+      "source": "C:\\Users\\thiag\\OneDrive\\Documentos\\ChatGPT\\assistente de voz do pc\\mascotes\\titi\\frames\\running-right\\07.png",
+      "output": "C:\\Users\\thiag\\OneDrive\\Documentos\\ChatGPT\\assistente de voz do pc\\mascotes\\titi\\frames\\running-left\\07.png"
+    }
+  ]
+}

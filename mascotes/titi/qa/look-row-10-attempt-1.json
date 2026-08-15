@@ -1,0 +1,14 @@
+{
+  "status": "fail",
+  "directions": [
+    { "direction": "180", "verdict": "pass" },
+    { "direction": "202.5", "verdict": "fail" },
+    { "direction": "225", "verdict": "fail" },
+    { "direction": "247.5", "verdict": "fail" },
+    { "direction": "270", "verdict": "fail" },
+    { "direction": "292.5", "verdict": "fail" },
+    { "direction": "315", "verdict": "fail" },
+    { "direction": "337.5", "verdict": "fail" }
+  ],
+  "note": "Rejected before packaging because the generated strip repeated the visual right-hand arc instead of moving through the screen-left semicircle. A complete row regeneration was required."
+}

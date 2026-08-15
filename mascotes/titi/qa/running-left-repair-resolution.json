@@ -1,0 +1,7 @@
+{
+  "status": "pass",
+  "failure": "The earlier strip-derived frame 6 contained a disconnected vertical fragment near its left edge.",
+  "repair": "The complete eight-frame row was re-derived by mirroring the approved running-right cells framewise while preserving order.",
+  "derivation_manifest": "qa/running-left-frame-derivation.json",
+  "visual_qa": "The fragment is gone; all eight frames are clean and complete, with stable identity, scale, leftward orientation, and a coherent run loop."
+}
