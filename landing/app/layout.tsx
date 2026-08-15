@@ -19,7 +19,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const protocol = incoming.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
   const base = new URL(`${protocol}://${host}`);
   const title = "Titi — Seu PC agora escuta você";
-  const description = "Um assistente local para Windows que conversa por texto e voz, com privacidade e personalidade.";
+  const description = "Um assistente para Windows que conversa por texto e voz, ajuda nas tarefas e mantém você no controle.";
   return {
     metadataBase: base,
     title,

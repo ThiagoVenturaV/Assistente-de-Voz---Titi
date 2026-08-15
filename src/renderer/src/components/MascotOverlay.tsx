@@ -17,10 +17,22 @@ const stateLabels: Record<MascotState, string> = {
 export function MascotOverlay(): React.JSX.Element {
   const [state, setState] = useState<MascotState>('idle')
   const [settings, setSettings] = useState<TitiSettings | null>(null)
+  const [liveMode, setLiveMode] = useState(false)
 
   useEffect(() => {
-    void window.titi.settings.get().then(setSettings)
-    return window.titi.mascot.onStateChanged(setState)
+    void window.titi.settings.get().then((loaded) => {
+      setSettings(loaded)
+      setLiveMode(loaded.voice.liveMode)
+    })
+    const unsubscribeMascot = window.titi.mascot.onStateChanged(setState)
+    const unsubscribeLive = window.titi.voice.onLiveModeChanged((enabled) => {
+      setLiveMode(enabled)
+      void window.titi.settings.get().then(setSettings)
+    })
+    return () => {
+      unsubscribeMascot()
+      unsubscribeLive()
+    }
   }, [])
 
   const name = settings?.mascotName ?? 'Titi'
@@ -41,14 +53,14 @@ export function MascotOverlay(): React.JSX.Element {
           <MessageIcon />
         </button>
         <button
-          className={`mascot-live ${state === 'listening' ? 'is-active' : ''}`}
-          title="Iniciar conversa ao vivo"
-          aria-label="Iniciar conversa ao vivo"
-          disabled={state === 'thinking' || state === 'speaking'}
-          onClick={() => window.titi.voice.startLiveConversation()}
+          className={`mascot-live ${liveMode ? 'is-active' : ''}`}
+          title={liveMode ? 'Encerrar conversa ao vivo' : 'Iniciar conversa ao vivo'}
+          aria-label={liveMode ? 'Encerrar conversa ao vivo' : 'Iniciar conversa ao vivo'}
+          disabled={!settings}
+          onClick={() => window.titi.voice.setLiveMode(!liveMode)}
         >
           <LiveIcon />
-          <span>{state === 'listening' ? 'Ouvindo' : 'Ao vivo'}</span>
+          <span>{state === 'listening' ? 'Ouvindo' : liveMode ? 'Encerrar' : 'Ao vivo'}</span>
         </button>
       </div>
     </main>

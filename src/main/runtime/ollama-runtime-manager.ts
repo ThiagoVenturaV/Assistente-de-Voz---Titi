@@ -13,6 +13,8 @@ type StatusReader = () => Promise<RuntimeStatus>
 type ProgressReporter = (progress: RuntimeSetupProgress) => void
 
 export class OllamaRuntimeManager {
+  private startingEngine: Promise<boolean> | null = null
+
   constructor(
     private readonly settings: SettingsStore,
     private readonly readProviderStatus: StatusReader,
@@ -39,12 +41,23 @@ export class OllamaRuntimeManager {
   async ensureRunning(): Promise<boolean> {
     const current = await this.readProviderStatus()
     if (current.connected) return true
+    if (this.startingEngine) return this.startingEngine
     const executable = findOllamaExecutable()
     if (!executable) return false
-    this.report({ stage: 'starting-engine', message: 'Iniciando o mecanismo local…' })
+    this.startingEngine = this.startEngine(executable)
+    try {
+      return await this.startingEngine
+    } finally {
+      this.startingEngine = null
+    }
+  }
+
+  private async startEngine(executable: string): Promise<boolean> {
+    this.report({ stage: 'starting-engine', message: 'Preparando a inteligência do Titi em segundo plano…' })
     const child = spawn(executable, ['serve'], {
-      detached: true,
+      detached: false,
       windowsHide: true,
+      shell: false,
       stdio: 'ignore'
     })
     child.on('error', () => undefined)
@@ -207,7 +220,9 @@ function runProcess(
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     const child = spawn(executable, args, {
+      detached: false,
       windowsHide: true,
+      shell: false,
       stdio: ['ignore', 'pipe', 'pipe']
     })
     let errorOutput = ''

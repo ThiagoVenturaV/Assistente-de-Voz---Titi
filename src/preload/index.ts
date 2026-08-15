@@ -34,11 +34,11 @@ const api: TitiDesktopApi = {
   voice: {
     transcribe: (wavAudio: ArrayBuffer) =>
       ipcRenderer.invoke('voice:transcribe', wavAudio),
-    startLiveConversation: () => ipcRenderer.invoke('voice:start-live'),
-    onLiveConversationRequested: (callback) => {
-      const listener = (): void => callback()
-      ipcRenderer.on('voice:live-requested', listener)
-      return () => ipcRenderer.removeListener('voice:live-requested', listener)
+    setLiveMode: (enabled: boolean) => ipcRenderer.invoke('voice:set-live-mode', enabled),
+    onLiveModeChanged: (callback) => {
+      const listener = (_event: Electron.IpcRendererEvent, enabled: boolean): void => callback(enabled)
+      ipcRenderer.on('voice:live-mode-changed', listener)
+      return () => ipcRenderer.removeListener('voice:live-mode-changed', listener)
     }
   },
   mascot: {

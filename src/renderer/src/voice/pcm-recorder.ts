@@ -10,6 +10,8 @@ export class PcmRecorder {
   private lastSpeechAt = 0
   private heardSpeech = false
   private autoStopTriggered = false
+  private noiseFloor = 0.003
+  private calibrationEndsAt = 0
 
   constructor(private readonly onSilence?: (reason: 'silence' | 'timeout') => void) {}
 
@@ -28,6 +30,7 @@ export class PcmRecorder {
     this.context = new AudioContext()
     await this.context.resume()
     this.startedAt = performance.now()
+    this.calibrationEndsAt = this.startedAt + 350
     this.sampleRate = this.context.sampleRate
     this.source = this.context.createMediaStreamSource(this.stream)
     this.processor = this.context.createScriptProcessor(4096, 1, 1)
@@ -40,11 +43,18 @@ export class PcmRecorder {
 
       const now = performance.now()
       const volume = rootMeanSquare(samples)
-      if (volume >= 0.018) {
+      if (!this.heardSpeech && now < this.calibrationEndsAt) {
+        this.noiseFloor = smoothNoiseFloor(this.noiseFloor, volume)
+        return
+      }
+      const speechThreshold = Math.max(0.006, Math.min(0.03, this.noiseFloor * 2.8))
+      if (volume >= speechThreshold) {
         this.heardSpeech = true
         this.lastSpeechAt = now
+      } else if (!this.heardSpeech) {
+        this.noiseFloor = smoothNoiseFloor(this.noiseFloor, volume)
       }
-      const finishedUtterance = this.heardSpeech && now - this.lastSpeechAt >= 1150
+      const finishedUtterance = this.heardSpeech && now - this.lastSpeechAt >= 1650
       const waitedTooLong = !this.heardSpeech && now - this.startedAt >= 20_000
       if (finishedUtterance || waitedTooLong) {
         this.autoStopTriggered = true
@@ -90,7 +100,13 @@ export class PcmRecorder {
     this.lastSpeechAt = 0
     this.heardSpeech = false
     this.autoStopTriggered = false
+    this.noiseFloor = 0.003
+    this.calibrationEndsAt = 0
   }
+}
+
+function smoothNoiseFloor(current: number, sample: number): number {
+  return Math.max(0.001, current * 0.82 + sample * 0.18)
 }
 
 function rootMeanSquare(samples: Float32Array): number {

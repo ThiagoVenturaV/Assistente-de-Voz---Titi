@@ -47,3 +47,13 @@ No primeiro acesso, perguntar: **“Como você quer chamar seu mascote?”**
 - Salvar o nome no perfil local do usuário.
 - Reproduzir uma apresentação por voz, por exemplo: “Oi, eu sou Titi.”
 - Usar **Titi** como nome e mascote do perfil de desenvolvimento atual.
+
+## Última prioridade: voz de resposta mais natural
+
+Somente depois de todas as funções principais estarem estáveis e publicadas:
+
+- substituir a voz padrão do Windows por uma voz neural mais humana;
+- manter o processamento local sempre que o computador suportar;
+- permitir escolher entre algumas vozes e ajustar velocidade, emoção e entonação;
+- evitar que a geração de voz prejudique jogos ou tarefas mais pesadas;
+- manter a voz atual como alternativa leve e compatível com qualquer computador.

@@ -227,10 +227,14 @@ function registerIpcHandlers(): void {
   ipcMain.handle(
     'settings:update',
     async (_event, patch: Partial<TitiSettings>) => {
+      const previous = await settingsStore.get()
       const settings = await settingsStore.update(patch)
       app.setLoginItemSettings({ openAtLogin: settings.launchAtStartup })
       syncMascotVisibility(settings)
       broadcast('settings:changed', settings)
+      if (previous.voice.liveMode !== settings.voice.liveMode) {
+        notifyLiveModeChanged(settings.voice.liveMode)
+      }
       return settings
     }
   )
@@ -274,14 +278,14 @@ function registerIpcHandlers(): void {
       throw error
     }
   })
-  ipcMain.handle('voice:start-live', async () => {
+  ipcMain.handle('voice:set-live-mode', async (_event, enabled: boolean) => {
     const current = await settingsStore.get()
     const settings = await settingsStore.update({
-      voice: { ...current.voice, enabled: true, liveMode: true }
+      voice: { ...current.voice, enabled: enabled || current.voice.enabled, liveMode: enabled }
     })
     broadcast('settings:changed', settings)
-    requestLiveConversationFromMainWindow()
-    return undefined
+    notifyLiveModeChanged(enabled)
+    return settings
   })
   ipcMain.handle('mascot:set-state', (_event, state: MascotState) => {
     setMascotState(state)
@@ -324,16 +328,18 @@ function showMainWindow(): void {
   mainWindow?.focus()
 }
 
-function requestLiveConversationFromMainWindow(): void {
+function notifyLiveModeChanged(enabled: boolean): void {
   if (!mainWindow || mainWindow.isDestroyed()) createMainWindow()
-  if (!mainWindow) return
-  if (mainWindow.webContents.isLoading()) {
-    mainWindow.webContents.once('did-finish-load', () => {
-      mainWindow?.webContents.send('voice:live-requested')
-    })
-    return
+  for (const window of [mainWindow, mascotWindow]) {
+    if (!window || window.isDestroyed()) continue
+    if (window.webContents.isLoading()) {
+      window.webContents.once('did-finish-load', () => {
+        if (!window.isDestroyed()) window.webContents.send('voice:live-mode-changed', enabled)
+      })
+    } else {
+      window.webContents.send('voice:live-mode-changed', enabled)
+    }
   }
-  mainWindow.webContents.send('voice:live-requested')
 }
 
 function syncMascotVisibility(settings: TitiSettings): void {

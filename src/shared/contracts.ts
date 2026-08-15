@@ -104,8 +104,8 @@ export interface TitiDesktopApi {
   }
   voice: {
     transcribe(wavAudio: ArrayBuffer): Promise<VoiceTranscription>
-    startLiveConversation(): Promise<void>
-    onLiveConversationRequested(callback: () => void): () => void
+    setLiveMode(enabled: boolean): Promise<TitiSettings>
+    onLiveModeChanged(callback: (enabled: boolean) => void): () => void
   }
   mascot: {
     setState(state: MascotState): Promise<void>

@@ -24,6 +24,7 @@ export function App(): React.JSX.Element {
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
   const [listening, setListening] = useState(false)
+  const [voiceProcessing, setVoiceProcessing] = useState(false)
   const [mascotState, setMascotState] = useState<MascotState>('idle')
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
@@ -31,7 +32,9 @@ export function App(): React.JSX.Element {
   const [preparingRuntime, setPreparingRuntime] = useState(false)
   const recorder = useRef<PcmRecorder | null>(null)
   const recordingStarting = useRef(false)
+  const recordingGeneration = useRef(0)
   const stopRequested = useRef(false)
+  const liveRestartTimer = useRef<number | null>(null)
   const settingsRef = useRef<TitiSettings | null>(null)
   const currentRef = useRef<Conversation | null>(null)
   const sendingRef = useRef(false)
@@ -58,11 +61,13 @@ export function App(): React.JSX.Element {
     const unsubscribeRuntime = window.titi.runtime.onSetupProgress(
       (progress: RuntimeSetupProgress) => setNotice(progress.message)
     )
-    const unsubscribeLive = window.titi.voice.onLiveConversationRequested(() => {
+    const unsubscribeLive = window.titi.voice.onLiveModeChanged((enabled) => {
       void window.titi.settings.get().then((latestSettings) => {
         settingsRef.current = latestSettings
         setSettings(latestSettings)
-        void beginListening(true)
+        if (latestSettings.voice.liveMode !== enabled) return
+        if (enabled) scheduleLiveListening(100)
+        else stopLiveListening()
       })
     })
     return () => {
@@ -70,10 +75,23 @@ export function App(): React.JSX.Element {
       unsubscribe()
       unsubscribeRuntime()
       unsubscribeLive()
+      clearLiveRestart()
       recorder.current?.cancel()
       window.speechSynthesis?.cancel()
     }
   }, [])
+
+  useEffect(() => {
+    const shouldListen = settings?.onboardingComplete
+      && settings.voice.enabled
+      && settings.voice.liveMode
+      && !listening
+      && !sending
+      && !voiceProcessing
+    if (!shouldListen) return
+    scheduleLiveListening(60)
+    return clearLiveRestart
+  }, [settings?.onboardingComplete, settings?.voice.enabled, settings?.voice.liveMode, listening, sending, voiceProcessing])
 
   async function refreshConversations(selectedId?: string): Promise<void> {
     const summaries = await window.titi.conversations.list()
@@ -128,7 +146,6 @@ export function App(): React.JSX.Element {
       const activeSettings = settingsRef.current
       if (activeSettings?.voice.enabled) {
         await speakText(response.assistantMessage.content, activeSettings.voice.speechRate)
-        if (activeSettings.voice.liveMode) void beginListening(true)
       }
     } catch (error) {
       setNotice(error instanceof Error ? error.message : 'Não foi possível enviar a mensagem.')
@@ -167,6 +184,7 @@ export function App(): React.JSX.Element {
       return
     }
     if (recorder.current || recordingStarting.current) return
+    clearLiveRestart()
     const nextRecorder = new PcmRecorder(
       autoStop
         ? (reason) => reason === 'silence'
@@ -174,6 +192,7 @@ export function App(): React.JSX.Element {
           : cancelSilentListening()
         : undefined
     )
+    const generation = ++recordingGeneration.current
     recorder.current = nextRecorder
     recordingStarting.current = true
     stopRequested.current = false
@@ -181,16 +200,22 @@ export function App(): React.JSX.Element {
     window.speechSynthesis?.cancel()
     try {
       await nextRecorder.start()
+      if (generation !== recordingGeneration.current || recorder.current !== nextRecorder) {
+        nextRecorder.cancel()
+        return
+      }
       recordingStarting.current = false
       setListening(true)
       void window.titi.mascot.setState('listening')
       if (stopRequested.current) await finishListening()
     } catch (error) {
+      if (generation !== recordingGeneration.current) return
       recordingStarting.current = false
       recorder.current = null
       setListening(false)
       setNotice(error instanceof Error ? error.message : 'Não consegui acessar o microfone.')
       void window.titi.mascot.setState('error')
+      if (settingsRef.current?.voice.liveMode) void window.titi.voice.setLiveMode(false)
     }
   }
 
@@ -198,6 +223,7 @@ export function App(): React.JSX.Element {
     const currentRecorder = recorder.current
     if (!currentRecorder) return
     recorder.current = null
+    setVoiceProcessing(true)
     setListening(false)
     setNotice('Transcrevendo sua fala localmente…')
     void window.titi.mascot.setState('thinking')
@@ -210,6 +236,9 @@ export function App(): React.JSX.Element {
     } catch (error) {
       setNotice(error instanceof Error ? error.message : 'Não consegui transcrever a gravação.')
       void window.titi.mascot.setState('error')
+      if (settingsRef.current?.voice.liveMode) void window.titi.voice.setLiveMode(false)
+    } finally {
+      setVoiceProcessing(false)
     }
   }
 
@@ -225,23 +254,53 @@ export function App(): React.JSX.Element {
     recorder.current?.cancel()
     recorder.current = null
     setListening(false)
-    setNotice('Não ouvi nenhuma fala. Toque no modo ao vivo para tentar novamente.')
     void window.titi.mascot.setState('idle')
+    if (settingsRef.current?.voice.liveMode) {
+      setNotice('Continuo ouvindo. Fale quando quiser.')
+    } else {
+      setNotice('Não ouvi nenhuma fala. Toque no modo ao vivo para tentar novamente.')
+    }
   }
 
   async function toggleLiveMode(): Promise<void> {
     if (!settings) return
     const liveMode = !settings.voice.liveMode
-    await saveSettings({ voice: { ...settings.voice, liveMode } })
-    setNotice(liveMode ? 'Modo ao vivo ativado. Fale quando o Titi começar a ouvir.' : null)
-    if (liveMode) {
-      void beginListening(true)
-    } else if (recorder.current) {
-      recorder.current.cancel()
-      recorder.current = null
-      setListening(false)
-      void window.titi.mascot.setState('idle')
+    try {
+      const saved = await window.titi.voice.setLiveMode(liveMode)
+      settingsRef.current = saved
+      setSettings(saved)
+      setNotice(liveMode ? 'Modo ao vivo ativado. Fale quando o Titi começar a ouvir.' : null)
+      if (liveMode) scheduleLiveListening(0)
+      else stopLiveListening()
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : 'Não consegui alterar o modo ao vivo.')
     }
+  }
+
+  function scheduleLiveListening(delay = 250): void {
+    clearLiveRestart()
+    liveRestartTimer.current = window.setTimeout(() => {
+      liveRestartTimer.current = null
+      if (!settingsRef.current?.voice.liveMode || sendingRef.current || recorder.current) return
+      void beginListening(true)
+    }, delay)
+  }
+
+  function clearLiveRestart(): void {
+    if (liveRestartTimer.current === null) return
+    window.clearTimeout(liveRestartTimer.current)
+    liveRestartTimer.current = null
+  }
+
+  function stopLiveListening(): void {
+    clearLiveRestart()
+    recordingGeneration.current += 1
+    recorder.current?.cancel()
+    recorder.current = null
+    recordingStarting.current = false
+    stopRequested.current = false
+    setListening(false)
+    if (!sendingRef.current) void window.titi.mascot.setState('idle')
   }
 
   if (!settings) {
@@ -347,6 +406,18 @@ function speakText(content: string, rate: number): Promise<void> {
 
   return new Promise((resolve) => {
     const utterance = new SpeechSynthesisUtterance(text)
+    let settled = false
+    const finish = (): void => {
+      if (settled) return
+      settled = true
+      window.clearTimeout(timeout)
+      void window.titi.mascot.setState('idle')
+      resolve()
+    }
+    const timeout = window.setTimeout(() => {
+      window.speechSynthesis.cancel()
+      finish()
+    }, Math.max(8_000, Math.min(90_000, text.length * 90)))
     utterance.lang = 'pt-BR'
     utterance.rate = rate
     const voices = window.speechSynthesis.getVoices()
@@ -354,14 +425,8 @@ function speakText(content: string, rate: number): Promise<void> {
       ?? voices.find((voice) => voice.lang.toLowerCase().startsWith('pt'))
       ?? null
     utterance.onstart = () => void window.titi.mascot.setState('speaking')
-    utterance.onend = () => {
-      void window.titi.mascot.setState('idle')
-      resolve()
-    }
-    utterance.onerror = () => {
-      void window.titi.mascot.setState('idle')
-      resolve()
-    }
+    utterance.onend = finish
+    utterance.onerror = finish
     window.speechSynthesis.speak(utterance)
   })
 }
