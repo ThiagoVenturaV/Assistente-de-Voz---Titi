@@ -1,414 +1,413 @@
 # Plano de marketing e lançamento do Titi
 
-Atualizado em 15/08/2026. Este plano usa o `README.md`, o `BACKLOG.md`, o `QA_PLAN.md`, as notas da versão e a landing page como referências. A regra central é simples: divulgar apenas o que uma pessoa consegue usar no instalador publicado.
+Atualizado em 15/08/2026 para o estado público da `v0.2.0-beta.1`. Este documento governa aquisição, mensagem, feedback e promoção. O princípio central é: **nenhuma campanha pode avançar mais rápido que a evidência do produto instalado**.
 
-## Resumo executivo
+## Decisão executiva
 
-O Titi deve ocupar um espaço próprio: **um companheiro de voz para Windows, com personalidade, que começa local e mantém a pessoa no controle**. O mascote é o elemento memorável; voz, privacidade e clareza são os pilares de confiança.
+A `v0.2.0-beta.1` está publicada como pré-release, com código, instalador, hash e landing acessíveis. Ela comprovou em ambiente empacotado a interface, as confirmações e a abertura de alguns aplicativos. Depois da publicação, a auditoria encontrou P0 que exigem uma **beta corretiva** antes de qualquer promoção ampla:
 
-A versão 0.1.1 já permite apresentar e testar:
+- um recurso interno de QA permaneceu no pacote de produção e pode acionar aprovações quando uma variável de ambiente específica é usada;
+- a versão publicada não bloqueia credenciais embutidas em URLs nem redige suficientemente URLs e pesquisas no histórico local de ações;
+- o instalador continua sem assinatura pública;
+- o instalador NSIS e o fluxo completo de voz ainda não foram validados do começo ao fim na máquina real com os dados preservados.
 
-- conversa por texto;
-- apertar para falar e conversa ao vivo em beta;
-- transcrição e resposta falada no próprio computador;
-- mascote flutuante com nome escolhido pela pessoa;
-- histórico e configurações locais;
-- preparação guiada da inteligência local;
-- abertura de alguns aplicativos compatíveis, navegação e controles de música.
+Não há evidência conhecida de exploração ou perda de dados. Ainda assim, esses itens contradizem pilares da marca — consentimento, transparência e confiança — e devem ser tratados publicamente como motivo de uma corretiva, não escondidos como “melhorias internas”.
 
-A comunicação atual não deve dizer que o Titi já controla qualquer aplicativo, trabalha sozinho em editores, delega tarefas completas a agentes, reduz o consumo ao abrir jogos, oferece várias inteligências ou tem atualização automática. Esses pontos pertencem à visão futura.
+### Estado de comunicação
 
-Até os bloqueios críticos do `QA_PLAN.md` serem resolvidos, a campanha recomendada é de **prévia beta para testadores**, com alcance controlado. Um lançamento amplo deve esperar, principalmente, os controles reais de privacidade e confirmação, a validação do instalador, os testes da conversa ao vivo e uma forma confiável de atualizar.
+- **Agora:** manutenção transparente; não iniciar campanha, anúncio patrocinado, Product Hunt, imprensa, influenciadores ou postagem de aquisição em comunidades.
+- **Beta atual:** disponível como registro público de pré-release, mas não recomendada ativamente para novos usuários enquanto a corretiva é preparada.
+- **Próxima beta corretiva:** distribuição primeiro para teste privado e depois para pequenos grupos, somente após os gates deste plano.
+- **Promoção ampla:** bloqueada enquanto hook de QA, URL/redação, assinatura e voz permanecerem abertos.
 
-## Posicionamento
+Se surgir evidência de execução sem consentimento, exposição de credenciais ou perda de dados, retirar imediatamente o link principal de download e publicar orientação objetiva. Não minimizar o problema nem usar linguagem alarmista sem evidência.
 
-### Frase de posicionamento
+## Estado real do produto
 
-> Para quem usa Windows e quer uma forma mais natural de interagir com o computador, Titi é um companheiro de voz com mascote que conversa por texto ou fala e deixa claro o que está acontecendo. Diferente de um assistente invisível e distante, ele começa local, permanece visível e cresce com a pessoa no controle.
+### O que a beta pública já comprovou
 
-### Promessa central do beta atual
+- aplicativo gráfico para Windows com onboarding, chat, configurações e mascote flutuante;
+- conversa local por texto usando Ollama e modelo separado;
+- pacote com Whisper local, mascote e interface;
+- confirmação visual antes de abrir aplicativos;
+- abertura empacotada de Brave, Spotify, ChatGPT/Codex e Antigravity na máquina de desenvolvimento;
+- descoberta local de aplicativos em fontes confiáveis do Windows;
+- histórico, memória explícita e painel local de atividade implementados e cobertos por testes automatizados;
+- release público com hash, notas, manifesto e link correto na landing.
 
-**Converse com seu computador por texto ou voz, acompanhado por um mascote que mostra quando está ouvindo, pensando e falando.**
+### O que ainda não pode ser prometido
 
-### Visão futura
+- instalação real validada em diferentes PCs ou atualização por cima de uma versão anterior;
+- voz ao vivo confiável em uso prolongado, diferentes microfones e interrupção em todas as etapas;
+- ausência de qualquer janela de terminal em todos os fluxos do instalador e do Ollama;
+- privacidade “total”, segurança absoluta ou conteúdo sempre protegido;
+- abrir literalmente qualquer aplicativo ou resolver ambiguidades sem escolha da pessoa;
+- clicar, digitar, editar ou operar a interface interna de aplicativos;
+- delegar e acompanhar trabalhos completos no Codex ou Antigravity;
+- controlar uma sessão de música específica em vez das teclas globais do Windows;
+- standby de jogos comprovado em jogos reais, múltiplos monitores e diferentes modos de tela;
+- atualização automática, rollback, múltiplos provedores ou OAuth;
+- uso como tecnologia assistiva ou substituição de teclado e mouse.
 
-**Use sua voz para trabalhar com os aplicativos do seu computador, com confirmações claras e liberdade para escolher como a inteligência funciona.**
+## Auditoria da comunicação atual
 
-### Território da marca
+### README
 
-- **Humano, não infantil:** fofo e acolhedor, mas útil para estudo, criação, trabalho e lazer.
-- **Próximo, não invasivo:** o mascote está disponível, mas pode ser ocultado.
-- **Claro, não mágico:** explica o que entendeu, o que consegue fazer e quando algo falhou.
-- **Local primeiro:** valoriza o que pode permanecer no computador e avisa quando a internet é necessária.
-- **Em evolução:** assume a condição de beta e convida a pessoa a ajudar sem tratá-la como equipe de suporte gratuita.
+O README está tecnicamente detalhado e reconhece limites importantes, mas ainda descreve `0.2.0-beta.1` como “candidato interno” que não substituiu a beta pública. Isso ficou desatualizado depois da publicação. Na próxima corretiva, deve distinguir claramente:
 
-### Assinaturas recomendadas
+1. versão pública atual sob correção;
+2. versão corretiva recomendada;
+3. recursos comprovados no instalador;
+4. limites e riscos conhecidos;
+5. como atualizar, voltar ou relatar um problema sem dados pessoais.
 
-Para o beta atual:
+### Notas da `v0.2.0-beta.1`
 
-- **Seu PC agora escuta você.**
-- **Converse com seu computador. Conheça o Titi.**
-- **Um mascote para conversar com seu PC.**
+As notas acertam ao informar que a versão é beta, que o instalador não é assinado e que automação interna, voz neural e jogos ainda têm limites. Porém, algumas frases são mais fortes que a evidência:
 
-Para usar apenas depois que a automação ampla estiver pronta:
+- “o instalador pode ser executado normalmente” ainda não foi comprovado pelo instalador real;
+- “configurações e conversas são reutilizadas” é esperado pelo código, mas ainda precisa de smoke instalado;
+- “toda abertura pede confirmação” precisa ser contextualizado porque o hook de QA encontrado no pacote viola esse princípio em uma condição específica;
+- “histórico redigido” não deve sugerir que URLs, parâmetros e pesquisas já têm redação completa;
+- “standby ao detectar um jogo” deve continuar identificado como experimental.
 
-- **Sua voz. Seus aplicativos. Seu controle.**
-- **Fale. Acompanhe. Faça.**
+A corretiva deve ter uma seção explícita **Por que esta atualização é importante**, descrevendo consentimento, URLs e validação de voz em linguagem simples.
 
-Evitar por enquanto:
+### Landing page
 
-- “Controle todo o PC por voz.”
-- “Funciona com qualquer aplicativo.”
-- “Automatiza qualquer tarefa.”
-- “Privacidade total” ou “100% seguro.”
-- “Não precisa instalar nada.”
-- “Tudo funciona sem internet.”
-- “Perfeito para jogos.”
+A landing está visualmente forte, aponta para o release correto e separa parte da visão futura. Entretanto, enquanto a corretiva não estiver aprovada, os seguintes trechos não devem ser usados em anúncios ou capturas promocionais:
 
-## Públicos
+- “Um agente. Todo o seu PC.”;
+- “Nada acontece escondido.”;
+- “Seus dados ficam com você”, quando usado como garantia absoluta;
+- selos “PROTEGIDOS” e “TUDO PRONTO”;
+- a demonstração que mostra “Aplicativo aberto” sem representar claramente a confirmação;
+- a conversa ao vivo descrita como experiência contínua sem mencionar que está em teste;
+- editor, agente de código, jogos e outros aplicativos apresentados de modo que pareçam automação já entregue.
 
-### Público inicial: pessoas curiosas por IA local
+Recomendação para a próxima revisão do site, sem alterar o site nesta tarefa:
 
-Quem são: usuários de Windows que gostam de testar novidades, aceitam instalar uma versão beta e têm um computador com boa memória.
+- inserir aviso visível de beta para testadores e de instalador não assinado;
+- durante a janela corretiva, informar que uma atualização está sendo preparada e evitar CTA de campanha;
+- trocar absolutos por “processado localmente por padrão”, “algumas ações compatíveis” e “confirmação antes das ações suportadas”;
+- deixar “todo o PC”, edição interna, jogos e delegação numa seção inequivocamente chamada **Visão futura**;
+- mostrar o modal de confirmação antes do resultado de abertura;
+- acrescentar limites conhecidos perto do primeiro botão de download, não apenas no GitHub.
 
-O que valorizam: processamento local, transparência, código público, possibilidade de acompanhar a evolução e um produto brasileiro com identidade própria.
+## Posicionamento honesto
 
-Mensagem: **“Teste uma nova forma de conversar com o seu PC, com voz local e um mascote que mostra cada estado.”**
+### Categoria
 
-Convite: baixar, fazer uma conversa curta por texto e voz e relatar como foi a primeira configuração.
+**Companheiro local em beta para conversar com o Windows e testar ações simples com confirmação.**
 
-### Público seguinte: criadores, estudantes e profissionais multitarefa
+### Promessa apropriada para a corretiva
 
-Quem são: pessoas que alternam entre navegador, música, ferramentas de criação e trabalho.
+> Converse por texto ou voz com um mascote no Windows e teste ações compatíveis, acompanhando e confirmando o que acontece.
 
-O que valorizam: começar tarefas sem tirar a mão do que estão fazendo, encontrar um comando simples e manter o histórico no computador.
+### Diferencial
 
-Mensagem atual: **“Fale ou digite para conversar e abrir alguns dos aplicativos mais usados.”**
+O Titi não deve ser vendido como automação universal. Seu diferencial atual é combinar:
 
-Mensagem futura, depois do catálogo de aplicativos e das confirmações: **“Peça do seu jeito e acompanhe cada ação antes de ela acontecer.”**
+- presença visual por meio do mascote;
+- conversa local;
+- voz e texto na mesma experiência;
+- ações pequenas e observáveis;
+- desenvolvimento aberto, com limites documentados.
 
-### Público futuro: desenvolvedores e usuários de agentes
+### Visão, sempre rotulada como futura
 
-Entrar neste segmento apenas quando o Titi puder enviar uma tarefa, mostrar o projeto e o contexto, acompanhar o andamento e trazer o resultado. Abrir um agente de código não é o mesmo que delegar uma tarefa.
+> A visão do Titi é conectar sua voz aos aplicativos do computador, aprender procedimentos seguros e delegar trabalhos, sem transformar o modelo em um terminal irrestrito.
 
-### Público futuro: jogadores
+### Linguagem permitida
 
-Entrar neste segmento apenas depois do modo de espera real liberar recursos e ser testado em jogos e tela cheia. O estado visual “em espera” não sustenta uma promessa de desempenho.
+- “beta para Windows”;
+- “conversa local por texto”;
+- “voz local em teste”;
+- “abre alguns aplicativos compatíveis após confirmação”;
+- “histórico e memória armazenados localmente quando ativados”;
+- “modelo adicional de aproximadamente 6,6 GB”;
+- “código e limites publicados no GitHub”;
+- “uma corretiva está sendo preparada para reforçar consentimento e segurança”.
 
-### Acessibilidade
+### Linguagem proibida até novos gates
 
-A voz pode ser útil para pessoas com diferentes necessidades, mas o Titi não deve ser promovido como tecnologia assistiva até passar por teclado, leitor de tela, contraste, redução de movimento, legendas e testes com usuários. Por enquanto, dizer apenas que texto e voz oferecem duas formas de conversar.
+- “controle todo o PC por voz”;
+- “funciona com qualquer aplicativo”;
+- “automatiza qualquer tarefa”;
+- “trabalha sozinho no Codex/Antigravity”;
+- “não acontece nada escondido”;
+- “privacidade total”, “100% seguro” ou “dados protegidos” como absoluto;
+- “modo ao vivo perfeito” ou “conversa sem interrupções”;
+- “feito para jogos” ou promessa de FPS/VRAM;
+- “atualização automática”;
+- “instalador confiável/sem alertas” enquanto não houver assinatura.
 
-## Arquitetura da mensagem
+## Mensagens prontas
 
-Toda peça deve responder, nesta ordem:
+### Comunicado durante a preparação da corretiva
 
-1. **O que é?** Um assistente de voz para Windows com um mascote animado.
-2. **O que faz hoje?** Conversa por texto e voz, fala respostas, guarda o histórico localmente e abre alguns aplicativos compatíveis.
-3. **Por que é diferente?** A experiência é visível, amigável e começa no próprio computador.
-4. **Qual é o limite?** É beta; a compatibilidade e as ações avançadas ainda estão crescendo.
-5. **O que fazer agora?** Baixar, testar um roteiro curto e enviar uma impressão sem dados pessoais.
+> A beta `v0.2.0-beta.1` do Titi está pública para transparência, mas não estamos recomendando novos downloads enquanto preparamos uma beta corretiva. A revisão encontrou pontos de consentimento, tratamento de URLs e validação de voz que precisam ser corrigidos e testados no instalador real. Não há evidência conhecida de exploração. Publicaremos a nova versão, os testes realizados e um novo hash assim que ela passar pelos gates.
 
-### Mensagem curta, pronta para perfil
+### Descrição curta depois da corretiva aprovada
 
-> Titi é um assistente beta para Windows com conversa por texto, voz local e um mascote animado. Baixe, teste e ajude a construir uma forma mais natural de usar o computador.
+> Titi é um companheiro local em beta para Windows. Converse por texto ou voz, acompanhe o mascote e confirme ações compatíveis no seu computador. Ainda é uma versão para testadores, com limites publicados abertamente.
 
-### Descrição média, pronta para publicação
+### Texto de anúncio da corretiva
 
-> Conheça o Titi, um companheiro de voz para Windows. Você pode conversar por texto, apertar para falar ou testar o modo ao vivo enquanto o mascote mostra quando está ouvindo, pensando e respondendo. A inteligência e o histórico podem funcionar no próprio computador. Esta é uma prévia beta: alguns aplicativos e comandos já são compatíveis, e as ações mais avançadas ainda estão em desenvolvimento.
+> A nova beta corretiva do Titi reforça o consentimento das ações, bloqueia URLs com credenciais, melhora a proteção dos registros locais e remove recursos internos de QA do aplicativo distribuído. Também foi instalada e testada com microfone real antes da publicação. Confira os limites conhecidos e o hash no GitHub.
 
-### Apresentação de 20 segundos
+### Resposta a “ele controla qualquer aplicativo?”
 
-> “Este é o Titi. Ele é um mascote que vive no Windows e conversa com você por texto ou voz. Hoje já dá para testar a conversa local, os modos de voz e algumas ações simples. A ideia é fazer essa experiência crescer até ajudar em diferentes aplicativos, sempre mostrando o que vai acontecer antes.”
+> Ainda não. O Titi encontra e abre alguns aplicativos pelas fontes seguras do Windows. Operar botões, editar conteúdo e delegar tarefas completas continuam no roadmap.
 
-## O que pode ser anunciado
+### Resposta a “é totalmente privado?”
 
-| Tema | Beta 0.1.1 — pode dizer | Visão futura — não apresentar como entregue |
+> A conversa, a transcrição, a memória e o histórico foram projetados para funcionar localmente. Downloads, páginas e pesquisas usam internet quando solicitados. Como é beta, publicamos os limites e só faremos uma promessa mais ampla depois dos testes de privacidade no aplicativo instalado.
+
+## Estratégia de aquisição e feedback
+
+### Fase 0 — contenção e transparência
+
+Enquanto os P0 estiverem abertos:
+
+- pausar divulgação e vídeos de aquisição;
+- não comprar mídia nem contatar imprensa ou creators;
+- manter issue tracker e notas públicas;
+- publicar aviso corretivo se houver tráfego ou downloads novos;
+- convidar apenas pessoas necessárias para validar a correção, com mensagem individual e risco explicado;
+- responder relatos críticos em até 24 horas.
+
+### Fase 1 — validação privada da corretiva
+
+Público: 3 a 5 pessoas próximas, em PCs Windows diferentes.
+
+Objetivo: provar instalação, voz, privacidade e consentimento, não gerar alcance.
+
+Roteiro mínimo:
+
+1. baixar o mesmo arquivo que será publicado;
+2. instalar e reiniciar;
+3. conversar por texto;
+4. fazer aperte-para-falar e três turnos ao vivo;
+5. negar e aprovar uma abertura de aplicativo;
+6. desligar histórico e verificar a sessão após reiniciar;
+7. relatar qualquer terminal, aviso, travamento ou ação inesperada.
+
+Saída: zero P0 e todos os problemas reproduzíveis registrados sem conteúdo pessoal.
+
+### Fase 2 — beta convidada
+
+Público: até 10 testadores de IA local, Windows e software independente.
+
+Canais:
+
+- contatos pessoais;
+- seguidores do GitHub;
+- pequenos grupos brasileiros de IA local e Windows;
+- formulário de interesse com requisitos claros.
+
+Mensagem: “Ajude a validar uma beta local; não é automação completa.”
+
+Avançar somente se pelo menos oito instalações forem concluídas, seis testes de voz passarem e não houver ação sem consentimento, perda de dados ou terminal visível.
+
+### Fase 3 — comunidades pequenas
+
+Público: 25 a 50 testadores voluntários.
+
+Conteúdo permitido:
+
+- mascote e conversa por texto;
+- demonstração real do modal e de uma abertura compatível;
+- bastidores da corretiva e o que foi aprendido;
+- explicação local versus internet;
+- convite para feedback estruturado.
+
+Ainda não usar Product Hunt, campanha paga ou narrativa de “controle do PC”.
+
+### Fase 4 — promoção ampla
+
+Somente depois dos critérios de promoção deste documento. Canais possíveis:
+
+- YouTube Shorts, TikTok e Reels com gravação sem cortes enganosos;
+- comunidades brasileiras de tecnologia e produtividade;
+- Product Hunt;
+- imprensa e creators de IA local;
+- página de casos de uso reais.
+
+Cada vídeo informa a versão demonstrada e diferencia recurso atual de visão futura.
+
+## Feedback seguro
+
+### Perguntas prioritárias
+
+1. Você conseguiu instalar e abrir? Em qual etapa parou?
+2. Algum terminal ou aviso inesperado apareceu?
+3. Texto, aperte-para-falar e modo ao vivo funcionaram separadamente?
+4. Ao desligar a voz, ela parou imediatamente?
+5. A confirmação mostrou claramente qual aplicativo ou site seria aberto?
+6. O resultado dito pelo Titi correspondeu ao que aconteceu?
+7. Você encontrou algum dado que esperava não estar salvo?
+8. Qual ação simples você gostaria de testar depois?
+
+Aviso obrigatório antes do envio:
+
+> Não envie áudio, transcrição, conversa, senha, token, chave, URL privada, nome de usuário, caminho pessoal ou lista completa de aplicativos.
+
+### Classificação de feedback
+
+- `P0`: ação sem consentimento, credencial exposta, perda de dados, microfone que não encerra, binário adulterado ou execução invisível inesperada;
+- `P1`: instalação/voz falha sem perda, aplicativo errado, loop, standby incorreto, acessibilidade bloqueada;
+- `P2`: confusão de texto, melhoria visual, pedido de integração ou conveniência.
+
+P0 interrompe aquisição imediatamente. P1 entra no próximo ciclo antes de aumentar o grupo. P2 não deve deslocar correções de segurança e voz.
+
+## Métricas locais sem conteúdo
+
+O marketing não autoriza telemetria escondida. Até existir consentimento específico, usar fontes públicas agregadas e diagnóstico local exportado voluntariamente.
+
+### Métricas públicas agregadas
+
+| Métrica | Fonte | Limite de interpretação |
 |---|---|---|
-| Conversa | Texto, apertar para falar e modo ao vivo estão disponíveis para teste | Conversa contínua sem falhas em qualquer microfone e situação |
-| Voz | A voz é reconhecida localmente e as respostas usam vozes do Windows | Voz neural natural, emoções e escolha ampliada de vozes |
-| Mascote | Tem nome personalizado, janela flutuante e estados animados | Comportamento perfeito em todos os monitores, jogos e leitores de tela |
-| Inteligência | A configuração local é guiada e exige um download adicional | Escolha entre conta conectada, serviços pagos e vários modelos locais |
-| Aplicativos | Abre alguns aplicativos compatíveis, navegador e música | Encontra e opera qualquer aplicativo instalado |
-| Música e web | Abre endereços, pesquisas e oferece controles simples de mídia | Entende qualquer página, playlist ou sessão sem ambiguidade |
-| Agentes de código | Pode abrir agentes compatíveis já reconhecidos | Envia, acompanha e conclui tarefas de programação |
-| Jogos | Pode abrir um jogo compatível quando reconhecido | Entra em espera, libera recursos e volta sozinho ao fechar o jogo |
-| Privacidade | Conversas, voz e histórico podem ser processados e guardados localmente; downloads e navegação usam internet | Histórico desligado comprovadamente sem gravação, exportação/apagamento completos e escolha de nuvem pronta |
-| Segurança | Há limites para aplicativos e endereços aceitos | Confirmação central para toda ação sensível e destrutiva |
-| Atualização | Uma nova versão é instalada baixando o instalador publicado | Atualização segura dentro do próprio aplicativo |
+| Visitas e cliques de download | hospedagem, apenas agregado | clique não significa instalação |
+| Downloads por versão | GitHub Releases | download não significa uso |
+| Issues por categoria | GitHub | representa somente quem decidiu relatar |
+| Tempo de primeira resposta | GitHub | mede suporte, não satisfação |
+| Correções por versão | release notes | mede estabilidade do processo |
+
+### Diagnóstico local permitido, sempre opcional
+
+Pode ser armazenado localmente e exportado manualmente pela pessoa:
+
+- versão do Titi;
+- versão principal do Windows e arquitetura;
+- resultado por etapa: instalar, abrir, runtime, texto, transcrição, fala e ferramenta;
+- códigos de erro estáveis, sem mensagens livres;
+- latência em faixas, não conteúdo;
+- contagem de confirmações aprovadas, negadas e expiradas;
+- quantidade de reinícios/crashes observados;
+- indicadores booleanos: terminal visível, microfone encerrado, dados preservados;
+- uso agregado de CPU/RAM/VRAM em faixas.
+
+Nunca coletar ou exportar automaticamente:
+
+- áudio, transcrição, prompts ou respostas;
+- nome do aplicativo solicitado;
+- histórico, memória ou receita aprendida;
+- URLs, pesquisas, títulos de página ou query strings;
+- nomes de arquivos, projetos, usuário ou caminhos;
+- tokens, cookies, chaves ou credenciais;
+- lista de programas instalados;
+- identificador persistente de pessoa ou máquina.
+
+### Metas de qualidade da corretiva
+
+- zero P0 conhecido;
+- 100% dos pacotes de QA sem hook interno de aprovação;
+- 100% das URLs com credenciais rejeitadas nos testes;
+- 100% dos registros de QA sem segredo ou conteúdo;
+- 5/5 instalações privadas concluídas;
+- pelo menos 4/5 pessoas completando aperte-para-falar;
+- pelo menos 4/5 completando três turnos ao vivo;
+- zero terminal inesperado;
+- zero ação executada depois de negação/expiração;
+- zero perda de configurações ou conversas preservadas.
+
+Essas metas são gates de qualidade, não slogans publicitários.
+
+## Checklist de lançamento da próxima beta corretiva
+
+### Produto e segurança
+
+- [ ] hook e rotinas de captura de QA não existem no ASAR de produção;
+- [ ] build falha automaticamente se marcadores internos de QA aparecerem no pacote;
+- [ ] URLs com usuário/senha são rejeitadas na política e no executor;
+- [ ] URL, parâmetros e pesquisas sensíveis são redigidos antes do log local;
+- [ ] prompt injection e chamada direta não contornam confirmação;
+- [ ] negar ou expirar nunca produz efeito lateral;
+- [ ] instalador e `Titi.exe` possuem assinatura válida do editor esperado;
+- [ ] Defender e verificação independente não encontram detecção;
+- [ ] hash final é calculado depois da assinatura e publicado.
+
+### Instalação e runtime
+
+- [ ] instalar o arquivo final como usuário comum no Windows 10 e 11;
+- [ ] instalar com dados preservados da beta anterior e confirmar nome, configurações e conversas;
+- [ ] abrir e reiniciar três vezes sem janela branca ou instância duplicada;
+- [ ] nenhum CMD, PowerShell ou Terminal aparece na instalação, Ollama, mídia, catálogo ou saída;
+- [ ] Ollama externo permanece ao sair; Ollama iniciado pelo Titi encerra corretamente;
+- [ ] máquina sem Ollama passa por download consentido e assinatura do instalador oficial;
+- [ ] falha de rede e espaço insuficiente deixam mensagem recuperável.
+
+### Voz
+
+- [ ] microfone real passa no instalador final;
+- [ ] aperte-para-falar funciona fora da janela;
+- [ ] botão ao vivo do mascote inicia sem depender do outro botão;
+- [ ] vinte turnos não criam captura simultânea nem eco;
+- [ ] desligar durante gravação, transcrição, modelo e fala interrompe a cadeia;
+- [ ] negar/remover microfone encerra a captura e orienta recuperação;
+- [ ] fechar o Titi libera tracks, síntese e atalho global.
+
+### Privacidade e dados
+
+- [ ] modo privado não altera conversas, atividade, memória ou receitas no disco;
+- [ ] apagar, exportar e memória são verificados no aplicativo instalado;
+- [ ] migração da versão anterior preserva os dados compatíveis;
+- [ ] relatório de QA contém somente métricas sem conteúdo;
+- [ ] política e notas explicam claramente o que é local e o que usa internet.
+
+### Comunicação
+
+- [ ] README identifica corretamente a versão pública e a corretiva;
+- [ ] notas explicam por que a corretiva existe, sem eufemismo;
+- [ ] landing mostra versão, tamanho, assinatura, download adicional e limites perto do CTA;
+- [ ] nenhuma área visual faz automação futura parecer entregue;
+- [ ] modal aparece antes do resultado nas demonstrações;
+- [ ] texto não usa “todo o PC”, “qualquer aplicativo”, “protegido” ou “tudo pronto” como promessa atual;
+- [ ] GitHub, landing e instalador apontam para a mesma tag e o mesmo hash;
+- [ ] existe instrução de atualização, reinstalação e retorno;
+- [ ] formulário de feedback traz aviso contra dados pessoais.
+
+### Publicação e suporte
 
-## Narrativa do beta
+- [ ] pipeline da tag empacota, verifica e guarda o artefato exato;
+- [ ] release é pré-release pública, não rascunho, com limites conhecidos;
+- [ ] baixar pelo link público reproduz tamanho e hash esperados;
+- [ ] testador instala o arquivo baixado, não uma cópia local;
+- [ ] responsável acompanha P0 nas primeiras 24 e 72 horas;
+- [ ] existe decisão preparada para retirar o download ou publicar hotfix;
+- [ ] resultados manuais ficam registrados sem dados pessoais.
 
-### História principal
+## Critérios para voltar a promover
 
-O Titi começa por uma experiência pequena e concreta: dar presença à conversa com o computador. Em vez de uma caixa de texto sem personalidade, há um mascote que escuta, pensa e fala. A primeira versão testa esse núcleo local. Cada atualização amplia o que ele entende e faz, mas só entra na comunicação pública quando estiver comprovado no aplicativo instalado.
+É proibido iniciar promoção enquanto qualquer item abaixo estiver aberto:
 
-### Três atos para vídeos e páginas
+1. **Hook de QA:** nenhuma rotina de captura ou aprovação automática pode existir no pacote público.
+2. **URLs e registros:** credenciais embutidas precisam ser bloqueadas e logs não podem guardar segredo/conteúdo sensível.
+3. **Assinatura:** instalador e executável precisam de Authenticode válida; hash deve ser recalculado depois.
+4. **Voz:** microfone real, interrupção completa e vinte turnos precisam passar no instalador final.
+5. **Instalação:** o NSIS final precisa passar com dados preservados, reinício e zero console inesperado.
+6. **Consentimento:** nenhuma ferramenta pode executar após negar, expirar ou sem confirmação exigida.
+7. **Privacidade:** modo privado precisa ser comprovado por inspeção do disco.
 
-1. **O encontro:** o Titi aparece, a pessoa escolhe seu nome e vê o mascote reagir.
-2. **A conversa:** texto, apertar para falar e modo ao vivo são demonstrados em tempo real.
-3. **O primeiro passo:** uma ação simples e realmente compatível é executada, seguida do aviso de que o beta ainda está crescendo.
+Depois desses gates:
 
-### Tom do convite
+- promoção para grupo convidado exige zero P0 e no máximo P1 documentado sem contradizer a mensagem;
+- promoção para comunidades exige duas rodadas consecutivas sem P0;
+- promoção ampla exige assinatura, Windows 10/11, acessibilidade básica, caminho de atualização/rollback e métricas de qualidade suficientes.
 
-Usar “teste”, “conheça”, “experimente” e “conte como foi”. Evitar “revolucione”, “nunca mais use teclado”, “controle tudo” e promessas absolutas.
+## Governança da mensagem
 
-### Roteiro seguro para a demonstração do beta 0.1.1
+Antes de qualquer publicação, Produto, Engenharia e QA respondem conjuntamente:
 
-1. Abrir o Titi sem terminal aparecendo.
-2. Mostrar o nome do mascote e os estados visuais.
-3. Fazer uma pergunta curta por texto.
-4. Fazer outra pergunta com **Aperte para falar**.
-5. Mostrar o botão **Ao vivo** e uma única troca de voz já ensaiada.
-6. Pedir para abrir um navegador ou aplicativo de música compatível.
-7. Encerrar com: “Esta é uma prévia beta. O Titi já conversa e dá os primeiros passos; o controle amplo de aplicativos ainda está sendo construído.”
+1. A frase demonstra algo visto no instalador final?
+2. A pessoa entende que é beta e o que ainda não funciona?
+3. Há um risco ou uso de internet omitido?
+4. A captura mostra confirmação e resultado reais?
+5. O CTA aponta ao mesmo arquivo testado e assinado?
+6. O canal de feedback protege conteúdo pessoal?
 
-Não usar numa demonstração pública um fluxo que dependa de automação ainda não entregue, como editar um vídeo, concluir uma tarefa de programação, escolher uma playlist específica ou reduzir o consumo durante um jogo.
+Se qualquer resposta for “não” ou “não sabemos”, a peça não é publicada.
 
-## Canais e função de cada um
-
-### Site
-
-Função: explicar em menos de um minuto, mostrar o mascote e levar ao instalador oficial.
-
-Conteúdo obrigatório: versão, “beta”, Windows, tamanho aproximado, espaço adicional, aviso de download da inteligência local, limites atuais, privacidade em linguagem simples, perguntas frequentes e link de feedback.
-
-### GitHub
-
-Função: ser a origem oficial do código, das versões, das notas e dos relatos de erro.
-
-Usar:
-
-- uma versão publicada por vez como destino principal;
-- notas com “o que mudou”, “o que testar”, “limites conhecidos” e “como voltar”;
-- formulário de problema que peça versão, Windows, passos e resultado observado;
-- aviso para nunca anexar conversa, áudio, chave, senha ou caminho pessoal.
-
-### Vídeos curtos
-
-Função: mostrar a experiência, especialmente o mascote e os estados de voz.
-
-Formatos:
-
-- 15 segundos: Titi acorda, ouve e responde;
-- 30 segundos: texto versus apertar para falar versus ao vivo;
-- 45 segundos: primeira configuração explicada sem cortes enganosos;
-- série “Diário do Titi”: uma melhoria comprovada por episódio.
-
-Publicar o mesmo vídeo adaptado para YouTube Shorts, TikTok e Reels. A legenda deve identificar a versão demonstrada.
-
-### Comunidades
-
-Função: recrutar testadores com contexto, não fazer divulgação em massa.
-
-Priorizar comunidades brasileiras de IA local, Windows, software livre, produtividade e desenvolvimento independente. Cada postagem deve explicar requisitos, condição beta, o que testar e onde relatar.
-
-### Rede pessoal e pequenos grupos
-
-Função: encontrar os primeiros dez testadores observáveis. Esta etapa produz aprendizado melhor que números grandes. Fazer sessões curtas acompanhando instalação, primeiro uso e conversa por voz, sempre com permissão.
-
-### Lançadores e imprensa
-
-Product Hunt, imprensa de tecnologia e campanhas maiores devem esperar os portões de lançamento amplo: instalação confiável, versão validada, atualização ou caminho simples de reinstalação, privacidade efetiva, confirmação de ações e teste em Windows 10/11.
-
-## Plano de conteúdo de quatro semanas
-
-| Semana | Tema | Peça principal | Prova necessária | Chamada |
-|---|---|---|---|---|
-| 1 | Conheça o Titi | Vídeo curto do mascote e conversa por texto | Gravação da versão publicada | “Conheça a prévia beta” |
-| 2 | Três formas de conversar | Comparativo entre texto, apertar para falar e ao vivo | Teste de microfone e modo ao vivo na mesma versão | “Qual modo combina com você?” |
-| 3 | Local primeiro | Explicação visual do que fica no computador e do que usa internet | Revisão de privacidade e limites | “Entenda antes de baixar” |
-| 4 | Construindo em público | Melhorias da versão e próximos passos | Nota de versão e backlog atualizados | “Teste e conte como foi” |
-
-Ritmo recomendado durante o beta: uma demonstração e uma atualização de bastidor por semana. Não criar calendário diário que obrigue o produto a inventar novidade.
-
-## Métricas sem invadir a privacidade
-
-O aplicativo atual não deve ganhar coleta escondida para atender marketing. As primeiras métricas podem vir de fontes públicas e de feedback voluntário.
-
-### Funil possível hoje
-
-| Etapa | Medida | Fonte | Observação |
-|---|---|---|---|
-| Descoberta | visitas e origem em números agrupados | hospedagem do site, se disponível | sem identificar pessoa ou cruzar com dados do app |
-| Interesse | cliques no botão de download | site, em número agrupado | informar caso uma medição de site seja adicionada |
-| Download | total de downloads da versão | GitHub | não equivale a instalação ou uso ativo |
-| Primeira experiência | respostas voluntárias “instalou?”, “conversou por texto?”, “testou voz?” | formulário curto | não pedir áudio, conversa ou lista de aplicativos |
-| Qualidade | relatos classificados por instalação, voz, conversa e ações | GitHub/formulário | remover dados pessoais antes de compartilhar |
-| Retenção qualitativa | “você voltou a usar depois de sete dias?” | contato voluntário | pesquisa manual, sem rastreamento silencioso |
-
-### Metas para a primeira rodada
-
-Metas de aprendizado, não de vaidade:
-
-- 10 instalações acompanhadas em computadores diferentes;
-- 8 pessoas concluindo uma conversa por texto;
-- 6 pessoas concluindo o teste real de microfone;
-- 5 pessoas completando uma troca no modo ao vivo;
-- principais três pontos de abandono da primeira configuração identificados;
-- todos os problemas críticos com passos reproduzíveis;
-- zero relato de terminal inesperado na versão candidata;
-- zero coleta de áudio, conversa, chaves ou lista de programas.
-
-### Perguntas de feedback recomendadas
-
-1. Você conseguiu instalar e abrir o Titi? Se não, em qual etapa parou?
-2. A conversa por texto funcionou?
-3. O botão de apertar para falar funcionou?
-4. O modo ao vivo completou uma troca sem precisar manter outro botão ativo?
-5. Alguma janela estranha apareceu?
-6. O que você esperava que o Titi fizesse e ele ainda não conseguiu?
-7. Em uma escala de 0 a 10, você indicaria esta versão beta para outra pessoa que gosta de testar novidades? Por quê?
-
-Antes do envio: “Não inclua senhas, chaves, conteúdo de conversas, áudio, nome de usuário ou caminhos pessoais.”
-
-### Métricas para o futuro, somente com consentimento
-
-Se houver diagnóstico automático, ele deve ser separado da conversa, desligado por padrão, explicado em uma tela própria e revogável. Coletar apenas versão, categoria do erro, etapa e informações gerais indispensáveis. Nunca coletar conteúdo da fala, transcrição, resposta, histórico, nomes de arquivos, programas instalados ou credenciais.
-
-## Checklist de lançamento
-
-### Antes de criar a versão
-
-- [ ] A lista “o que funciona” corresponde ao executável, não apenas ao código.
-- [ ] As promessas do site, README, notas e telas são comparadas lado a lado.
-- [ ] Nenhuma demonstração depende de recurso futuro.
-- [ ] Instalação limpa, reinstalação e atualização sobre a versão anterior são testadas.
-- [ ] O Titi abre, conversa, prepara a inteligência e executa ações sem janela de terminal.
-- [ ] Microfone negado, ausente e removido têm mensagens de recuperação.
-- [ ] O modo ao vivo inicia pelo mascote e encerra sem manter o microfone aberto.
-- [ ] Ações e respostas não afirmam sucesso quando algo falha.
-- [ ] Histórico desligado, apagar dados e confirmações foram testados, se anunciados.
-- [ ] O arquivo de instalação foi validado e corresponde à versão divulgada.
-- [ ] Há instruções simples de reinstalação, atualização e retorno à versão anterior.
-
-### Página e download
-
-- [ ] Todos os botões apontam para a mesma versão publicada, nunca para rascunho.
-- [ ] Número da versão, nome do arquivo, tamanho e requisitos estão atualizados.
-- [ ] O site explica que há download adicional e espaço necessário.
-- [ ] O site usa “alguns aplicativos compatíveis” até existir catálogo amplo.
-- [ ] A política de privacidade explica o que fica local e quando a internet é usada.
-- [ ] Há destino visível para feedback e aviso contra envio de dados pessoais.
-- [ ] Página funciona no computador e no celular, com teclado e movimento reduzido.
-- [ ] Imagem de compartilhamento, título e descrição mostram a versão beta corretamente.
-
-### GitHub e suporte
-
-- [ ] Código e repositório do site estão públicos e na versão usada para publicação.
-- [ ] A versão tem nome, data, instalador e notas completas.
-- [ ] Problemas conhecidos estão descritos sem esconder limitações importantes.
-- [ ] Formulário de problema pede informações mínimas e seguras.
-- [ ] Existe responsável por responder problemas críticos e retirar o link se necessário.
-
-### Depois de publicar
-
-- [ ] Baixar pelo botão público e instalar esse arquivo, não uma cópia local.
-- [ ] Conferir site, download, primeira execução e versão exibida.
-- [ ] Acompanhar relatos críticos nas primeiras 24 e 72 horas.
-- [ ] Separar defeitos de produto, dúvidas de uso e pedidos de recurso.
-- [ ] Atualizar a página imediatamente se uma promessa estiver incorreta.
-- [ ] Publicar uma correção ou retirar temporariamente o download diante de perda de dados, ação sem consentimento ou risco de segurança.
-- [ ] Registrar aprendizados e decidir a próxima mensagem com base em uso comprovado.
-
-## Template de notas de versão
-
-```markdown
-# Titi Beta [versão]
-
-[Uma frase simples sobre o principal resultado desta versão.]
-
-## O que melhorou
-
-- [Mudança que a pessoa consegue perceber.]
-- [Mudança que a pessoa consegue perceber.]
-- [Correção importante, com o comportamento esperado.]
-
-## O que você pode testar
-
-1. [Fluxo curto e realmente entregue.]
-2. [Segundo fluxo, com resultado observável.]
-3. [Forma segura de testar uma falha ou recuperação.]
-
-## Antes de começar
-
-- Windows: [versões verificadas]
-- Download do instalador: [tamanho aproximado]
-- Espaço adicional: [valor aproximado]
-- Internet: [quando é necessária]
-- Primeira configuração: [o que será pedido e baixado]
-
-## Limites conhecidos
-
-- [Limite atual em linguagem clara.]
-- [Recurso que ainda não funciona, caso a interface possa sugerir o contrário.]
-- [Solução temporária, se houver.]
-
-## Privacidade
-
-[Explique o que fica no computador e quais ações usam internet. Não use afirmações absolutas.]
-
-## Atualizar ou reinstalar
-
-[Explique se pode instalar por cima, o que é preservado e como voltar em caso de problema.]
-
-## Conte como foi
-
-[Link oficial de feedback]
-
-Não envie senha, chave, áudio, conversa, nome de usuário ou caminho pessoal.
-```
-
-## Template de postagem de lançamento
-
-> **Titi Beta [versão] já está disponível para Windows.**
->
-> Nesta versão, você pode [três capacidades comprovadas]. O Titi funciona como uma prévia: [limite principal em uma frase].
->
-> Para testar, você precisa de [requisitos simples]. Na primeira vez, [download/configuração adicional].
->
-> Baixe pelo link oficial: [link]
->
-> Depois, conte se conseguiu instalar, conversar por texto e testar o microfone. Não envie dados pessoais, áudio ou conteúdo das suas conversas.
-
-## Auditoria de consistência em 15/08/2026
-
-### Links confirmados
-
-- Aplicativo: `https://github.com/ThiagoVenturaV/Assistente-de-Voz---Titi` — público, ramo principal `main`.
-- Site: `https://github.com/ThiagoVenturaV/Titi-Site` — público, ramo principal `main`.
-- Versão: `https://github.com/ThiagoVenturaV/Assistente-de-Voz---Titi/releases/tag/v0.1.1-beta` — publicada como pré-lançamento, não rascunho.
-- Instalador: `Titi-Setup-0.1.1.exe` — presente na versão, com 544.016.752 bytes; o endereço usado na landing coincide com o arquivo publicado.
-
-O endereço público da landing está documentado no histórico do projeto, mas esta auditoria não conseguiu consultar a página hospedada diretamente. A cópia local foi revisada.
-
-### Pontos coerentes
-
-- `README.md`, landing e arquivo publicado indicam a versão 0.1.1.
-- Landing e README distinguem a conversa atual da visão de ações mais amplas.
-- O download informado como “aproximadamente 519 MB” é coerente quando o tamanho é mostrado na medida usada pelo Windows.
-- A landing evita nomes de marcas na explicação principal dos aplicativos.
-
-### Ajustes recomendados antes da próxima campanha
-
-1. **Notas da versão:** substituir “jogos e outros aplicativos” por “alguns aplicativos compatíveis”. Hoje o produto trabalha com uma lista limitada.
-2. **Demonstração da landing:** trocar a cena “playlist Foco — Pronto” por abrir o aplicativo de música ou usar um controle simples já testado. A cena atual sugere seleção garantida de playlist.
-3. **Editor e projeto:** identificar toda a área que mostra abrir projeto, pedir permissão e agir em diferentes aplicativos como visão futura. A confirmação central ainda não está entregue.
-4. **Privacidade:** trocar “Conexões externas desligadas por padrão” por uma explicação direta: conversa e voz são locais; downloads, páginas e pesquisas usam internet quando pedidos.
-5. **Primeira configuração:** evitar “prepara tudo o que precisa” sem explicar o download adicional de cerca de 6,6 GB e a necessidade de espaço livre.
-6. **Feedback:** adicionar ao site e às notas um único destino oficial, com aviso para não enviar conversa, áudio, credenciais ou caminhos pessoais.
-7. **Lançamento amplo:** aguardar os bloqueios críticos registrados no `QA_PLAN.md`; enquanto isso, chamar a versão de “prévia beta para testadores”.
-8. **Código público versus segurança:** usar “código aberto para consulta” ou “código público” como prova de transparência, sem apresentá-lo como garantia de segurança.
-
-## Critério para mudar a mensagem
-
-Uma promessa sai da coluna “visão futura” apenas quando:
-
-- funciona no instalador público em mais de uma máquina;
-- sucesso, falha e cancelamento foram testados;
-- a interface mostra o resultado real;
-- a documentação explica limites e privacidade;
-- o time consegue demonstrar o fluxo sem cortes que escondam etapas;
-- o responsável por QA registra a evidência da versão.
-
-Marketing não antecipa o backlog. Ele transforma entregas comprovadas em histórias compreensíveis.
+O mascote pode tornar a experiência calorosa; a honestidade é o que transforma essa simpatia em confiança.

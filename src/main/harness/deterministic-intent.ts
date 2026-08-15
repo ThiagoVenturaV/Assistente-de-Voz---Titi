@@ -46,6 +46,22 @@ const APPLICATION_ALIASES: Record<string, KnownApplication> = {
   antigravity: 'antigravity',
   'anti gravity': 'antigravity'
 }
+const BLOCKED_GENERIC_APPLICATIONS = new Set([
+  'cmd',
+  'command prompt',
+  'prompt de comando',
+  'powershell',
+  'pwsh',
+  'terminal',
+  'windows terminal',
+  'regedit',
+  'registry editor',
+  'editor do registro',
+  'wscript',
+  'cscript',
+  'mshta',
+  'rundll32'
+])
 
 /**
  * Routes only short, explicit desktop commands. Everything conversational,
@@ -74,8 +90,11 @@ function resolveApplicationOpen(request: string): DeterministicToolCall | null {
   const match = request.match(OPEN_COMMAND)
   if (!match) return null
 
-  const target = stripTrailingCourtesy(match[1])
+  const targetWithKind = stripTrailingCourtesy(match[1])
     .replace(/^(?:o|a|um|uma)\s+/iu, '')
+  const hasExplicitApplicationKind = /^(?:app|aplicativo|programa|navegador)(?:\s+(?:do|da))?\s+/iu
+    .test(targetWithKind)
+  const target = targetWithKind
     .replace(/^(?:app|aplicativo|programa|navegador)(?:\s+(?:do|da))?\s+/iu, '')
     .trim()
   const candidate = fold(target)
@@ -87,7 +106,7 @@ function resolveApplicationOpen(request: string): DeterministicToolCall | null {
     }
   }
 
-  if (!isSafeGenericApplicationName(target)) return null
+  if (!hasExplicitApplicationKind || !isSafeGenericApplicationName(target)) return null
 
   return {
     name: 'open_application',
@@ -105,7 +124,10 @@ function isSafeGenericApplicationName(value: string): boolean {
     || exactWebDestination(possibleWebTarget)
     || /[\\/\u0000-\u001f\u007f]/u.test(value)
     || /^[a-z]:|\.(?:exe|lnk|cmd|bat|ps1)$/iu.test(value)
+    || /^[a-z][a-z\d+.-]*:/iu.test(value)
+    || /(?:^|\s)--?[\w-]+(?:\s|$)/u.test(value)
     || /^(?:algum|qualquer|meu|minha|site|pagina|arquivo|pasta|documento|projeto)\b/iu.test(normalized)
+    || BLOCKED_GENERIC_APPLICATIONS.has(normalized)
   ) return false
   return normalized.split(' ').length <= 8
 }

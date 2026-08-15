@@ -22,10 +22,20 @@ export function validatedChatRequest(value: unknown): ChatRequest {
   }
   return {
     content,
+    ...(value.requestId === undefined
+      ? {}
+      : { requestId: validatedRequestId(value.requestId) }),
     ...(value.conversationId === undefined
       ? {}
       : { conversationId: validatedConversationId(value.conversationId) })
   }
+}
+
+export function validatedRequestId(value: unknown): string {
+  if (typeof value !== 'string' || !ID_PATTERN.test(value)) {
+    throw new Error('Identificador de pedido inválido.')
+  }
+  return value
 }
 
 export function validatedSettingsPatch(value: unknown): Partial<TitiSettings> {
@@ -103,7 +113,7 @@ function validatedProvider(value: unknown): TitiSettings['provider'] {
 
 function validatedVoice(value: unknown): TitiSettings['voice'] {
   if (!isRecord(value)) throw new Error('Configurações de voz inválidas.')
-  rejectUnknownKeys(value, ['enabled', 'pushToTalkShortcut', 'liveMode', 'speechRate'])
+  rejectUnknownKeys(value, ['enabled', 'pushToTalkShortcut', 'liveMode', 'speechRate', 'inputDeviceId'])
   if (typeof value.enabled !== 'boolean' || typeof value.liveMode !== 'boolean') {
     throw new Error('Estado da voz inválido.')
   }
@@ -114,11 +124,19 @@ function validatedVoice(value: unknown): TitiSettings['voice'] {
     || value.speechRate < 0.7 || value.speechRate > 1.4) {
     throw new Error('Velocidade da fala inválida.')
   }
+  if (
+    typeof value.inputDeviceId !== 'string'
+    || value.inputDeviceId.length > 512
+    || /[\u0000-\u001f\u007f]/.test(value.inputDeviceId)
+  ) {
+    throw new Error('Dispositivo de entrada inválido.')
+  }
   return {
     enabled: value.enabled,
     liveMode: value.liveMode,
     pushToTalkShortcut: value.pushToTalkShortcut.trim(),
-    speechRate: value.speechRate
+    speechRate: value.speechRate,
+    inputDeviceId: value.inputDeviceId
   }
 }
 

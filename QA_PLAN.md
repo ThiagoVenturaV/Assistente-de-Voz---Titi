@@ -4,7 +4,7 @@ Auditoria atualizada em 15/08/2026. Este documento define o que precisa estar co
 
 ## Veredito atual
 
-**APROVADO TECNICAMENTE PARA PRÉ-RELEASE DE TESTE, COM AVISO EXPLÍCITO DE APLICATIVO NÃO ASSINADO.** O artefato `Titi-Setup-0.2.0-beta.1.exe` existe, a versão interna e o manifesto coincidem, o verificador passou e o `win-unpacked` completou o fluxo real de confirmação e abertura de Brave, Spotify, ChatGPT/Codex e Antigravity. Ainda falta executar o instalador sobre os dados preservados; por isso esta versão não deve ser apresentada como estável. O instalador e `Titi.exe` continuam `NotSigned` e podem acionar o aviso de reputação do Windows.
+**A PRÉ-RELEASE PUBLICADA PRECISA SER SUBSTITUÍDA; A CORRETIVA ESTÁ APROVADA SOMENTE COMO `win-unpacked`.** A auditoria encontrou no ASAR público uma rota interna de QA capaz de aprovar confirmações sob uma variável local. A branch removeu toda essa rota e o verificador agora reprova seus marcadores. O novo pacote de diretório passou com as correções de URL/redação, seleção de microfone e cancelamento, mas ainda não existe um NSIS corretivo instalado. O instalador continua `NotSigned` e pode acionar o aviso de reputação do Windows.
 
 O usuário desinstalou a versão anterior. A pasta de instalação foi removida, enquanto configurações e conversas permaneceram em `%APPDATA%\titi-desktop`. Esse é o estado ideal para o teste obrigatório de instalação da nova versão com preservação de dados.
 
@@ -14,12 +14,12 @@ O usuário desinstalou a versão anterior. A pasta de instalação foi removida,
 |---|---|---|
 | Versão declarada na fonte | Aprovado | `package.json` declara `0.2.0-beta.1` |
 | Typecheck | Aprovado | `pnpm typecheck`, código 0 |
-| Testes automatizados | Aprovado | `pnpm test`: 22 arquivos e 181 testes aprovados |
+| Testes automatizados | Aprovado na branch | `pnpm test`: 24 arquivos e 212 testes aprovados |
 | Build de produção | Aprovado | `pnpm build`: main, preload e renderer compilados; a sandbox bloqueou acesso do esbuild, e a execução normal fora dela passou |
 | Seleção de ferramentas pelo modelo | Aprovado no nível de contrato | `pnpm qa:ollama-tools`: 4/4 para Spotify, Brave, Codex e Antigravity; o script não executa efeitos laterais |
 | Dados da versão anterior | Preservados | `%APPDATA%\titi-desktop\settings.json` e `conversations.json` existem e contêm JSON válido; a pasta `%LOCALAPPDATA%\Programs\Titi` não existe após a desinstalação |
-| Instalador candidato | Aprovado para teste | `release/Titi-Setup-0.2.0-beta.1.exe`, 544.040.184 bytes; SHA-256 `A4E83368A0345BB37289A745116C90087DCA2E69D385BE5CDF0E5023CD921471` |
-| Pacote interno | Aprovado | `pnpm verify:package` confirmou `titi-desktop 0.2.0-beta.1`, ferramentas, processos ocultos e voz local |
+| Instalador publicado | Reprovado para recomendação | `Titi-Setup-0.2.0-beta.1.exe`, SHA-256 `A4E833…21471`, ainda contém a rota interna de QA |
+| Pacote corretivo de diretório | Aprovado | `pnpm package:dir` confirmou `titi-desktop 0.2.0-beta.1`, recursos locais e ausência dos marcadores proibidos |
 | Runtime local de voz empacotado | Aprovado | `whisper-cli.exe` com 479.232 bytes e `ggml-small.bin` com 487.601.967 bytes em `win-unpacked/resources/runtime/whisper` |
 | Manifesto de release | Aprovado localmente | `release/latest.yml` aponta para `0.2.0-beta.1`, mesmo nome e tamanho do instalador |
 | Assinatura do instalador | Risco explícito da pré-release | `Get-AuthenticodeSignature`: instalador e `release/win-unpacked/Titi.exe` estão `NotSigned` |
@@ -29,6 +29,14 @@ O usuário desinstalou a versão anterior. A pasta de instalação foi removida,
 | Instalação do NSIS | Pendente | o executável do instalador ainda não foi rodado; somente `win-unpacked` foi testado |
 
 ## Bloqueadores do candidato
+
+### RC-00 — substituir o pacote público com instrumentação interna
+
+- [x] remover `TITI_CAPTURE_DIR`, `captureQaScreens` e cliques automáticos do processo principal;
+- [x] fazer o verificador falhar se qualquer marcador reaparecer no ASAR;
+- [x] gerar e verificar um novo `win-unpacked` sem esses marcadores;
+- [ ] gerar o NSIS corretivo a partir de commit/tag próprios;
+- [ ] instalar, executar a matriz crítica e só então trocar o download público.
 
 ### RC-01 — gerar o artefato correto
 

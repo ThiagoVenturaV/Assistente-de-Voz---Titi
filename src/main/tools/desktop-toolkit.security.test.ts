@@ -11,6 +11,14 @@ describe('DesktopToolkit security boundaries', () => {
     expect(() => normalizeHttpUrl(value)).toThrow('Somente endereços HTTP ou HTTPS')
   })
 
+  it.each([
+    'https://usuario:senha@example.com/conta',
+    'http://token@example.com',
+    'https://:segredo@example.com'
+  ])('rejects embedded URL credentials: %s', (value) => {
+    expect(() => normalizeHttpUrl(value)).toThrow('sem credenciais')
+  })
+
   it('does not execute arbitrary tool names requested by the model', async () => {
     const toolkit = new DesktopToolkit()
 

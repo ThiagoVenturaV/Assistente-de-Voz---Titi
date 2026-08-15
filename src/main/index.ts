@@ -1,5 +1,6 @@
-import { mkdir, writeFile } from 'node:fs/promises'
-import { join, resolve } from 'node:path'
+import { randomUUID } from 'node:crypto'
+import { writeFile } from 'node:fs/promises'
+import { join } from 'node:path'
 import {
   app,
   BrowserWindow,
@@ -25,6 +26,7 @@ import {
   validatedChatRequest,
   validatedConversationId,
   validatedMascotState,
+  validatedRequestId,
   validatedSettingsPatch,
   validatedWavAudio
 } from './ipc/validation'
@@ -55,13 +57,10 @@ let transcriber: WhisperTranscriber
 let globalPushToTalk: GlobalPushToTalk
 let idleTimer: NodeJS.Timeout | null = null
 let resumeLiveModeAfterGame = false
+const activeChatRequests = new Map<string, { controller: AbortController; ownerId: number }>()
+const activeTranscriptions = new Map<number, AbortController>()
 
 const rendererUrl = process.env.ELECTRON_RENDERER_URL
-const captureDirectory = process.env.TITI_CAPTURE_DIR
-
-if (captureDirectory) {
-  app.setPath('userData', join(resolve(captureDirectory), 'profile'))
-}
 
 if (!app.requestSingleInstanceLock()) {
   app.quit()
@@ -142,8 +141,6 @@ app.whenReady().then(async () => {
   void runtimeManager.ensureRunning().then(async (started) => {
     if (started) broadcast('runtime:status-changed', await runtimeManager.status())
   })
-  if (captureDirectory) void captureQaScreens(resolve(captureDirectory))
-
   app.on('activate', () => {
     if (!mainWindow || mainWindow.isDestroyed()) createMainWindow()
     showMainWindow()
@@ -155,6 +152,10 @@ app.on('window-all-closed', () => {
 })
 
 app.on('before-quit', () => {
+  for (const { controller } of activeChatRequests.values()) controller.abort(abortReason())
+  for (const controller of activeTranscriptions.values()) controller.abort(abortReason())
+  activeChatRequests.clear()
+  activeTranscriptions.clear()
   confirmationBroker?.cancelAll()
   globalPushToTalk?.dispose()
   void gameStandbyMonitor?.stop({ restore: false })
@@ -216,90 +217,6 @@ function createMainWindow(): BrowserWindow {
     mainWindow = null
   })
   return mainWindow
-}
-
-async function captureQaScreens(directory: string): Promise<void> {
-  if (!mainWindow || !mascotWindow) return
-  await Promise.all([waitForLoad(mainWindow), waitForLoad(mascotWindow)])
-  await delay(1000)
-  await mkdir(directory, { recursive: true })
-  await writeCapture(mainWindow, join(directory, 'onboarding.png'))
-  await writeCapture(mascotWindow, join(directory, 'mascot-idle.png'))
-  await mainWindow.webContents.executeJavaScript(
-    "document.querySelector('.onboarding-next')?.click()"
-  )
-  await delay(350)
-  await writeCapture(mainWindow, join(directory, 'onboarding-runtime.png'))
-
-  await settingsStore.update({ onboardingComplete: true, mascotName: 'Titi' })
-  mainWindow.reload()
-  await waitForLoad(mainWindow)
-  await delay(1000)
-  await writeCapture(mainWindow, join(directory, 'home.png'))
-
-  const conversation = await conversationStore.create()
-  const confirmationFlow = mainWindow.webContents.executeJavaScript(
-    `window.titi.conversations.send(${JSON.stringify({
-      conversationId: conversation.id,
-      content: 'Abra o Brave'
-    })})`
-  )
-  await delay(500)
-  await writeCapture(mainWindow, join(directory, 'tool-confirmation.png'))
-  await mainWindow.webContents.executeJavaScript(
-    "document.querySelector('.tool-confirmation-dialog .secondary-button')?.click()"
-  )
-  await confirmationFlow
-  for (const content of [
-    'Abra o Brave',
-    'Abra o Spotify',
-    'Abra o Codex',
-    'Abra o Antigravity'
-  ]) {
-    const approvedFlow = mainWindow.webContents.executeJavaScript(
-      `window.titi.conversations.send(${JSON.stringify({
-        conversationId: conversation.id,
-        content
-      })})`
-    )
-    await delay(500)
-    await mainWindow.webContents.executeJavaScript(
-      "document.querySelector('.tool-confirmation-dialog .primary-button')?.click()"
-    )
-    await approvedFlow
-  }
-  mainWindow.reload()
-  await waitForLoad(mainWindow)
-  await delay(1000)
-  await writeCapture(mainWindow, join(directory, 'conversation.png'))
-
-  await mainWindow.webContents.executeJavaScript(
-    "document.querySelector('.sidebar-footer .sidebar-action')?.click()"
-  )
-  await delay(500)
-  await writeCapture(mainWindow, join(directory, 'settings.png'))
-  await mainWindow.webContents.executeJavaScript(
-    "document.querySelectorAll('.settings-nav button')[1]?.click()"
-  )
-  await delay(300)
-  await writeCapture(mainWindow, join(directory, 'settings-intelligence.png'))
-  app.quit()
-}
-
-function waitForLoad(window: BrowserWindow): Promise<void> {
-  if (!window.webContents.isLoading()) return Promise.resolve()
-  return new Promise((resolveLoad) => {
-    window.webContents.once('did-finish-load', () => resolveLoad())
-  })
-}
-
-async function writeCapture(window: BrowserWindow, path: string): Promise<void> {
-  const image = await window.webContents.capturePage()
-  await writeFile(path, image.toPNG())
-}
-
-function delay(milliseconds: number): Promise<void> {
-  return new Promise((resolveDelay) => setTimeout(resolveDelay, milliseconds))
 }
 
 async function createMascotWindow(): Promise<void> {
@@ -452,22 +369,56 @@ function registerIpcHandlers(): void {
   ipcMain.handle('conversations:send', async (event, value: unknown) => {
     requireRenderer(event, 'main')
     const request = validatedChatRequest(value)
+    const requestId = request.requestId ?? randomUUID()
+    if (activeChatRequests.has(requestId)) throw new Error('Este pedido já está em andamento.')
+    const controller = new AbortController()
+    activeChatRequests.set(requestId, { controller, ownerId: event.sender.id })
     setMascotState('thinking')
     try {
       const beforeSend = await runtimeManager.status()
+      throwIfAborted(controller.signal)
       if (!beforeSend.connected && beforeSend.engineInstalled) {
         await runtimeManager.ensureRunning()
       }
-      const response = await harness.send(request)
+      throwIfAborted(controller.signal)
+      const response = await harness.send({ ...request, requestId }, controller.signal)
+      throwIfAborted(controller.signal)
       response.runtime = await runtimeManager.enrich(response.runtime)
+      throwIfAborted(controller.signal)
       setMascotState('speaking')
       scheduleIdle(Math.min(6000, Math.max(1800, response.assistantMessage.content.length * 18)))
       return response
     } catch (error) {
+      if (isAbortError(error) || controller.signal.aborted) {
+        setMascotState('idle')
+        throw abortReason()
+      }
       setMascotState('error')
       scheduleIdle(2800)
       throw error
+    } finally {
+      const active = activeChatRequests.get(requestId)
+      if (active?.controller === controller) activeChatRequests.delete(requestId)
     }
+  })
+
+  ipcMain.handle('interaction:stop', (event, value: unknown) => {
+    requireRenderer(event, 'main')
+    const requestId = value === undefined ? undefined : validatedRequestId(value)
+    let stopped = false
+    for (const [id, active] of activeChatRequests) {
+      if (active.ownerId !== event.sender.id || (requestId && id !== requestId)) continue
+      active.controller.abort(abortReason())
+      stopped = true
+    }
+    const transcription = activeTranscriptions.get(event.sender.id)
+    if (transcription) {
+      transcription.abort(abortReason())
+      stopped = true
+    }
+    if (stopped) confirmationBroker.cancelAll()
+    setMascotState('idle')
+    return stopped
   })
 
   ipcMain.handle('runtime:status', (event) => {
@@ -481,13 +432,24 @@ function registerIpcHandlers(): void {
   ipcMain.handle('voice:transcribe', async (event, value: unknown) => {
     requireRenderer(event, 'main')
     const wavAudio = validatedWavAudio(value)
+    activeTranscriptions.get(event.sender.id)?.abort(abortReason())
+    const controller = new AbortController()
+    activeTranscriptions.set(event.sender.id, controller)
     setMascotState('thinking')
     try {
-      return await transcriber.transcribe(wavAudio)
+      return await transcriber.transcribe(wavAudio, controller.signal)
     } catch (error) {
+      if (isAbortError(error) || controller.signal.aborted) {
+        setMascotState('idle')
+        throw abortReason()
+      }
       setMascotState('error')
       scheduleIdle(2500)
       throw error
+    } finally {
+      if (activeTranscriptions.get(event.sender.id) === controller) {
+        activeTranscriptions.delete(event.sender.id)
+      }
     }
   })
   ipcMain.handle('voice:set-live-mode', async (event, value: unknown) => {
@@ -522,6 +484,20 @@ function registerIpcHandlers(): void {
     return window.isMaximized()
   })
   ipcMain.handle('window:close', (event) => ownerWindow(event)?.close())
+}
+
+function abortReason(): Error {
+  const error = new Error('A interação foi interrompida.')
+  error.name = 'AbortError'
+  return error
+}
+
+function throwIfAborted(signal: AbortSignal): void {
+  if (signal.aborted) throw abortReason()
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === 'AbortError'
 }
 
 function configureMediaPermissions(): void {

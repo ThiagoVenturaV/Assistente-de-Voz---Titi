@@ -225,7 +225,12 @@ function parseHttpDestination(value: string): { host: string; label: string } | 
   if (/^[a-z][a-z\d+.-]*:/i.test(trimmed) && !/^https?:\/\//i.test(trimmed)) return null
   try {
     const parsed = new URL(/^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`)
-    if (!['http:', 'https:'].includes(parsed.protocol) || !parsed.hostname) return null
+    if (
+      !['http:', 'https:'].includes(parsed.protocol)
+      || !parsed.hostname
+      || parsed.username
+      || parsed.password
+    ) return null
     const host = safeLabel(parsed.hostname, 100)
     const path = parsed.pathname === '/' ? '' : safeLabel(parsed.pathname, 70)
     return { host, label: `${host}${path}` }

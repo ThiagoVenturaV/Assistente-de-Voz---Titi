@@ -39,6 +39,13 @@ interface OllamaChatResponse {
   error?: string
 }
 
+interface ToolRunLedgerEntry {
+  tool: string
+  arguments: Record<string, unknown>
+  executed: boolean
+  result: ToolExecutionResult
+}
+
 export class OllamaProvider implements AssistantProvider {
   constructor(private readonly tools: ToolExecutor) {}
 
@@ -76,27 +83,46 @@ export class OllamaProvider implements AssistantProvider {
 
   async complete(
     messages: ChatMessage[],
-    settings: TitiSettings
+    settings: TitiSettings,
+    signal?: AbortSignal
   ): Promise<string> {
+    throwIfAborted(signal)
     const endpoint = normalizeEndpoint(settings.provider.endpoint)
     const agentMessages: OllamaMessage[] = [
       { role: 'system', content: systemPrompt(settings.mascotName) },
       ...messages.map(({ role, content }) => ({ role, content }))
     ]
-    const completedActions: string[] = []
-    const toolIssues = new Set<string>()
+    const toolRuns: ToolRunLedgerEntry[] = []
     const seenToolCalls = new Set<string>()
     const definitions = new Map(
       this.tools.definitions.map((definition) => [definition.function.name, definition])
     )
 
     for (let turn = 0; turn < MAX_TOOL_ROUNDS; turn += 1) {
-      const payload = await requestChat(endpoint, settings, agentMessages, this.tools)
+      throwIfAborted(signal)
+      let payload: OllamaChatResponse
+      try {
+        payload = await requestChat(endpoint, settings, agentMessages, this.tools, signal)
+      } catch (error) {
+        if (isAbortError(error) || signal?.aborted) throw abortError(signal)
+        if (hasExecutedToolRun(toolRuns)) {
+          return renderToolLedger(
+            toolRuns,
+            `A resposta local foi interrompida depois dessas ações. ${errorMessage(error)}`
+          )
+        }
+        throw error
+      }
       const message = payload.message
-      if (!message) throw new Error('O modelo local não retornou uma mensagem.')
+      if (!message) {
+        const issue = 'O modelo local não retornou uma mensagem.'
+        if (hasExecutedToolRun(toolRuns)) return renderToolLedger(toolRuns, issue)
+        throw new Error(issue)
+      }
 
       if (message.tool_calls !== undefined && !Array.isArray(message.tool_calls)) {
-        return 'Não consegui interpretar as ações sugeridas pelo modelo local. Tente reformular o pedido em uma única ação.'
+        const issue = 'Não consegui interpretar as ações sugeridas pelo modelo local. Tente reformular o pedido em uma única ação.'
+        return hasExecutedToolRun(toolRuns) ? renderToolLedger(toolRuns, issue) : issue
       }
 
       const toolCalls = message.tool_calls ?? []
@@ -104,13 +130,15 @@ export class OllamaProvider implements AssistantProvider {
         const content = typeof message.content === 'string'
           ? message.content.trim()
           : ''
+        if (hasExecutedToolRun(toolRuns)) return renderToolLedger(toolRuns)
         if (content) return content
-        if (completedActions.length) return completedActions.join('\n')
+        if (toolRuns.length) return renderToolLedger(toolRuns)
         throw new Error('O modelo local retornou uma resposta vazia.')
       }
 
       if (toolCalls.length > MAX_TOOL_CALLS_PER_ROUND) {
-        return `Não executei as ações porque o modelo solicitou ${toolCalls.length} ferramentas de uma vez. Peça no máximo ${MAX_TOOL_CALLS_PER_ROUND} ações por vez.`
+        const issue = `Não executei as ações desta rodada porque o modelo solicitou ${toolCalls.length} ferramentas de uma vez. Peça no máximo ${MAX_TOOL_CALLS_PER_ROUND} ações por vez.`
+        return hasExecutedToolRun(toolRuns) ? renderToolLedger(toolRuns, issue) : issue
       }
 
       const preparedCalls = toolCalls.map((call) => prepareToolCall(call, definitions))
@@ -126,10 +154,10 @@ export class OllamaProvider implements AssistantProvider {
 
       for (const prepared of preparedCalls) {
         let result: ToolExecutionResult
+        let executed = false
 
         if (prepared.error) {
           result = prepared.error
-          toolIssues.add(result.message)
         } else {
           const fingerprint = toolCallFingerprint(prepared.toolName, prepared.argumentsValue)
           if (seenToolCalls.has(fingerprint)) {
@@ -137,18 +165,28 @@ export class OllamaProvider implements AssistantProvider {
               `A chamada repetida de ${prepared.toolName} não foi executada novamente para evitar ações duplicadas.`,
               'repeated_tool_call'
             )
-            toolIssues.add(result.message)
           } else {
             seenToolCalls.add(fingerprint)
-            result = await safelyExecuteTool(
-              this.tools,
-              prepared.toolName,
-              prepared.argumentsValue
+            executed = true
+            throwIfAborted(signal)
+            result = await waitWithAbort(
+              safelyExecuteTool(
+                this.tools,
+                prepared.toolName,
+                prepared.argumentsValue
+              ),
+              signal
             )
-            completedActions.push(result.message)
-            if (!result.ok) toolIssues.add(result.message)
+            throwIfAborted(signal)
           }
         }
+
+        toolRuns.push({
+          tool: prepared.toolName,
+          arguments: prepared.argumentsValue,
+          executed,
+          result
+        })
 
         agentMessages.push({
           role: 'tool',
@@ -158,7 +196,10 @@ export class OllamaProvider implements AssistantProvider {
       }
     }
 
-    return toolLimitMessage(completedActions, toolIssues)
+    return renderToolLedger(
+      toolRuns,
+      `Interrompi as chamadas de ferramentas após ${MAX_TOOL_ROUNDS} rodadas para evitar um ciclo sem fim. Tente dividir o pedido em uma ação por vez.`
+    )
   }
 }
 
@@ -354,22 +395,33 @@ function stableStringify(value: unknown): string {
   return JSON.stringify(value) ?? String(value)
 }
 
-function toolLimitMessage(
-  completedActions: string[],
-  toolIssues: ReadonlySet<string>
+function renderToolLedger(
+  runs: ToolRunLedgerEntry[],
+  note?: string
 ): string {
-  const summary = [...new Set(completedActions)]
-  const issue = toolIssues.size
-    ? ` Último problema: ${[...toolIssues].at(-1)}`
-    : ''
-  return [
-    ...summary,
-    `Interrompi as chamadas de ferramentas após ${MAX_TOOL_ROUNDS} rodadas para evitar um ciclo sem fim.${issue} Tente dividir o pedido em uma ação por vez.`
-  ].join('\n')
+  const outcomes = runs.map(({ result }) => result.ok
+    ? result.message.trim()
+    : `Não consegui executar essa ação. ${result.message.trim()}`
+  )
+  const lines = outcomes.length <= 1
+    ? outcomes
+    : ['Resultados confirmados:', ...outcomes.map((outcome) => `- ${outcome}`)]
+  if (note?.trim()) lines.push('', note.trim())
+  return lines.filter((line, index) => line || index > 0).join('\n')
+}
+
+function hasExecutedToolRun(runs: ToolRunLedgerEntry[]): boolean {
+  return runs.some(({ executed }) => executed)
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error && error.message.trim()
+    ? error.message.trim()
+    : 'Falha inesperada do modelo local.'
 }
 
 function systemPrompt(mascotName: string): string {
@@ -390,7 +442,8 @@ async function requestChat(
   endpoint: string,
   settings: TitiSettings,
   messages: OllamaMessage[],
-  tools: ToolExecutor
+  tools: ToolExecutor,
+  signal?: AbortSignal
 ): Promise<OllamaChatResponse> {
   const response = await fetchWithTimeout(
     `${endpoint}/api/chat`,
@@ -410,7 +463,8 @@ async function requestChat(
         }
       })
     },
-    120_000
+    120_000,
+    signal
   )
 
   const payload = (await response.json()) as OllamaChatResponse
@@ -427,15 +481,51 @@ function normalizeEndpoint(endpoint: string): string {
 async function fetchWithTimeout(
   url: string,
   init: RequestInit | undefined,
-  timeout: number
+  timeout: number,
+  externalSignal?: AbortSignal
 ): Promise<Response> {
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), timeout)
+  const abortFromExternal = (): void => controller.abort(externalSignal?.reason)
+  if (externalSignal?.aborted) abortFromExternal()
+  else externalSignal?.addEventListener('abort', abortFromExternal, { once: true })
+  const timer = setTimeout(() => controller.abort(timeoutError()), timeout)
   try {
     return await fetch(url, { ...init, signal: controller.signal })
   } finally {
     clearTimeout(timer)
+    externalSignal?.removeEventListener('abort', abortFromExternal)
   }
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) throw abortError(signal)
+}
+
+function abortError(signal?: AbortSignal): Error {
+  if (signal?.reason instanceof Error) return signal.reason
+  const error = new Error('A geração local foi interrompida.')
+  error.name = 'AbortError'
+  return error
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === 'AbortError'
+}
+
+function timeoutError(): Error {
+  const error = new Error('A resposta local excedeu o tempo limite.')
+  error.name = 'TimeoutError'
+  return error
+}
+
+function waitWithAbort<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
+  if (!signal) return promise
+  throwIfAborted(signal)
+  return new Promise<T>((resolve, reject) => {
+    const abort = (): void => reject(abortError(signal))
+    signal.addEventListener('abort', abort, { once: true })
+    void promise.then(resolve, reject).finally(() => signal.removeEventListener('abort', abort))
+  })
 }
 
 function disconnectedStatus(model: string): RuntimeStatus {

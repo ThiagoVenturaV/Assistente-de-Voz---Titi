@@ -24,6 +24,18 @@ describe('resolveDeterministicIntent', () => {
   })
 
   it.each([
+    'abra Obsidian',
+    'como abrir o aplicativo Obsidian?',
+    'abra o programa C:\\Windows\\System32\\cmd.exe',
+    'abra o aplicativo calc.exe',
+    'abra o programa powershell',
+    'abra o aplicativo Obsidian --disable-security',
+    'abra o aplicativo file:///C:/Windows/notepad.exe'
+  ])('não roteia nome genérico sem tipo explícito, pergunta, caminho ou comando: %s', (content) => {
+    expect(resolveDeterministicIntent(content)).toBeNull()
+  })
+
+  it.each([
     [
       'abra https://example.com/docs no Brave',
       { url: 'https://example.com/docs', browser: 'brave' }

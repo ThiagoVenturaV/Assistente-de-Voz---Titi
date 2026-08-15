@@ -13,20 +13,18 @@ export class PcmRecorder {
   private noiseFloor = 0.003
   private calibrationEndsAt = 0
 
-  constructor(private readonly onSilence?: (reason: 'silence' | 'timeout') => void) {}
+  constructor(
+    private readonly onSilence?: (reason: 'silence' | 'timeout') => void,
+    private readonly inputDeviceId = ''
+  ) {}
 
   async start(): Promise<void> {
     if (!navigator.mediaDevices?.getUserMedia) {
       throw new Error('Este dispositivo não disponibilizou acesso ao microfone.')
     }
-    this.stream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        channelCount: 1,
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true
-      }
-    })
+    this.stream = await navigator.mediaDevices.getUserMedia(
+      microphoneConstraints(this.inputDeviceId)
+    )
     this.context = new AudioContext()
     await this.context.resume()
     this.startedAt = performance.now()
@@ -102,6 +100,18 @@ export class PcmRecorder {
     this.autoStopTriggered = false
     this.noiseFloor = 0.003
     this.calibrationEndsAt = 0
+  }
+}
+
+export function microphoneConstraints(inputDeviceId = ''): MediaStreamConstraints {
+  return {
+    audio: {
+      channelCount: 1,
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: true,
+      ...(inputDeviceId ? { deviceId: { exact: inputDeviceId } } : {})
+    }
   }
 }
 

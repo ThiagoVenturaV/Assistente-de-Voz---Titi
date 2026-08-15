@@ -17,6 +17,7 @@ import { DesktopToolkit } from '../tools/desktop-toolkit'
 import { resolveDeterministicIntent } from './deterministic-intent'
 import { OllamaProvider } from './ollama-provider'
 import type { AssistantProvider } from './provider'
+import { selectMessagesForContext } from './context-window'
 
 export class AssistantHarness {
   private readonly provider: AssistantProvider
@@ -26,6 +27,7 @@ export class AssistantHarness {
     key: string
     promise: Promise<RuntimeStatus>
   } | null = null
+  private readonly conversationSendQueues = new Map<string, Promise<void>>()
 
   constructor(
     private readonly settings: SettingsStore,
@@ -40,11 +42,26 @@ export class AssistantHarness {
     return this.refreshRuntimeStatus(await this.settings.get())
   }
 
-  async send(request: ChatRequest): Promise<ChatResponse> {
+  async send(request: ChatRequest, signal?: AbortSignal): Promise<ChatResponse> {
+    throwIfAborted(signal)
     const content = request.content.trim()
     if (!content) {
       throw new Error('Escreva uma mensagem antes de enviar.')
     }
+
+    const normalizedRequest: ChatRequest = { ...request, content }
+    return request.conversationId
+      ? this.enqueueConversationSend(
+          request.conversationId,
+          () => this.sendNow(normalizedRequest, signal),
+          signal
+        )
+      : this.sendNow(normalizedRequest, signal)
+  }
+
+  private async sendNow(request: ChatRequest, signal?: AbortSignal): Promise<ChatResponse> {
+    throwIfAborted(signal)
+    const content = request.content
 
     const settings = await this.settings.get()
     const conversation = request.conversationId
@@ -61,6 +78,7 @@ export class AssistantHarness {
       content,
       settings.keepHistory
     )
+    throwIfAborted(signal)
     const memoryCommand = parseExplicitMemoryCommand(content)
     const directIntent = resolveDeterministicIntent(content)
     const runtimePromise = this.refreshRuntimeStatus(settings)
@@ -79,11 +97,12 @@ export class AssistantHarness {
       answer = toolResultMessage(await executeToolSafely(
         this.tools,
         directIntent.name,
-        directIntent.arguments
+        directIntent.arguments,
+        signal
       ))
       runtime = this.runtimeSnapshot(settings)
     } else {
-      runtime = await runtimePromise
+      runtime = await waitWithAbort(runtimePromise, signal)
       if (!runtime.connected) {
         answer = offlineMessage(settings)
       } else if (!runtime.availableModels.includes(settings.provider.model)) {
@@ -94,13 +113,15 @@ export class AssistantHarness {
             withUser.conversation.messages,
             settings.keepHistory
           )
-          answer = await this.provider.complete(messages, settings)
+          answer = await this.provider.complete(messages, settings, signal)
         } catch (error) {
+          if (isAbortError(error) || signal?.aborted) throw abortError(signal)
           answer = `Não consegui concluir a resposta local. ${errorMessage(error)}`
         }
       }
     }
 
+    throwIfAborted(signal)
     const withAssistant = await this.conversations.addMessage(
       conversation.id,
       'assistant',
@@ -112,6 +133,28 @@ export class AssistantHarness {
       conversation: withAssistant.conversation,
       assistantMessage: withAssistant.message,
       runtime
+    }
+  }
+
+  private async enqueueConversationSend<T>(
+    conversationId: string,
+    operation: () => Promise<T>,
+    signal?: AbortSignal
+  ): Promise<T> {
+    const previous = this.conversationSendQueues.get(conversationId) ?? Promise.resolve()
+    const current = previous.catch(() => undefined).then(() => {
+      throwIfAborted(signal)
+      return operation()
+    })
+    const tail = current.then(() => undefined, () => undefined)
+    this.conversationSendQueues.set(conversationId, tail)
+
+    try {
+      return await waitWithAbort(current, signal)
+    } finally {
+      if (this.conversationSendQueues.get(conversationId) === tail) {
+        this.conversationSendQueues.delete(conversationId)
+      }
     }
   }
 
@@ -181,13 +224,13 @@ export class AssistantHarness {
     messages: ChatMessage[],
     keepHistory: boolean
   ): Promise<ChatMessage[]> {
-    if (!keepHistory || !this.memory) return messages
+    if (!keepHistory || !this.memory) return selectMessagesForContext(messages)
     // Executable recipes are resolved by the typed tool/catalog layers, never
     // copied into the model prompt as free-form instructions.
     const context = await this.memory.buildPromptContext({ recipes: 0 })
-    if (!context) return messages
+    if (!context) return selectMessagesForContext(messages)
 
-    return [{
+    return selectMessagesForContext([{
       id: 'local-curated-memory',
       role: 'system',
       content: [
@@ -198,7 +241,7 @@ export class AssistantHarness {
         '</memory_data>'
       ].join('\n'),
       createdAt: new Date().toISOString()
-    }, ...messages]
+    }, ...messages])
   }
 }
 
@@ -209,15 +252,19 @@ function runtimeKey(settings: TitiSettings): string {
 async function executeToolSafely(
   tools: ToolExecutor,
   name: string,
-  argumentsValue: Record<string, unknown>
+  argumentsValue: Record<string, unknown>,
+  signal?: AbortSignal
 ): Promise<{ ok: boolean; message: string }> {
+  throwIfAborted(signal)
   try {
-    const result = await tools.execute(name, argumentsValue)
+    const result = await waitWithAbort(tools.execute(name, argumentsValue), signal)
+    throwIfAborted(signal)
     if (typeof result?.ok !== 'boolean' || typeof result.message !== 'string' || !result.message.trim()) {
       return { ok: false, message: 'A ferramenta retornou um resultado inválido.' }
     }
     return { ok: result.ok, message: result.message.trim() }
   } catch (error) {
+    if (isAbortError(error) || signal?.aborted) throw abortError(signal)
     return {
       ok: false,
       message: error instanceof Error && error.message.trim()
@@ -225,6 +272,32 @@ async function executeToolSafely(
         : 'A ferramenta falhou de forma inesperada.'
     }
   }
+}
+
+function waitWithAbort<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
+  if (!signal) return promise
+  throwIfAborted(signal)
+  return new Promise<T>((resolve, reject) => {
+    const abort = (): void => reject(abortError(signal))
+    signal.addEventListener('abort', abort, { once: true })
+    void promise.then(resolve, reject).finally(() => signal.removeEventListener('abort', abort))
+  })
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) throw abortError(signal)
+}
+
+function abortError(signal?: AbortSignal): Error {
+  const reason = signal?.reason
+  if (reason instanceof Error) return reason
+  const error = new Error('A interação foi interrompida.')
+  error.name = 'AbortError'
+  return error
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === 'AbortError'
 }
 
 function toolResultMessage(result: { ok: boolean; message: string }): string {

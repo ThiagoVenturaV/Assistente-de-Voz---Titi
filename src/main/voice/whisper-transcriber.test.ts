@@ -9,6 +9,14 @@ describe('WhisperTranscriber input validation', () => {
       .rejects.toThrow('A gravação ficou curta demais.')
   })
 
+  it('honra cancelamento antes de validar ou iniciar o processo local', async () => {
+    const controller = new AbortController()
+    controller.abort()
+
+    await expect(transcriber.transcribe(new ArrayBuffer(12), controller.signal))
+      .rejects.toMatchObject({ name: 'AbortError' })
+  })
+
   it('rejects data that is not a RIFF/WAVE recording before starting a process', async () => {
     const invalidAudio = new TextEncoder().encode('not-a-wave-file'.padEnd(64, '.')).buffer
 

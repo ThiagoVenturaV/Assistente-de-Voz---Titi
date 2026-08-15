@@ -1,7 +1,7 @@
 import type { ActionLogStore } from '../storage/action-log-store'
 import type { ToolDefinition, ToolExecutionResult, ToolExecutor } from './contracts'
 
-const SENSITIVE_KEY = /api[-_]?key|authorization|cookie|password|secret|token/i
+const SENSITIVE_KEY = /api[-_]?key|authorization|cookie|password|secret|token|query|url/i
 
 export class AuditedToolExecutor implements ToolExecutor {
   readonly definitions: ToolDefinition[]
@@ -25,7 +25,7 @@ export class AuditedToolExecutor implements ToolExecutor {
         tool: name,
         arguments: redactSensitive(argumentsValue),
         ok: false,
-        message,
+        message: auditMessage(name, message, false),
         durationMs: Math.round(performance.now() - startedAt)
       })
       throw error
@@ -35,7 +35,7 @@ export class AuditedToolExecutor implements ToolExecutor {
       tool: name,
       arguments: redactSensitive(argumentsValue),
       ok: result.ok,
-      message: result.message,
+      message: auditMessage(name, result.message, result.ok),
       details: redactSensitive(result.details),
       durationMs: Math.round(performance.now() - startedAt)
     })
@@ -49,6 +49,20 @@ export class AuditedToolExecutor implements ToolExecutor {
     if (!enabled) return
     await this.actions.record(entry).catch(() => undefined)
   }
+}
+
+export function auditMessage(tool: string, message: string, ok: boolean): string {
+  if (tool === 'open_web') {
+    return ok ? 'Página ou pesquisa aberta.' : 'Não foi possível abrir a página ou pesquisa.'
+  }
+  if (tool === 'spotify' && /pesquis/i.test(message)) {
+    return ok ? 'Pesquisa aberta no aplicativo de música.' : 'Não foi possível pesquisar no aplicativo de música.'
+  }
+  return redactUrls(message)
+}
+
+function redactUrls(value: string): string {
+  return value.replace(/https?:\/\/[^\s)\]}>,]+/gi, '[endereço oculto]')
 }
 
 export function redactSensitive(value: unknown): unknown {

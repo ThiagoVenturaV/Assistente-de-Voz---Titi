@@ -3,6 +3,7 @@ import { DEFAULT_SETTINGS } from '../../shared/defaults'
 import {
   validatedChatRequest,
   validatedConversationId,
+  validatedRequestId,
   validatedSettingsPatch,
   validatedWavAudio
 } from './validation'
@@ -17,13 +18,26 @@ describe('IPC validation', () => {
     { ...DEFAULT_SETTINGS, provider: { ...DEFAULT_SETTINGS.provider, endpoint: 'file:///C:/secret' } },
     { ...DEFAULT_SETTINGS, provider: { ...DEFAULT_SETTINGS.provider, endpoint: 'https://remote.example.com' } },
     { ...DEFAULT_SETTINGS, voice: { ...DEFAULT_SETTINGS.voice, pushToTalkShortcut: 'Space' } },
-    { ...DEFAULT_SETTINGS, voice: { ...DEFAULT_SETTINGS.voice, speechRate: 99 } }
+    { ...DEFAULT_SETTINGS, voice: { ...DEFAULT_SETTINGS.voice, speechRate: 99 } },
+    { ...DEFAULT_SETTINGS, voice: { ...DEFAULT_SETTINGS.voice, inputDeviceId: 'x'.repeat(513) } }
   ])('rejects malformed or externally routed settings', (value) => {
     expect(() => validatedSettingsPatch(value)).toThrow()
   })
 
+  it('preserva um identificador válido de microfone', () => {
+    expect(validatedSettingsPatch({
+      voice: { ...DEFAULT_SETTINGS.voice, inputDeviceId: 'microfone-usb-123' }
+    })).toMatchObject({ voice: { inputDeviceId: 'microfone-usb-123' } })
+  })
+
   it('normalizes a valid chat request', () => {
     expect(validatedChatRequest({ content: '  olá  ' })).toEqual({ content: 'olá' })
+  })
+
+  it('preserva o identificador válido do pedido para cancelamento', () => {
+    const requestId = '5599faba-382a-4b73-849f-47ac40bcca36'
+    expect(validatedChatRequest({ requestId, content: 'olá' })).toEqual({ requestId, content: 'olá' })
+    expect(() => validatedRequestId('../pedido')).toThrow('Identificador de pedido inválido')
   })
 
   it.each(['', '../conversation', 'not-a-uuid', 1, null])(

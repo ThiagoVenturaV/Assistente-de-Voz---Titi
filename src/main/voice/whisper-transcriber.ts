@@ -16,7 +16,8 @@ export class WhisperTranscriber {
 
   private readonly tempPath: string
 
-  async transcribe(wavAudio: ArrayBuffer): Promise<VoiceTranscription> {
+  async transcribe(wavAudio: ArrayBuffer, signal?: AbortSignal): Promise<VoiceTranscription> {
+    throwIfAborted(signal)
     const bytes = Buffer.from(wavAudio)
     validateAudio(bytes)
     await Promise.all([access(this.executable), access(this.model)]).catch(() => {
@@ -31,6 +32,7 @@ export class WhisperTranscriber {
 
     try {
       await writeFile(inputPath, bytes)
+      throwIfAborted(signal)
       await runWhisper(this.executable, [
         '--model', this.model,
         '--file', inputPath,
@@ -41,7 +43,8 @@ export class WhisperTranscriber {
         '--output-txt',
         '--output-file', outputBase,
         '--prompt', 'Conversa em português brasileiro.'
-      ])
+      ], signal)
+      throwIfAborted(signal)
       const text = (await readFile(outputPath, 'utf8')).trim()
       if (!text) throw new Error('Não consegui identificar uma fala. Tente novamente mais perto do microfone.')
       return {
@@ -62,32 +65,53 @@ function validateAudio(bytes: Buffer): void {
   }
 }
 
-function runWhisper(executable: string, args: string[]): Promise<void> {
+function runWhisper(executable: string, args: string[], signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
-    const process = spawn(executable, args, {
+    throwIfAborted(signal)
+    const child = spawn(executable, args, {
       windowsHide: true,
       stdio: ['ignore', 'pipe', 'pipe']
     })
     let stderr = ''
+    let settled = false
+    const finish = (error?: Error): void => {
+      if (settled) return
+      settled = true
+      clearTimeout(timeout)
+      signal?.removeEventListener('abort', abort)
+      error ? reject(error) : resolve()
+    }
+    const abort = (): void => {
+      child.kill()
+      finish(abortError(signal))
+    }
     const timeout = setTimeout(() => {
-      process.kill()
-      reject(new Error('A transcrição local excedeu dois minutos.'))
+      child.kill()
+      finish(new Error('A transcrição local excedeu dois minutos.'))
     }, 120_000)
+    signal?.addEventListener('abort', abort, { once: true })
 
-    process.stderr.setEncoding('utf8')
-    process.stderr.on('data', (chunk: string) => {
+    child.stderr.setEncoding('utf8')
+    child.stderr.on('data', (chunk: string) => {
       stderr = `${stderr}${chunk}`.slice(-4000)
     })
-    process.on('error', (error) => {
-      clearTimeout(timeout)
-      reject(error)
-    })
-    process.on('close', (code) => {
-      clearTimeout(timeout)
-      if (code === 0) resolve()
-      else reject(new Error(`Falha na transcrição local (${code ?? 'sem código'}). ${lastLine(stderr)}`))
+    child.on('error', (error) => finish(error))
+    child.on('close', (code) => {
+      if (code === 0) finish()
+      else finish(new Error(`Falha na transcrição local (${code ?? 'sem código'}). ${lastLine(stderr)}`))
     })
   })
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) throw abortError(signal)
+}
+
+function abortError(signal?: AbortSignal): Error {
+  if (signal?.reason instanceof Error) return signal.reason
+  const error = new Error('A transcrição foi interrompida.')
+  error.name = 'AbortError'
+  return error
 }
 
 function lastLine(value: string): string {

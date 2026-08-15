@@ -14,6 +14,7 @@ import {
   SettingsIcon,
   ShieldIcon
 } from './icons'
+import { MicrophoneSettings } from './MicrophoneSettings'
 
 type SettingsSection =
   | 'general'
@@ -214,6 +215,14 @@ export function SettingsPanel({
                   description="Continua ouvindo entre as respostas, até você encerrar."
                   checked={draft.voice.liveMode}
                   onChange={(liveMode) => setDraft({ ...draft, voice: { ...draft.voice, liveMode } })}
+                />
+                <MicrophoneSettings
+                  deviceId={draft.voice.inputDeviceId}
+                  disabled={!draft.voice.enabled}
+                  onChange={(inputDeviceId) => setDraft({
+                    ...draft,
+                    voice: { ...draft.voice, inputDeviceId }
+                  })}
                 />
                 <Field label="Atalho para falar" hint="Pressione uma vez para começar e outra para enviar. Use Ctrl, Alt ou Shift.">
                   <input

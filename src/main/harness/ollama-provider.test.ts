@@ -16,7 +16,44 @@ const messages: ChatMessage[] = [
 describe('OllamaProvider tool calling', () => {
   afterEach(() => vi.unstubAllGlobals())
 
-  it('executes tool calls and returns the final assistant response', async () => {
+  it('aborta uma geração local pendente', async () => {
+    const controller = new AbortController()
+    vi.stubGlobal('fetch', vi.fn((_input: unknown, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener('abort', () => reject(init.signal?.reason), { once: true })
+    })))
+    const provider = new OllamaProvider(fakeTools(vi.fn()))
+
+    const pending = provider.complete(messages, DEFAULT_SETTINGS, controller.signal)
+    await Promise.resolve()
+    controller.abort()
+
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' })
+  })
+
+  it('aborta enquanto uma ferramenta ainda aguarda sem executar rodadas seguintes', async () => {
+    let release!: () => void
+    const execute = vi.fn(() => new Promise<{ ok: true; message: string }>((resolve) => {
+      release = () => resolve({ ok: true, message: 'Ação tardia.' })
+    }))
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(jsonResponse({
+      message: {
+        role: 'assistant',
+        tool_calls: [{ type: 'function', function: { name: 'current_datetime', arguments: {} } }]
+      }
+    })))
+    const controller = new AbortController()
+    const provider = new OllamaProvider(fakeTools(execute))
+
+    const pending = provider.complete(messages, DEFAULT_SETTINGS, controller.signal)
+    await vi.waitFor(() => expect(execute).toHaveBeenCalledOnce())
+    controller.abort()
+
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' })
+    expect(fetch).toHaveBeenCalledOnce()
+    release()
+  })
+
+  it('executes tool calls and returns the trusted tool outcome', async () => {
     const execute = vi.fn(async () => ({ ok: true, message: 'sexta-feira, 10:30' }))
     const tools = fakeTools(execute)
     const fetchMock = vi.fn()
@@ -33,7 +70,7 @@ describe('OllamaProvider tool calling', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     const provider = new OllamaProvider(tools)
-    await expect(provider.complete(messages, DEFAULT_SETTINGS)).resolves.toBe('Agora são 10:30.')
+    await expect(provider.complete(messages, DEFAULT_SETTINGS)).resolves.toBe('sexta-feira, 10:30')
     expect(execute).toHaveBeenCalledWith('current_datetime', {})
 
     const firstBody = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as { tools: unknown[] }
@@ -48,7 +85,7 @@ describe('OllamaProvider tool calling', () => {
     }))
   })
 
-  it('passes a failed tool result back to the model instead of claiming success', async () => {
+  it('does not let the model contradict a failed tool result', async () => {
     const execute = vi.fn(async () => ({ ok: false, message: 'Aplicativo não encontrado.' }))
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(jsonResponse({
@@ -58,12 +95,14 @@ describe('OllamaProvider tool calling', () => {
         }
       }))
       .mockResolvedValueOnce(jsonResponse({
-        message: { role: 'assistant', content: 'Não encontrei o aplicativo instalado.' }
+        message: { role: 'assistant', content: 'Codex aberto com sucesso.' }
       }))
     vi.stubGlobal('fetch', fetchMock)
 
     const provider = new OllamaProvider(fakeTools(execute))
-    await expect(provider.complete(messages, DEFAULT_SETTINGS)).resolves.toBe('Não encontrei o aplicativo instalado.')
+    const answer = await provider.complete(messages, DEFAULT_SETTINGS)
+    expect(answer).toBe('Não consegui executar essa ação. Aplicativo não encontrado.')
+    expect(answer).not.toContain('aberto com sucesso')
 
     const finalBody = JSON.parse(String(fetchMock.mock.calls[1][1]?.body)) as { messages: Array<{ content?: string }> }
     expect(finalBody.messages.at(-1)?.content).toContain('"ok":false')
@@ -162,7 +201,9 @@ describe('OllamaProvider tool calling', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     const provider = new OllamaProvider(fakeTools(execute))
-    await expect(provider.complete(messages, DEFAULT_SETTINGS)).resolves.toBe('Não consegui consultar a hora.')
+    await expect(provider.complete(messages, DEFAULT_SETTINGS)).resolves.toBe(
+      'Não consegui executar essa ação. A ferramenta current_datetime falhou: acesso negado.'
+    )
     expect(requestBody(fetchMock, 1).messages.at(-1)?.content).toContain('tool_execution_failed')
     expect(requestBody(fetchMock, 1).messages.at(-1)?.content).toContain('acesso negado')
   })
@@ -194,9 +235,35 @@ describe('OllamaProvider tool calling', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     const provider = new OllamaProvider(fakeTools(execute))
-    await expect(provider.complete(messages, DEFAULT_SETTINGS)).resolves.toBe('A página já foi aberta uma vez.')
+    const answer = await provider.complete(messages, DEFAULT_SETTINGS)
+    expect(answer).toContain('Página aberta.')
+    expect(answer).toContain('não foi executada novamente')
     expect(execute).toHaveBeenCalledTimes(1)
     expect(requestBody(fetchMock, 2).messages.at(-1)?.content).toContain('repeated_tool_call')
+  })
+
+  it('preserves a real tool outcome when the following model round fails', async () => {
+    const execute = vi.fn(async () => ({ ok: true, message: 'Brave aberto e confirmado.' }))
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({
+        message: {
+          role: 'assistant',
+          tool_calls: [{
+            type: 'function',
+            function: { name: 'open_application', arguments: { application: 'chrome' } }
+          }]
+        }
+      }))
+      .mockRejectedValueOnce(new Error('conexão caiu'))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const provider = new OllamaProvider(fakeTools(execute))
+    const answer = await provider.complete(messages, DEFAULT_SETTINGS)
+
+    expect(execute).toHaveBeenCalledOnce()
+    expect(answer).toContain('Brave aberto e confirmado.')
+    expect(answer).toContain('resposta local foi interrompida')
+    expect(answer).toContain('conexão caiu')
   })
 
   it('stops a tool loop after five rounds with a useful response', async () => {

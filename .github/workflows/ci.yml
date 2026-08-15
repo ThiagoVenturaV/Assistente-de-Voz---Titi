@@ -15,9 +15,9 @@ concurrency:
 
 jobs:
   validate:
-    name: Tipos, testes e build
+    name: Tipos, testes e pacote verificável
     runs-on: windows-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
 
     steps:
       - name: Baixar o código
@@ -43,5 +43,5 @@ jobs:
       - name: Executar testes
         run: pnpm test
 
-      - name: Gerar build de produção
-        run: pnpm build
+      - name: Gerar e verificar pacote de produção
+        run: pnpm package:dir

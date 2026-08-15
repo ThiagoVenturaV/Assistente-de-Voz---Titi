@@ -28,6 +28,7 @@ test("server-renders the Titi landing page", async () => {
   assert.match(html, /Seu navegador/);
   assert.match(html, /Aplicativo de música/);
   assert.doesNotMatch(html, /SHA-256|Ollama|Whisper|Spotify|Chrome|Brave|Codex|Antigravity/);
+  assert.doesNotMatch(html, />\s*GitHub\b|Ver o código no GitHub|issues\/new\/choose/i);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton/);
 });
 
@@ -43,6 +44,7 @@ test("keeps product metadata and accessible landmarks", async () => {
   assert.match(page, /<main[^>]*>/);
   assert.match(page, /<details>/);
   assert.match(page, /className="signal-track"/);
+  assert.doesNotMatch(page, /REPO_URL|FEEDBACK_URL|Ver o código no GitHub|>GitHub/);
   assert.equal(page.match(/className="signal-group"/g)?.length, 2);
   assert.match(layout, /lang="pt-BR"/);
   assert.match(layout, /openGraph/);

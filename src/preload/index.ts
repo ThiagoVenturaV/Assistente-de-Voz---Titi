@@ -25,6 +25,9 @@ const api: TitiDesktopApi = {
     send: (request: ChatRequest) =>
       ipcRenderer.invoke('conversations:send', request)
   },
+  interaction: {
+    stop: (requestId?: string) => ipcRenderer.invoke('interaction:stop', requestId)
+  },
   runtime: {
     status: () => ipcRenderer.invoke('runtime:status'),
     prepare: () => ipcRenderer.invoke('runtime:prepare'),

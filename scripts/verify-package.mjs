@@ -45,6 +45,18 @@ for (const marker of [
   }
 }
 
+for (const forbiddenMarker of [
+  'TITI_CAPTURE_DIR',
+  'captureQaScreens',
+  "tool-confirmation-dialog .primary-button"
+]) {
+  if (packagedMain.includes(forbiddenMarker)) {
+    throw new Error(
+      `Pacote contém um gancho de QA proibido em produção: ${forbiddenMarker}.`
+    )
+  }
+}
+
 const resourcesPath = dirname(archivePath)
 const requiredResources = [
   {

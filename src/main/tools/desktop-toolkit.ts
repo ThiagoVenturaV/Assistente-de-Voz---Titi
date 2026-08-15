@@ -179,8 +179,13 @@ export function normalizeHttpUrl(value: string): string {
   }
   const candidate = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`
   const parsed = new URL(candidate)
-  if (!['http:', 'https:'].includes(parsed.protocol)) {
-    throw new Error('Somente endereços HTTP ou HTTPS podem ser abertos.')
+  if (
+    !['http:', 'https:'].includes(parsed.protocol)
+    || !parsed.hostname
+    || parsed.username
+    || parsed.password
+  ) {
+    throw new Error('Somente endereços HTTP ou HTTPS sem credenciais podem ser abertos.')
   }
   return parsed.toString()
 }

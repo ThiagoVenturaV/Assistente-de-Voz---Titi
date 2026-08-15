@@ -42,6 +42,9 @@ export const LiveIcon = (props: IconProps): React.JSX.Element => (
 export const SendIcon = (props: IconProps): React.JSX.Element => (
   <IconBase {...props}><path d="m4 12 16-8-6 16-2.5-6.5L4 12Z" /><path d="M11.5 13.5 20 4" /></IconBase>
 )
+export const StopIcon = (props: IconProps): React.JSX.Element => (
+  <IconBase {...props}><rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor" stroke="none" /></IconBase>
+)
 export const PanelIcon = (props: IconProps): React.JSX.Element => (
   <IconBase {...props}><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16" /></IconBase>
 )

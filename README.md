@@ -2,16 +2,19 @@
 
 Titi é um assistente local para Windows com interface gráfica, conversa por texto e voz, mascote 2D animado e ferramentas controladas para agir no computador. O objetivo é permitir que a pessoa use seus aplicativos por voz sem entregar um terminal irrestrito ao modelo.
 
-> **Estado atual:** candidato interno `0.2.0-beta.1`, em desenvolvimento. As mudanças descritas abaixo ainda precisam passar pela instalação e pelo smoke test do novo pacote antes de substituir o beta público anterior.
+> **Estado atual:** a pré-release pública `0.2.0-beta.1` precisa ser substituída por uma corretiva. A branch remove uma rota interna de QA que permaneceu no pacote publicado, bloqueia URLs com credenciais, redige buscas/endereços e adiciona cancelamento e seleção de microfone. O novo pacote de diretório passou na verificação; ainda falta gerar e instalar o NSIS corretivo.
 
 ## O que está implementado no código atual
 
 - aplicativo Electron/React com onboarding, chat, configurações e mascote flutuante;
 - chat local com Ollama e `qwen3.5:9b`;
-- transcrição local por `whisper.cpp`, aperte-para-falar, atalho global e modo ao vivo;
+- transcrição local por `whisper.cpp`, seleção/teste de microfone, aperte-para-falar, atalho global e modo ao vivo;
 - resposta falada com uma voz instalada no Windows;
 - botão **Ao vivo** diretamente no mascote;
 - execução de ferramentas com validação de nome, argumentos, repetição, quantidade e número de rodadas;
+- botão **Parar** e tecla `Esc` propagam cancelamento por IPC para gravação, Whisper, geração local, confirmação pendente e fala;
+- ledger de ações preserva o resultado real mesmo se o modelo falhar ou tentar contradizer uma ferramenta;
+- conversas longas usam uma janela de contexto limitada, mantendo memória curada, pedido atual e turnos recentes inteiros;
 - roteamento direto de comandos explícitos comuns, como abrir um aplicativo, inclusive enquanto o modelo está indisponível;
 - catálogo local que procura aplicativos no Menu Iniciar, nos aplicativos registrados pelo Windows e em pastas de instalação confiáveis;
 - aprendizado de uma receita estruturada somente depois que um processo correspondente é confirmado; quando isso não é possível, o Titi informa apenas que enviou o pedido ao Windows;
@@ -23,7 +26,7 @@ Titi é um assistente local para Windows com interface gráfica, conversa por te
 - inicialização oculta do Ollama, sem shell e com proteção contra partidas duplicadas;
 - standby experimental ao detectar um provável jogo em primeiro plano.
 
-O código passa por `pnpm typecheck` e por **181 testes em 22 arquivos**. Essa evidência é unitária/de integração; ainda não substitui a validação do instalador em uma máquina limpa.
+O código passa por `pnpm typecheck` e por **212 testes em 24 arquivos**. `pnpm package:dir` também verifica o ASAR e rejeita rotas de QA proibidas em produção. Essa evidência ainda não substitui a validação do instalador em uma máquina limpa.
 
 ## Limites desta versão
 
@@ -32,7 +35,7 @@ O código passa por `pnpm typecheck` e por **181 testes em 22 arquivos**. Essa e
 - não existe automação genérica de interface para clicar, digitar ou editar dentro de qualquer aplicativo;
 - o standby de jogos ainda precisa ser testado com jogos reais, tela cheia, downloads e tarefas em andamento;
 - somente Ollama está implementado; API e OAuth ainda não fazem parte do produto;
-- interrupção completa de geração/fala, escolha do dispositivo de entrada e testes longos do modo ao vivo ainda estão pendentes;
+- seleção e interrupção estão implementadas, mas ainda faltam microfone real, vinte turnos ao vivo e cancelamento exercitado em todas as fases do aplicativo instalado;
 - ainda não há atualização dentro do aplicativo, assinatura do instalador ou rollback automático;
 - a voz neural mais natural permanece como última prioridade.
 
@@ -80,11 +83,11 @@ Dependências oficiais:
 | Área | Estado na branch | O que falta para considerar entregue |
 | --- | --- | --- |
 | Interface, chat e mascote | Base pronta | Smoke test do novo pacote |
-| Ferramentas e resultado real | Pronto no código | QA com Ollama e executável empacotado |
+| Ferramentas e resultado real | Pronto no código | Timeout por ferramenta e QA no instalador |
 | Descoberta e aprendizado de apps | Parcial | UI para ambiguidades e cobertura real de mais aplicativos |
 | Confirmações e auditoria | Parcial | E2E do modal e política para futuras ações destrutivas |
 | Histórico privado e memória | Pronto no código | Migração e teste no pacote |
-| Voz e modo ao vivo | Parcial | 20 turnos, interrupção e seleção de microfone |
+| Voz e modo ao vivo | Parcial | 20 turnos e prova real de seleção/interrupção |
 | Ollama silencioso | Pronto no código | Teste de janelas/processos no instalador |
 | Standby durante jogos | Experimental | Jogos reais, lista editável e tarefas em andamento |
 | Delegação para agentes | Não implementado | Enviar, acompanhar e devolver resultados |

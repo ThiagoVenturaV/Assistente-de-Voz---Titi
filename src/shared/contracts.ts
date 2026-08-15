@@ -48,6 +48,7 @@ export interface TitiSettings {
     pushToTalkShortcut: string
     liveMode: boolean
     speechRate: number
+    inputDeviceId: string
   }
 }
 
@@ -70,6 +71,7 @@ export interface RuntimeSetupProgress {
 }
 
 export interface ChatRequest {
+  requestId?: string
   conversationId?: string
   content: string
 }
@@ -137,6 +139,9 @@ export interface TitiDesktopApi {
     clear(): Promise<number>
     export(): Promise<string | null>
     send(request: ChatRequest): Promise<ChatResponse>
+  }
+  interaction: {
+    stop(requestId?: string): Promise<boolean>
   }
   runtime: {
     status(): Promise<RuntimeStatus>

@@ -1,13 +1,15 @@
 import { useRef } from 'react'
-import { LiveIcon, MicIcon, SendIcon } from './icons'
+import { LiveIcon, MicIcon, SendIcon, StopIcon } from './icons'
 
 interface ComposerProps {
   value: string
   sending: boolean
+  busy: boolean
   listening: boolean
   liveMode: boolean
   onChange(value: string): void
   onSend(): void
+  onStop(): void
   onListenStart(): void
   onListenEnd(): void
   onToggleLive(): void
@@ -16,10 +18,12 @@ interface ComposerProps {
 export function Composer({
   value,
   sending,
+  busy,
   listening,
   liveMode,
   onChange,
   onSend,
+  onStop,
   onListenStart,
   onListenEnd,
   onToggleLive
@@ -43,7 +47,7 @@ export function Composer({
           rows={1}
           placeholder="Converse com o Titi…"
           aria-label="Mensagem"
-          disabled={sending}
+          disabled={busy}
           onChange={(event) => handleChange(event.target.value)}
           onKeyDown={(event) => {
             if (event.key === 'Enter' && !event.shiftKey) {
@@ -57,6 +61,7 @@ export function Composer({
             <button
               className={`composer-control ${listening ? 'is-active' : ''}`}
               title="Segure para falar"
+              disabled={busy}
               onPointerDown={onListenStart}
               onPointerUp={onListenEnd}
               onPointerLeave={() => listening && onListenEnd()}
@@ -72,17 +77,28 @@ export function Composer({
               <LiveIcon />
             </button>
           </div>
-          <button
-            className="send-button"
-            title="Enviar mensagem"
-            disabled={!value.trim() || sending}
-            onClick={onSend}
-          >
-            <SendIcon />
-          </button>
+          {busy ? (
+            <button
+              className="send-button stop-button"
+              title="Parar interação (Esc)"
+              aria-label="Parar interação"
+              onClick={onStop}
+            >
+              <StopIcon />
+            </button>
+          ) : (
+            <button
+              className="send-button"
+              title="Enviar mensagem"
+              disabled={!value.trim() || sending}
+              onClick={onSend}
+            >
+              <SendIcon />
+            </button>
+          )}
         </div>
       </div>
-      <small className="composer-hint">O Titi pode cometer erros. Ações no computador sempre respeitam suas confirmações.</small>
+      <small className="composer-hint">O Titi pode cometer erros. Pressione Esc para interromper a interação atual.</small>
     </div>
   )
 }

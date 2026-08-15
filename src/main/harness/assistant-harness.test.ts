@@ -44,6 +44,41 @@ describe('AssistantHarness privacy', () => {
 })
 
 describe('AssistantHarness deterministic tools', () => {
+  it('cancela antes de gravar mensagem ou executar ferramenta', async () => {
+    const directory = await createTemporaryDirectory()
+    const settings = new SettingsStore(directory)
+    const conversations = new ConversationStore(directory)
+    const tools = fakeTools()
+    const controller = new AbortController()
+    controller.abort()
+    const harness = new AssistantHarness(settings, conversations, tools)
+
+    await expect(harness.send({ content: 'abra o Brave' }, controller.signal))
+      .rejects.toMatchObject({ name: 'AbortError' })
+    expect(tools.execute).not.toHaveBeenCalled()
+    await expect(conversations.list()).resolves.toEqual([])
+  })
+
+  it('devolve o controle imediatamente ao cancelar uma ferramenta pendente', async () => {
+    const directory = await createTemporaryDirectory()
+    const settings = new SettingsStore(directory)
+    const conversations = new ConversationStore(directory)
+    const tools = fakeTools()
+    let release!: () => void
+    tools.execute.mockImplementation(() => new Promise((resolve) => {
+      release = () => resolve({ ok: true, message: 'Brave aberto.' })
+    }))
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
+    const controller = new AbortController()
+    const harness = new AssistantHarness(settings, conversations, tools)
+
+    const sending = harness.send({ content: 'abra o Brave' }, controller.signal)
+    await vi.waitFor(() => expect(tools.execute).toHaveBeenCalledOnce())
+    controller.abort()
+    await expect(sending).rejects.toMatchObject({ name: 'AbortError' })
+    release()
+  })
+
   it('executa um comando explícito mesmo quando o modelo local está offline', async () => {
     const directory = await createTemporaryDirectory()
     const settings = new SettingsStore(directory)
@@ -127,6 +162,93 @@ describe('AssistantHarness deterministic tools', () => {
     expect(tools.execute).not.toHaveBeenCalled()
     expect(response.assistantMessage.content).toBe('Explicação normal.')
     expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('AssistantHarness conversation queues', () => {
+  it('serializa envios da mesma conversa sem perder mensagens', async () => {
+    const directory = await createTemporaryDirectory()
+    const settings = new SettingsStore(directory)
+    const conversations = new ConversationStore(directory)
+    const conversation = await conversations.create({ persist: true })
+    const tools = fakeTools()
+    let releaseFirst!: () => void
+    const firstTool = new Promise<void>((resolve) => { releaseFirst = resolve })
+    tools.execute.mockImplementation(async (_name, argumentsValue) => {
+      const application = (argumentsValue as { application?: string }).application
+      if (application === 'brave') {
+        await firstTool
+        return { ok: true, message: 'Brave aberto.' }
+      }
+      return { ok: true, message: 'Spotify aberto.' }
+    })
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
+    const harness = new AssistantHarness(settings, conversations, tools)
+
+    const first = harness.send({
+      conversationId: conversation.id,
+      content: 'abra o Brave'
+    })
+    await vi.waitFor(() => expect(tools.execute).toHaveBeenCalledTimes(1))
+    const second = harness.send({
+      conversationId: conversation.id,
+      content: 'abra o Spotify'
+    })
+
+    const stateBeforeRelease = await Promise.race([
+      second.then(() => 'settled' as const),
+      delay(25).then(() => 'pending' as const)
+    ])
+    expect(stateBeforeRelease).toBe('pending')
+    expect(tools.execute).toHaveBeenCalledTimes(1)
+
+    releaseFirst()
+    const [, secondResponse] = await Promise.all([first, second])
+    expect(tools.execute).toHaveBeenCalledTimes(2)
+    expect(secondResponse.conversation.messages.map(({ content }) => content)).toEqual([
+      'abra o Brave',
+      'Brave aberto.',
+      'abra o Spotify',
+      'Spotify aberto.'
+    ])
+  })
+
+  it('mantém filas de conversas diferentes independentes', async () => {
+    const directory = await createTemporaryDirectory()
+    const settings = new SettingsStore(directory)
+    const conversations = new ConversationStore(directory)
+    const firstConversation = await conversations.create({ persist: true })
+    const secondConversation = await conversations.create({ persist: true })
+    const tools = fakeTools()
+    let releaseFirst!: () => void
+    const firstTool = new Promise<void>((resolve) => { releaseFirst = resolve })
+    tools.execute.mockImplementation(async (_name, argumentsValue) => {
+      const application = (argumentsValue as { application?: string }).application
+      if (application === 'brave') {
+        await firstTool
+        return { ok: true, message: 'Brave aberto.' }
+      }
+      return { ok: true, message: 'Spotify aberto.' }
+    })
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
+    const harness = new AssistantHarness(settings, conversations, tools)
+
+    const first = harness.send({
+      conversationId: firstConversation.id,
+      content: 'abra o Brave'
+    })
+    await vi.waitFor(() => expect(tools.execute).toHaveBeenCalledTimes(1))
+    const second = harness.send({
+      conversationId: secondConversation.id,
+      content: 'abra o Spotify'
+    })
+
+    await expect(second).resolves.toMatchObject({
+      assistantMessage: { content: 'Spotify aberto.' }
+    })
+    expect(tools.execute).toHaveBeenCalledTimes(2)
+    releaseFirst()
+    await first
   })
 })
 
@@ -254,4 +376,8 @@ async function createTemporaryDirectory(): Promise<string> {
   const directory = await mkdtemp(join(tmpdir(), 'titi-harness-privacy-'))
   temporaryDirectories.push(directory)
   return directory
+}
+
+function delay(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds))
 }

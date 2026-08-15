@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 
 const DOWNLOAD_URL = "https://github.com/ThiagoVenturaV/Assistente-de-Voz---Titi/releases/download/v0.2.0-beta.1/Titi-Setup-0.2.0-beta.1.exe";
-const REPO_URL = "https://github.com/ThiagoVenturaV/Assistente-de-Voz---Titi";
-const FEEDBACK_URL = `${REPO_URL}/issues/new/choose`;
 
 export const metadata: Metadata = {
   title: "Titi — Seu PC agora escuta você",
@@ -151,7 +149,7 @@ export default function Home() {
             <p className="section-index section-index--dark"><span>04</span> SOB SEU CONTROLE</p>
             <h2>Privacidade não é<br />um detalhe.<br /><em>É o começo.</em></h2>
             <p>O Titi foi pensado para manter suas conversas, sua voz e seu histórico no seu computador sempre que possível.</p>
-            <a href={REPO_URL} target="_blank" rel="noreferrer">Ver o código no GitHub <span>↗</span></a>
+            <a href="#perguntas">Entenda como seus dados funcionam <span>→</span></a>
           </div>
           <div className="privacy-terminal">
             <div className="terminal-top"><span>SEUS DADOS</span><i>PROTEGIDOS</i></div>
@@ -186,7 +184,7 @@ export default function Home() {
       </section>
 
       <footer className="footer-new">
-        <div className="shell footer-main"><a className="wordmark wordmark--footer" href="#inicio"><span className="wordmark-pet"><img src="/titi-icon.png" alt="" /></span><span>Titi</span></a><p>Um assistente feito para tornar<br />o computador um pouco mais humano.</p><div><a href={REPO_URL} target="_blank" rel="noreferrer">GitHub ↗</a><a href={FEEDBACK_URL} target="_blank" rel="noreferrer">Enviar feedback ↗</a><a href="#download">Download ↓</a></div></div>
+        <div className="shell footer-main"><a className="wordmark wordmark--footer" href="#inicio"><span className="wordmark-pet"><img src="/titi-icon.png" alt="" /></span><span>Titi</span></a><p>Um assistente feito para tornar<br />o computador um pouco mais humano.</p><div><a href="#privacidade">Privacidade ↑</a><a href="#perguntas">Perguntas ↑</a><a href="#download">Download ↓</a></div></div>
         <div className="shell footer-bottom"><span>© 2026 Titi</span><span>Feito no Brasil · Beta 0.2</span><a href="#inicio">Voltar ao topo ↑</a></div>
       </footer>
     </main>

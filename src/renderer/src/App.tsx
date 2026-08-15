@@ -39,6 +39,10 @@ export function App(): React.JSX.Element {
   const settingsRef = useRef<TitiSettings | null>(null)
   const currentRef = useRef<Conversation | null>(null)
   const sendingRef = useRef(false)
+  const voiceProcessingRef = useRef(false)
+  const interactionGeneration = useRef(0)
+  const activeRequestId = useRef<string | null>(null)
+  const activeSpeech = useRef<AbortController | null>(null)
 
   useEffect(() => {
     let active = true
@@ -84,8 +88,24 @@ export function App(): React.JSX.Element {
       unsubscribePushToTalk()
       clearLiveRestart()
       recorder.current?.cancel()
+      activeSpeech.current?.abort()
+      void window.titi.interaction.stop(activeRequestId.current ?? undefined)
       window.speechSynthesis?.cancel()
     }
+  }, [])
+
+  useEffect(() => {
+    voiceProcessingRef.current = voiceProcessing
+  }, [voiceProcessing])
+
+  useEffect(() => {
+    const handleStopKey = (event: KeyboardEvent): void => {
+      if (event.key !== 'Escape' || !hasActiveInteraction()) return
+      event.preventDefault()
+      stopCurrentInteraction('Interação interrompida.')
+    }
+    window.addEventListener('keydown', handleStopKey)
+    return () => window.removeEventListener('keydown', handleStopKey)
   }, [])
 
   useEffect(() => {
@@ -138,25 +158,40 @@ export function App(): React.JSX.Element {
     const content = value.trim()
     if (!content || sendingRef.current) return
     setDraft('')
+    const generation = ++interactionGeneration.current
+    const requestId = crypto.randomUUID()
+    const speechController = new AbortController()
+    activeRequestId.current = requestId
+    activeSpeech.current = speechController
     sendingRef.current = true
     setSending(true)
     setNotice(null)
     try {
       const response = await window.titi.conversations.send({
+        requestId,
         conversationId: currentRef.current?.id,
         content
       })
+      if (generation !== interactionGeneration.current) return
       currentRef.current = response.conversation
       setCurrent(response.conversation)
       setRuntime(response.runtime)
       await refreshConversations(response.conversation.id)
       const activeSettings = settingsRef.current
       if (activeSettings?.voice.enabled) {
-        await speakText(response.assistantMessage.content, activeSettings.voice.speechRate)
+        await speakText(
+          response.assistantMessage.content,
+          activeSettings.voice.speechRate,
+          speechController.signal
+        )
       }
     } catch (error) {
+      if (generation !== interactionGeneration.current) return
       setNotice(error instanceof Error ? error.message : 'Não foi possível enviar a mensagem.')
     } finally {
+      if (generation !== interactionGeneration.current) return
+      activeRequestId.current = null
+      activeSpeech.current = null
       sendingRef.current = false
       setSending(false)
     }
@@ -197,7 +232,8 @@ export function App(): React.JSX.Element {
         ? (reason) => reason === 'silence'
           ? void finishListening()
           : cancelSilentListening()
-        : undefined
+        : undefined,
+      settingsRef.current.voice.inputDeviceId
     )
     const generation = ++recordingGeneration.current
     recorder.current = nextRecorder
@@ -229,6 +265,7 @@ export function App(): React.JSX.Element {
   async function finishListening(): Promise<void> {
     const currentRecorder = recorder.current
     if (!currentRecorder) return
+    const generation = recordingGeneration.current
     recorder.current = null
     setVoiceProcessing(true)
     setListening(false)
@@ -236,16 +273,19 @@ export function App(): React.JSX.Element {
     void window.titi.mascot.setState('thinking')
     try {
       const audio = await currentRecorder.stop()
+      if (generation !== recordingGeneration.current) return
       const transcription = await window.titi.voice.transcribe(audio)
+      if (generation !== recordingGeneration.current) return
       setDraft(transcription.text)
       setNotice(`Ouvi: “${transcription.text}”`)
       await sendMessage(transcription.text)
     } catch (error) {
+      if (generation !== recordingGeneration.current) return
       setNotice(error instanceof Error ? error.message : 'Não consegui transcrever a gravação.')
       void window.titi.mascot.setState('error')
       if (settingsRef.current?.voice.liveMode) void window.titi.voice.setLiveMode(false)
     } finally {
-      setVoiceProcessing(false)
+      if (generation === recordingGeneration.current) setVoiceProcessing(false)
     }
   }
 
@@ -278,7 +318,7 @@ export function App(): React.JSX.Element {
       setSettings(saved)
       setNotice(liveMode ? 'Modo ao vivo ativado. Fale quando o Titi começar a ouvir.' : null)
       if (liveMode) scheduleLiveListening(0)
-      else stopLiveListening()
+      else stopCurrentInteraction('Modo ao vivo encerrado.')
     } catch (error) {
       setNotice(error instanceof Error ? error.message : 'Não consegui alterar o modo ao vivo.')
     }
@@ -308,6 +348,49 @@ export function App(): React.JSX.Element {
     stopRequested.current = false
     setListening(false)
     if (!sendingRef.current) void window.titi.mascot.setState('idle')
+  }
+
+  function hasActiveInteraction(): boolean {
+    return Boolean(
+      recorder.current
+      || recordingStarting.current
+      || sendingRef.current
+      || voiceProcessingRef.current
+      || activeRequestId.current
+      || activeSpeech.current
+      || window.speechSynthesis?.speaking
+      || settingsRef.current?.voice.liveMode
+    )
+  }
+
+  function stopCurrentInteraction(message = 'Interação interrompida.'): void {
+    interactionGeneration.current += 1
+    recordingGeneration.current += 1
+    clearLiveRestart()
+    recorder.current?.cancel()
+    recorder.current = null
+    recordingStarting.current = false
+    stopRequested.current = false
+    activeSpeech.current?.abort()
+    activeSpeech.current = null
+    window.speechSynthesis?.cancel()
+    const requestId = activeRequestId.current
+    activeRequestId.current = null
+    void window.titi.interaction.stop(requestId ?? undefined)
+    sendingRef.current = false
+    voiceProcessingRef.current = false
+    setSending(false)
+    setListening(false)
+    setVoiceProcessing(false)
+    setNotice(message)
+    void window.titi.mascot.setState('idle')
+
+    if (settingsRef.current?.voice.liveMode) {
+      void window.titi.voice.setLiveMode(false).then((saved) => {
+        settingsRef.current = saved
+        setSettings(saved)
+      }).catch(() => undefined)
+    }
   }
 
   if (!settings) {
@@ -363,10 +446,12 @@ export function App(): React.JSX.Element {
         <Composer
           value={draft}
           sending={sending}
+          busy={sending || voiceProcessing}
           listening={listening}
           liveMode={settings.voice.liveMode}
           onChange={setDraft}
           onSend={() => sendMessage()}
+          onStop={() => stopCurrentInteraction()}
           onListenStart={() => void beginListening(false)}
           onListenEnd={endListening}
           onToggleLive={toggleLiveMode}
@@ -404,8 +489,9 @@ export function App(): React.JSX.Element {
   )
 }
 
-function speakText(content: string, rate: number): Promise<void> {
+function speakText(content: string, rate: number, signal?: AbortSignal): Promise<void> {
   if (!window.speechSynthesis || !('SpeechSynthesisUtterance' in window)) return Promise.resolve()
+  if (signal?.aborted) return Promise.resolve()
   window.speechSynthesis.cancel()
   const text = content
     .replace(/[*_`#>]/g, '')
@@ -416,14 +502,20 @@ function speakText(content: string, rate: number): Promise<void> {
   return new Promise((resolve) => {
     const utterance = new SpeechSynthesisUtterance(text)
     let settled = false
+    let timeout = 0
+    const abort = (): void => {
+      window.speechSynthesis.cancel()
+      finish()
+    }
     const finish = (): void => {
       if (settled) return
       settled = true
       window.clearTimeout(timeout)
+      signal?.removeEventListener('abort', abort)
       void window.titi.mascot.setState('idle')
       resolve()
     }
-    const timeout = window.setTimeout(() => {
+    timeout = window.setTimeout(() => {
       window.speechSynthesis.cancel()
       finish()
     }, Math.max(8_000, Math.min(90_000, text.length * 90)))
@@ -436,6 +528,7 @@ function speakText(content: string, rate: number): Promise<void> {
     utterance.onstart = () => void window.titi.mascot.setState('speaking')
     utterance.onend = finish
     utterance.onerror = finish
+    signal?.addEventListener('abort', abort, { once: true })
     window.speechSynthesis.speak(utterance)
   })
 }

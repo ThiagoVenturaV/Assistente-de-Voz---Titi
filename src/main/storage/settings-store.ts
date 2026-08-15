@@ -49,7 +49,7 @@ function normalizeStoredSettings(value: unknown): TitiSettings {
   }
 
   if (isRecord(candidate.voice)) {
-    const voice = { ...candidate.voice }
+    const voice = { ...DEFAULT_SETTINGS.voice, ...candidate.voice }
     // "Space" was a placeholder before global shortcuts existed and would
     // capture ordinary typing system-wide. Migrate it before validation.
     if (voice.pushToTalkShortcut === 'Space') {

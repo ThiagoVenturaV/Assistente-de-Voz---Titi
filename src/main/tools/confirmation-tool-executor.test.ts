@@ -135,6 +135,15 @@ describe('assessToolRisk', () => {
       .toMatchObject({ kind: 'blocked' })
   })
 
+  it.each([
+    'https://usuario:senha@example.com/conta',
+    'http://token@example.com',
+    'https://:segredo@example.com'
+  ])('bloqueia credenciais embutidas na URL: %s', (url) => {
+    expect(assessToolRisk('open_web', { url }))
+      .toMatchObject({ kind: 'blocked' })
+  })
+
   it('confirma tanto aliases conhecidos quanto nomes novos', () => {
     expect(assessToolRisk('open_application', { application: 'ChatGPT' }))
       .toMatchObject({ kind: 'sensitive', prompt: { tool: 'open_application' } })

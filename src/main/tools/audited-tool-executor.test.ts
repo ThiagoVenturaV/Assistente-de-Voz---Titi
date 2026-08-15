@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ActionLogStore } from '../storage/action-log-store'
 import type { ToolExecutor } from './contracts'
-import { AuditedToolExecutor, redactSensitive } from './audited-tool-executor'
+import { auditMessage, AuditedToolExecutor, redactSensitive } from './audited-tool-executor'
 
 const directories: string[] = []
 
@@ -31,7 +31,7 @@ describe('AuditedToolExecutor', () => {
 
     expect((await store.list())[0]).toMatchObject({
       tool: 'teste',
-      arguments: { query: 'Titi', apiKey: '[oculto]' },
+      arguments: { query: '[oculto]', apiKey: '[oculto]' },
       ok: true,
       message: 'Concluído.',
       details: { authorization: '[oculto]', confirmationStatus: 'approved' }
@@ -71,5 +71,20 @@ describe('redactSensitive', () => {
     expect(redactSensitive({ nested: [{ authorization: 'Bearer x', value: 1 }] })).toEqual({
       nested: [{ authorization: '[oculto]', value: 1 }]
     })
+  })
+
+  it('oculta URLs e termos de busca dos dados estruturados', () => {
+    expect(redactSensitive({
+      url: 'https://example.com/?token=segredo',
+      query: 'assunto privado',
+      browser: 'brave'
+    })).toEqual({ url: '[oculto]', query: '[oculto]', browser: 'brave' })
+  })
+
+  it('não grava destinos ou pesquisas dentro da mensagem da ferramenta', () => {
+    expect(auditMessage('open_web', 'Página aberta: https://example.com/?token=x.', true))
+      .toBe('Página ou pesquisa aberta.')
+    expect(auditMessage('spotify', 'Pesquisa aberta no Spotify: assunto privado.', true))
+      .toBe('Pesquisa aberta no aplicativo de música.')
   })
 })
