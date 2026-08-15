@@ -20,11 +20,11 @@ test("server-renders the Titi landing page", async () => {
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
 
   const html = await response.text();
-  assert.match(html, /<title>Titi — Seu PC, do seu jeito<\/title>/i);
-  assert.match(html, /Seu PC, do seu jeito/);
+  assert.match(html, /<title>Titi — Seu PC agora escuta você<\/title>/i);
+  assert.match(html, /Agora ele/);
   assert.match(html, /Baixar Titi Beta/);
   assert.match(html, /v0\.1\.0-beta\/Titi-Setup-0\.1\.0\.exe/);
-  assert.match(html, /Perguntas frequentes/);
+  assert.match(html, /Perguntas frequentes/i);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton/);
 });
 
@@ -37,7 +37,7 @@ test("keeps product metadata and accessible landmarks", async () => {
   ]);
 
   assert.match(page, /<nav[^>]+aria-label="Navegação principal"/);
-  assert.match(page, /<main>/);
+  assert.match(page, /<main[^>]*>/);
   assert.match(page, /<details>/);
   assert.match(layout, /lang="pt-BR"/);
   assert.match(layout, /openGraph/);

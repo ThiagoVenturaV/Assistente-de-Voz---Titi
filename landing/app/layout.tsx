@@ -18,7 +18,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const host = incoming.get("x-forwarded-host") ?? incoming.get("host") ?? "localhost:3000";
   const protocol = incoming.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
   const base = new URL(`${protocol}://${host}`);
-  const title = "Titi — Seu PC, do seu jeito";
+  const title = "Titi — Seu PC agora escuta você";
   const description = "Um assistente local para Windows que conversa por texto e voz, com privacidade e personalidade.";
   return {
     metadataBase: base,
@@ -29,16 +29,16 @@ export async function generateMetadata(): Promise<Metadata> {
       description,
       type: "website",
       locale: "pt_BR",
-      images: [{ url: "/og.png", width: 1200, height: 630, alt: "Titi — Seu PC, do seu jeito" }],
+      images: [{ url: "/og-v2.png", width: 1731, height: 909, alt: "Titi — Seu PC agora escuta você" }],
     },
-    twitter: { card: "summary_large_image", title, description, images: ["/og.png"] },
+    twitter: { card: "summary_large_image", title, description, images: ["/og-v2.png"] },
     icons: { icon: "/titi-icon.png", shortcut: "/titi-icon.png" },
   };
 }
 
 export const viewport: Viewport = {
-  themeColor: "#0d100e",
-  colorScheme: "dark",
+  themeColor: "#f1efe8",
+  colorScheme: "light dark",
 };
 
 export default function RootLayout({
