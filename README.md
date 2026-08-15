@@ -2,7 +2,7 @@
 
 Titi é um aplicativo desktop para Windows que reúne conversa por texto, voz local e um mascote 2D animado. A arquitetura usa um harness de provedores e ferramentas para crescer até controlar aplicativos do computador com confirmações de segurança.
 
-> **Versão atual:** `0.1.0` — primeira versão funcional do aplicativo desktop.
+> **Versão atual:** `0.1.1` — beta com inicialização silenciosa e protegida contra preparações duplicadas.
 
 ## O que já funciona
 
@@ -22,7 +22,7 @@ Titi é um aplicativo desktop para Windows que reúne conversa por texto, voz lo
 
 ## Como usar
 
-1. Execute `Titi-Setup-0.1.0.exe` e conclua a instalação gráfica.
+1. Execute `Titi-Setup-0.1.1.exe` e conclua a instalação gráfica.
 2. Abra o Titi e escolha o nome do seu mascote.
 3. Na etapa **IA local**, selecione **Preparar IA local** caso o computador ainda não esteja configurado.
 4. Converse digitando no campo de mensagem, segurando **Aperte para falar** ou ativando o modo de conversa ao vivo.
@@ -86,7 +86,7 @@ pnpm test
 pnpm package:win
 ```
 
-O instalador é gerado em `release/Titi-Setup-0.1.0.exe`. Os binários e o modelo do Whisper ficam fora do Git e são incorporados ao instalador durante o empacotamento.
+O instalador é gerado em `release/Titi-Setup-0.1.1.exe`. Os binários e o modelo do Whisper ficam fora do Git e são incorporados ao instalador durante o empacotamento.
 
 O diretório `release/` também não é versionado devido ao tamanho do instalador. Builds destinadas a outras pessoas devem ser distribuídas como ativos de uma versão em **GitHub Releases**.
 

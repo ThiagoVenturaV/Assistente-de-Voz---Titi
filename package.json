@@ -1,6 +1,6 @@
 {
   "name": "titi-desktop",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Assistente local para Windows com chat, voz, ferramentas e o mascote Titi.",
   "main": "./out/main/index.js",
   "author": "Thiago Ventura",

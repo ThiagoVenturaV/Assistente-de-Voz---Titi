@@ -14,6 +14,7 @@ type ProgressReporter = (progress: RuntimeSetupProgress) => void
 
 export class OllamaRuntimeManager {
   private startingEngine: Promise<boolean> | null = null
+  private preparingRuntime: Promise<RuntimeStatus> | null = null
 
   constructor(
     private readonly settings: SettingsStore,
@@ -54,18 +55,21 @@ export class OllamaRuntimeManager {
 
   private async startEngine(executable: string): Promise<boolean> {
     this.report({ stage: 'starting-engine', message: 'Preparando a inteligência do Titi em segundo plano…' })
-    const child = spawn(executable, ['serve'], {
-      detached: false,
-      windowsHide: true,
-      shell: false,
-      stdio: 'ignore'
-    })
-    child.on('error', () => undefined)
-    child.unref()
+    await launchBackground(executable, ['serve'])
     return waitForOllama(15_000)
   }
 
   async prepare(): Promise<RuntimeStatus> {
+    if (this.preparingRuntime) return this.preparingRuntime
+    this.preparingRuntime = this.prepareOnce()
+    try {
+      return await this.preparingRuntime
+    } finally {
+      this.preparingRuntime = null
+    }
+  }
+
+  private async prepareOnce(): Promise<RuntimeStatus> {
     try {
       this.report({ stage: 'checking', message: 'Verificando o ambiente local…' })
       let status = await this.status()
@@ -163,6 +167,22 @@ function findOllamaExecutable(): string | null {
   }
 }
 
+function launchBackground(executable: string, args: string[]): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(executable, args, {
+      detached: false,
+      windowsHide: true,
+      shell: false,
+      stdio: 'ignore'
+    })
+    child.once('spawn', () => {
+      child.unref()
+      resolve()
+    })
+    child.once('error', reject)
+  })
+}
+
 async function waitForOllama(timeout: number): Promise<boolean> {
   const deadline = Date.now() + timeout
   while (Date.now() < deadline) {
@@ -209,7 +229,11 @@ async function verifyOllamaSignature(path: string): Promise<void> {
     "if ($signature.Status -ne 'Valid') { exit 1 }",
     "if ($signature.SignerCertificate.Subject -notmatch '(^|, )O=Ollama Inc\\.(,|$)') { exit 2 }"
   ].join('; ')
-  await runProcess('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script, path], 60_000)
+  await runProcess(
+    'powershell.exe',
+    ['-NoProfile', '-NonInteractive', '-WindowStyle', 'Hidden', '-Command', script, path],
+    60_000
+  )
 }
 
 function runProcess(

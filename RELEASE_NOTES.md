@@ -1,6 +1,12 @@
-# Titi Beta 0.1.0
+# Titi Beta 0.1.1
 
-Esta é a primeira versão pública de testes do Titi, um assistente de voz para controlar o computador de forma natural.
+Esta atualização beta melhora a experiência do Titi durante a preparação da inteligência local.
+
+## Melhorias desta versão
+
+- O serviço local inicia em segundo plano, sem abrir janelas de terminal.
+- Pedidos simultâneos de preparação agora compartilham uma única execução.
+- A verificação interna do ambiente também permanece oculta.
 
 ## O que você já pode testar
 

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-const DOWNLOAD_URL = "https://github.com/ThiagoVenturaV/Assistente-de-Voz---Titi/releases/download/v0.1.0-beta/Titi-Setup-0.1.0.exe";
+const DOWNLOAD_URL = "https://github.com/ThiagoVenturaV/Assistente-de-Voz---Titi/releases/download/v0.1.1-beta/Titi-Setup-0.1.1.exe";
 const REPO_URL = "https://github.com/ThiagoVenturaV/Assistente-de-Voz---Titi";
 
 export const metadata: Metadata = {
@@ -25,7 +25,7 @@ export default function Home() {
       </nav>
 
       <section className="hero-new shell" id="inicio">
-        <div className="hero-status"><span>Beta 0.1.0</span><i /> Feito para o seu computador</div>
+        <div className="hero-status"><span>Beta 0.1.1</span><i /> Feito para o seu computador</div>
         <h1><span>O seu PC.</span><br />Agora ele <em>escuta.</em></h1>
         <div className="hero-intro">
           <p>O Titi conversa por texto e voz hoje — e está evoluindo para transformar pedidos em ações no seu computador.</p>
@@ -160,7 +160,7 @@ export default function Home() {
       <section className="download-section shell" id="download">
         <div className="download-poster">
           <div className="download-poster-copy">
-            <p><span>BETA PÚBLICO</span> V0.1.0</p>
+            <p><span>BETA PÚBLICO</span> V0.1.1</p>
             <h2>Dê voz ao<br />seu computador.</h2>
             <p className="poster-lead">Converse por texto, teste os dois modos de voz e conheça o Titi no seu próprio PC.</p>
             <a className="download-button download-button--light" href={DOWNLOAD_URL}><span className="windows-glyph">⊞</span><span><strong>Baixar Titi Beta</strong><small>Windows 10 ou 11 · aproximadamente 519 MB</small></span><b>↓</b></a>
@@ -183,7 +183,7 @@ export default function Home() {
 
       <footer className="footer-new">
         <div className="shell footer-main"><a className="wordmark wordmark--footer" href="#inicio"><span className="wordmark-pet"><img src="/titi-icon.png" alt="" /></span><span>Titi</span></a><p>Um assistente feito para tornar<br />o computador um pouco mais humano.</p><div><a href={REPO_URL} target="_blank" rel="noreferrer">GitHub ↗</a><a href="#download">Download ↓</a></div></div>
-        <div className="shell footer-bottom"><span>© 2026 Titi</span><span>Feito no Brasil · Beta 0.1.0</span><a href="#inicio">Voltar ao topo ↑</a></div>
+        <div className="shell footer-bottom"><span>© 2026 Titi</span><span>Feito no Brasil · Beta 0.1.1</span><a href="#inicio">Voltar ao topo ↑</a></div>
       </footer>
     </main>
   );
