@@ -1,6 +1,6 @@
 {
   "name": "titi-desktop",
-  "version": "0.1.1",
+  "version": "0.2.0-beta.1",
   "description": "Assistente local para Windows com chat, voz, ferramentas e o mascote Titi.",
   "main": "./out/main/index.js",
   "author": "Thiago Ventura",
@@ -9,9 +9,11 @@
     "dev": "electron-vite dev",
     "typecheck": "tsc --noEmit -p tsconfig.web.json && tsc --noEmit -p tsconfig.node.json",
     "test": "vitest run src",
+    "qa:ollama-tools": "node scripts/check-ollama-tool-calling.mjs",
     "build": "pnpm typecheck && electron-vite build",
-    "package:dir": "pnpm build && electron-builder --dir --win",
-    "package:win": "pnpm build && electron-builder --win nsis"
+    "verify:package": "node scripts/verify-package.mjs",
+    "package:dir": "pnpm build && electron-builder --dir --win && pnpm verify:package",
+    "package:win": "pnpm build && electron-builder --win nsis && pnpm verify:package"
   },
   "build": {
     "appId": "com.thiagoventura.titi",
@@ -58,6 +60,7 @@
     "react-dom": "^19.2.8"
   },
   "devDependencies": {
+    "@electron/asar": "3.4.1",
     "@types/node": "^26.2.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",

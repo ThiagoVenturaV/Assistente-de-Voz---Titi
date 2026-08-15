@@ -23,7 +23,7 @@ test("server-renders the Titi landing page", async () => {
   assert.match(html, /<title>Titi — Seu PC agora escuta você<\/title>/i);
   assert.match(html, /Agora ele/);
   assert.match(html, /Baixar Titi Beta/);
-  assert.match(html, /v0\.1\.1-beta\/Titi-Setup-0\.1\.1\.exe/);
+  assert.match(html, /v0\.2\.0-beta\.1\/Titi-Setup-0\.2\.0-beta\.1\.exe/);
   assert.match(html, /Perguntas frequentes/i);
   assert.match(html, /Seu navegador/);
   assert.match(html, /Aplicativo de música/);

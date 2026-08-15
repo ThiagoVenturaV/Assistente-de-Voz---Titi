@@ -2,6 +2,10 @@ import { spawn } from 'node:child_process'
 import { access } from 'node:fs/promises'
 import { join } from 'node:path'
 import { shell } from 'electron'
+import {
+  WindowsAppCatalog,
+  type ApplicationCatalog
+} from '../apps/windows-app-catalog'
 import type {
   ToolDefinition,
   ToolExecutionResult,
@@ -22,20 +26,21 @@ const WINDOWS_MEDIA_KEYS: Record<MediaAction, number> = {
 }
 
 export class DesktopToolkit implements ToolExecutor {
+  constructor(private readonly appCatalog: ApplicationCatalog = new WindowsAppCatalog()) {}
+
   readonly definitions: ToolDefinition[] = [
     {
       type: 'function',
       function: {
         name: 'open_application',
-        description: 'Abre um aplicativo conhecido no Windows. Use sempre que o usuário pedir para abrir Chrome, Brave, Spotify, Codex ou Antigravity.',
+        description: 'Descobre e abre pelo nome um aplicativo instalado no Windows. Use para Spotify, Brave, ChatGPT, Codex, Antigravity e também aplicativos novos. O Titi procura somente em fontes confiáveis do Windows e aprende a receita após uma abertura bem-sucedida.',
         parameters: {
           type: 'object',
           required: ['application'],
           properties: {
             application: {
               type: 'string',
-              enum: ['chrome', 'brave', 'spotify', 'codex', 'antigravity'],
-              description: 'Aplicativo que será aberto.'
+              description: 'Nome comum do aplicativo, sem caminho, executável, argumentos ou comando.'
             }
           }
         }
@@ -93,7 +98,7 @@ export class DesktopToolkit implements ToolExecutor {
     try {
       switch (name) {
         case 'open_application':
-          return await this.openApplication(requiredEnum(args.application, ['chrome', 'brave', 'spotify', 'codex', 'antigravity'], 'application'))
+          return await this.openApplication(requiredString(args.application, 'application'))
         case 'open_web':
           return await this.openWeb(args)
         case 'spotify':
@@ -111,22 +116,8 @@ export class DesktopToolkit implements ToolExecutor {
     }
   }
 
-  private async openApplication(application: KnownApplication): Promise<ToolExecutionResult> {
-    if (application === 'spotify') {
-      await shell.openExternal('spotify:')
-      return { ok: true, message: 'Spotify aberto.' }
-    }
-    if (application === 'codex') {
-      await launchDetached('explorer.exe', ['shell:AppsFolder\\OpenAI.Codex_2p2nqsd0c76g0!App'])
-      return { ok: true, message: 'Codex App aberto.' }
-    }
-
-    const executable = await findExecutable(applicationCandidates(application))
-    if (!executable) {
-      return { ok: false, message: `Não encontrei o ${application} instalado neste computador.` }
-    }
-    await launchDetached(executable)
-    return { ok: true, message: `${displayName(application)} aberto.` }
+  private async openApplication(application: string): Promise<ToolExecutionResult> {
+    return await this.appCatalog.open(application)
   }
 
   private async openWeb(args: Record<string, unknown>): Promise<ToolExecutionResult> {
@@ -212,6 +203,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function optionalString(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() ? value.trim() : undefined
+}
+
+function requiredString(value: unknown, field: string): string {
+  const parsed = optionalString(value)
+  if (parsed) return parsed
+  throw new Error(`Valor inválido para ${field}.`)
 }
 
 function requiredEnum<T extends string>(value: unknown, allowed: readonly T[], field: string): T {

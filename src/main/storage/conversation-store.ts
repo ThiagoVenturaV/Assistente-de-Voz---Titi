@@ -12,10 +12,20 @@ interface ConversationDatabase {
   conversations: Conversation[]
 }
 
+interface TransientConversation {
+  conversation: Conversation
+  privateSession: boolean
+}
+
+interface CreateConversationOptions {
+  persist?: boolean
+}
+
 const EMPTY_DATABASE: ConversationDatabase = { conversations: [] }
 
 export class ConversationStore {
   private readonly store: JsonStore<ConversationDatabase>
+  private readonly transientConversations = new Map<string, TransientConversation>()
 
   constructor(userDataPath: string) {
     this.store = new JsonStore(
@@ -26,7 +36,15 @@ export class ConversationStore {
 
   async list(): Promise<ConversationSummary[]> {
     const database = await this.store.read()
-    return database.conversations
+    const conversations = new Map(
+      database.conversations.map((conversation) => [conversation.id, conversation])
+    )
+
+    for (const { conversation } of this.transientConversations.values()) {
+      conversations.set(conversation.id, conversation)
+    }
+
+    return [...conversations.values()]
       .map(({ id, title, updatedAt, preview }) => ({
         id,
         title,
@@ -37,11 +55,16 @@ export class ConversationStore {
   }
 
   async get(id: string): Promise<Conversation | null> {
+    const transient = this.transientConversations.get(id)
+    if (transient) {
+      return structuredClone(transient.conversation)
+    }
+
     const database = await this.store.read()
     return database.conversations.find((item) => item.id === id) ?? null
   }
 
-  async create(): Promise<Conversation> {
+  async create(options: CreateConversationOptions = {}): Promise<Conversation> {
     const now = new Date().toISOString()
     const conversation: Conversation = {
       id: randomUUID(),
@@ -50,20 +73,34 @@ export class ConversationStore {
       updatedAt: now,
       messages: []
     }
-    const database = await this.store.read()
-    database.conversations.unshift(conversation)
-    await this.store.write(database)
-    return conversation
+
+    if (options.persist) {
+      const database = await this.store.read()
+      database.conversations.unshift(conversation)
+      await this.store.write(database)
+    } else {
+      this.transientConversations.set(conversation.id, {
+        conversation,
+        privateSession: false
+      })
+    }
+
+    return structuredClone(conversation)
   }
 
   async addMessage(
     conversationId: string,
     role: MessageRole,
-    content: string
+    content: string,
+    persist = true
   ): Promise<{ conversation: Conversation; message: ChatMessage }> {
     const database = await this.store.read()
-    const conversation = database.conversations.find(
+    const persistedConversation = database.conversations.find(
       (item) => item.id === conversationId
+    )
+    const transient = this.transientConversations.get(conversationId)
+    const conversation = structuredClone(
+      transient?.conversation ?? persistedConversation
     )
 
     if (!conversation) {
@@ -85,16 +122,64 @@ export class ConversationStore {
       conversation.title = compact(content, 42)
     }
 
-    await this.store.write(database)
-    return { conversation, message }
+    const privateSession = transient?.privateSession === true || !persist
+    if (privateSession) {
+      this.transientConversations.set(conversation.id, {
+        conversation,
+        privateSession: true
+      })
+    } else {
+      const index = database.conversations.findIndex(
+        (item) => item.id === conversation.id
+      )
+      if (index >= 0) {
+        database.conversations[index] = conversation
+      } else {
+        database.conversations.unshift(conversation)
+      }
+      await this.store.write(database)
+      this.transientConversations.delete(conversation.id)
+    }
+
+    return {
+      conversation: structuredClone(conversation),
+      message: structuredClone(message)
+    }
   }
 
   async remove(id: string): Promise<void> {
+    this.transientConversations.delete(id)
     const database = await this.store.read()
     database.conversations = database.conversations.filter(
       (conversation) => conversation.id !== id
     )
     await this.store.write(database)
+  }
+
+  async clear(): Promise<number> {
+    const database = await this.store.read()
+    const count = new Set([
+      ...database.conversations.map(({ id }) => id),
+      ...this.transientConversations.keys()
+    ]).size
+    this.transientConversations.clear()
+    await this.store.write(structuredClone(EMPTY_DATABASE))
+    return count
+  }
+
+  async exportAll(): Promise<Conversation[]> {
+    const database = await this.store.read()
+    const conversations = new Map(
+      database.conversations.map((conversation) => [conversation.id, conversation])
+    )
+    for (const { conversation } of this.transientConversations.values()) {
+      conversations.set(conversation.id, conversation)
+    }
+    return structuredClone(
+      [...conversations.values()].sort((left, right) =>
+        right.updatedAt.localeCompare(left.updatedAt)
+      )
+    )
   }
 }
 

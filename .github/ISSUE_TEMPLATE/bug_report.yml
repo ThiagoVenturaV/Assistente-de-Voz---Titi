@@ -1,0 +1,71 @@
+name: Relatar um problema
+description: Conte o que aconteceu no Titi sem publicar dados pessoais.
+title: "[Bug]: "
+labels: [bug, triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Obrigado por ajudar a melhorar o Titi. Não inclua conversas, chaves, senhas, tokens, e-mails, caminhos com seu nome ou outros dados pessoais.
+
+  - type: input
+    id: version
+    attributes:
+      label: Versão do Titi
+      description: A versão aparece no instalador ou em Configurações.
+      placeholder: Exemplo: 0.1.1
+    validations:
+      required: true
+
+  - type: dropdown
+    id: windows
+    attributes:
+      label: Windows
+      options:
+        - Windows 11
+        - Windows 10
+        - Outro
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Onde aconteceu?
+      options:
+        - Instalação ou atualização
+        - Conversa por texto
+        - Aperte para falar
+        - Conversa ao vivo
+        - Mascote
+        - Ação no computador
+        - IA local ou modelo
+        - Outro
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Como reproduzir
+      description: Descreva os passos, o que você esperava e o que aconteceu.
+      placeholder: |
+        1. Abri...
+        2. Pedi...
+        3. O Titi...
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidência opcional
+      description: Anexe uma captura sem dados pessoais. Não cole conversas nem arquivos de configuração.
+
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacidade
+      options:
+        - label: Revisei o relato e removi dados pessoais, segredos e conteúdo de conversas.
+          required: true

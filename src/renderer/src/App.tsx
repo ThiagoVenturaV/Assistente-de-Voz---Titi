@@ -13,6 +13,7 @@ import { MessageList } from './components/MessageList'
 import { Onboarding } from './components/Onboarding'
 import { SettingsPanel } from './components/SettingsPanel'
 import { Sidebar } from './components/Sidebar'
+import { ToolConfirmationModal } from './components/ToolConfirmationModal'
 import { WindowControls } from './components/WindowControls'
 import { PcmRecorder } from './voice/pcm-recorder'
 
@@ -70,11 +71,17 @@ export function App(): React.JSX.Element {
         else stopLiveListening()
       })
     })
+    const unsubscribePushToTalk = window.titi.voice.onPushToTalkRequested(() => {
+      if (sendingRef.current || settingsRef.current?.voice.liveMode) return
+      if (recorder.current || recordingStarting.current) endListening()
+      else void beginListening(false)
+    })
     return () => {
       active = false
       unsubscribe()
       unsubscribeRuntime()
       unsubscribeLive()
+      unsubscribePushToTalk()
       clearLiveRestart()
       recorder.current?.cancel()
       window.speechSynthesis?.cancel()
@@ -391,6 +398,8 @@ export function App(): React.JSX.Element {
           preparingRuntime={preparingRuntime}
         />
       )}
+
+      <ToolConfirmationModal />
     </div>
   )
 }

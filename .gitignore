@@ -4,6 +4,7 @@ release/
 .tmp/
 .pnpm-store/
 qa/
+.qa-capture-*/
 *.tsbuildinfo
 
 # Binários e modelos locais são baixados pelo script de preparação.

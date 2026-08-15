@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 
-const DOWNLOAD_URL = "https://github.com/ThiagoVenturaV/Assistente-de-Voz---Titi/releases/download/v0.1.1-beta/Titi-Setup-0.1.1.exe";
+const DOWNLOAD_URL = "https://github.com/ThiagoVenturaV/Assistente-de-Voz---Titi/releases/download/v0.2.0-beta.1/Titi-Setup-0.2.0-beta.1.exe";
 const REPO_URL = "https://github.com/ThiagoVenturaV/Assistente-de-Voz---Titi";
+const FEEDBACK_URL = `${REPO_URL}/issues/new/choose`;
 
 export const metadata: Metadata = {
   title: "Titi — Seu PC agora escuta você",
@@ -25,7 +26,7 @@ export default function Home() {
       </nav>
 
       <section className="hero-new shell" id="inicio">
-        <div className="hero-status"><span>Beta 0.1.1</span><i /> Feito para o seu computador</div>
+        <div className="hero-status"><span>Beta 0.2</span><i /> Feito para o seu computador</div>
         <h1><span>O seu PC.</span><br />Agora ele <em>escuta.</em></h1>
         <div className="hero-intro">
           <p>O Titi conversa por texto e voz hoje — e está evoluindo para transformar pedidos em ações no seu computador.</p>
@@ -50,9 +51,9 @@ export default function Home() {
               <aside><b>＋ Nova conversa</b><small>Hoje</small><p>Planejar meu dia</p><p>Ideias para o projeto</p></aside>
               <div className="mini-chat">
                 <div className="live-pill"><i /> AO VIVO</div>
-                <p className="user-bubble">Titi, abre meu aplicativo de música e coloca minha playlist de foco.</p>
-                <div className="titi-message"><img src="/titi-icon.png" alt="" /><p><b>Deixa comigo.</b><br />Abrindo seu aplicativo de música e preparando a playlist.</p></div>
-                <div className="action-chip"><span>♪</span><div><small>APLICATIVO DE MÚSICA</small><strong>Playlist Foco</strong></div><i>Pronto</i></div>
+                <p className="user-bubble">Titi, abre meu aplicativo de música.</p>
+                <div className="titi-message"><img src="/titi-icon.png" alt="" /><p><b>Deixa comigo.</b><br />Abrindo seu aplicativo de música.</p></div>
+                <div className="action-chip"><span>♪</span><div><small>APLICATIVO DE MÚSICA</small><strong>Aplicativo aberto</strong></div><i>Pronto</i></div>
                 <div className="composer">Converse com o Titi… <span>⌁ · ➤</span></div>
               </div>
             </div>
@@ -114,7 +115,7 @@ export default function Home() {
           <span className="mascot-note mascot-note--b">MASCOTE · PIXEL ART</span>
           <div className="mascot-halo" />
           <div className="titi-sprite titi-sprite--large" role="img" aria-label="Titi falando" />
-          <div className="speech-card"><i /><p>Seu projeto está aberto.<br /><b>Quer continuar de onde parou?</b></p></div>
+          <div className="speech-card"><i /><p>Seu navegador está aberto.<br /><b>O que você quer pesquisar?</b></p></div>
         </div>
       </section>
 
@@ -151,7 +152,7 @@ export default function Home() {
           </div>
           <div className="privacy-terminal">
             <div className="terminal-top"><span>SEUS DADOS</span><i>PROTEGIDOS</i></div>
-            <div className="terminal-body"><p><span>01</span><b>Conversas</b><i>No seu computador</i></p><p><span>02</span><b>Sua voz</b><i>Processada no seu computador</i></p><p><span>03</span><b>Histórico</b><i>Guardado com você</i></p><p><span>04</span><b>Conexões externas</b><i>Desligadas por padrão</i></p></div>
+            <div className="terminal-body"><p><span>01</span><b>Conversas</b><i>No seu computador</i></p><p><span>02</span><b>Sua voz</b><i>Processada no seu computador</i></p><p><span>03</span><b>Histórico</b><i>Guardado com você</i></p><p><span>04</span><b>Internet</b><i>Usada em downloads e ações pedidas</i></p></div>
             <footer><span><i /> TUDO PRONTO</span><b>Você continua no controle</b></footer>
           </div>
         </div>
@@ -160,7 +161,7 @@ export default function Home() {
       <section className="download-section shell" id="download">
         <div className="download-poster">
           <div className="download-poster-copy">
-            <p><span>BETA PÚBLICO</span> V0.1.1</p>
+            <p><span>BETA PÚBLICO</span> V0.2</p>
             <h2>Dê voz ao<br />seu computador.</h2>
             <p className="poster-lead">Converse por texto, teste os dois modos de voz e conheça o Titi no seu próprio PC.</p>
             <a className="download-button download-button--light" href={DOWNLOAD_URL}><span className="windows-glyph">⊞</span><span><strong>Baixar Titi Beta</strong><small>Windows 10 ou 11 · aproximadamente 519 MB</small></span><b>↓</b></a>
@@ -168,22 +169,22 @@ export default function Home() {
           <div className="download-visual"><div className="poster-orbit poster-orbit--one" /><div className="poster-orbit poster-orbit--two" /><div className="titi-sprite titi-sprite--poster" role="img" aria-label="Mascote Titi" /><span>HELLO,<br />HUMAN.</span></div>
         </div>
         <div className="requirements-row"><article><span>01</span><p><b>Windows 10 ou 11</b>Em um computador recente</p></article><article><span>02</span><p><b>Boa memória</b>16 GB recomendados</p></article><article><span>03</span><p><b>Espaço disponível</b>Cerca de 8 GB</p></article><article><span>04</span><p><b>Placa de vídeo</b>Recomendada para mais velocidade</p></article></div>
-        <p className="setup-note">Na primeira configuração, o Titi orienta você e prepara tudo o que precisa.</p>
+        <p className="setup-note">Na primeira configuração, o Titi orienta você antes de baixar o modelo adicional de aproximadamente 6,6 GB.</p>
       </section>
 
       <section className="faq-new shell" id="perguntas">
         <header><p className="section-index"><span>05</span> PERGUNTAS FREQUENTES</p><h2>Antes de<br /><em>começar.</em></h2></header>
         <div className="faq-list-new">
-          <details><summary><span>01</span>Preciso instalar algo antes?<i /></summary><p>Não. Na primeira vez, o Titi explica cada etapa e prepara o que estiver faltando.</p></details>
-          <details><summary><span>02</span>Tudo já vem no instalador?<i /></summary><p>O essencial já vem. Uma parte da inteligência do Titi é baixada depois, apenas com a sua confirmação.</p></details>
-          <details><summary><span>03</span>Que tipos de aplicativo o Titi pode abrir?<i /></summary><p>A proposta é funcionar com o que você já usa: navegador, aplicativo de música, editor, agente de código e outros programas. A compatibilidade cresce a cada atualização.</p></details>
+          <details><summary><span>01</span>Preciso instalar algo antes?<i /></summary><p>Não precisa preparar nada manualmente. Na primeira vez, o Titi explica cada etapa e só instala ou baixa o que faltar depois da sua confirmação.</p></details>
+          <details><summary><span>02</span>Tudo já vem no instalador?<i /></summary><p>A interface, o mascote e a voz local já vêm. O modelo de conversa, com aproximadamente 6,6 GB, é baixado depois apenas com a sua confirmação.</p></details>
+          <details><summary><span>03</span>Que tipos de aplicativo o Titi pode abrir?<i /></summary><p>O beta abre alguns aplicativos compatíveis, como navegador, música, editor e agente de código. A compatibilidade com outros programas cresce a cada atualização.</p></details>
           <details><summary><span>04</span>Meus dados saem do computador?<i /></summary><p>Suas conversas, sua voz e seu histórico podem ficar no seu computador. Se algum recurso precisar de internet, o Titi informa antes.</p></details>
         </div>
       </section>
 
       <footer className="footer-new">
-        <div className="shell footer-main"><a className="wordmark wordmark--footer" href="#inicio"><span className="wordmark-pet"><img src="/titi-icon.png" alt="" /></span><span>Titi</span></a><p>Um assistente feito para tornar<br />o computador um pouco mais humano.</p><div><a href={REPO_URL} target="_blank" rel="noreferrer">GitHub ↗</a><a href="#download">Download ↓</a></div></div>
-        <div className="shell footer-bottom"><span>© 2026 Titi</span><span>Feito no Brasil · Beta 0.1.1</span><a href="#inicio">Voltar ao topo ↑</a></div>
+        <div className="shell footer-main"><a className="wordmark wordmark--footer" href="#inicio"><span className="wordmark-pet"><img src="/titi-icon.png" alt="" /></span><span>Titi</span></a><p>Um assistente feito para tornar<br />o computador um pouco mais humano.</p><div><a href={REPO_URL} target="_blank" rel="noreferrer">GitHub ↗</a><a href={FEEDBACK_URL} target="_blank" rel="noreferrer">Enviar feedback ↗</a><a href="#download">Download ↓</a></div></div>
+        <div className="shell footer-bottom"><span>© 2026 Titi</span><span>Feito no Brasil · Beta 0.2</span><a href="#inicio">Voltar ao topo ↑</a></div>
       </footer>
     </main>
   );

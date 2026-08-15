@@ -85,6 +85,45 @@ export interface VoiceTranscription {
   processingTimeMs: number
 }
 
+export interface ToolActionLogEntry {
+  id: string
+  tool: string
+  arguments: unknown
+  ok: boolean
+  message: string
+  details?: unknown
+  durationMs: number
+  createdAt: string
+}
+
+export type CuratedMemoryKind = 'fact' | 'preference' | 'recipe'
+
+export interface CuratedMemorySummary {
+  id: string
+  kind: CuratedMemoryKind
+  title: string
+  value: string
+  source: string
+  updatedAt: string
+}
+
+export type ToolConfirmationRisk = 'sensitive'
+
+export interface ToolConfirmationRequest {
+  id: string
+  tool: string
+  risk: ToolConfirmationRisk
+  title: string
+  description: string
+  consequences: string[]
+  expiresAt: string
+}
+
+export interface ToolConfirmationResponse {
+  requestId: string
+  approved: boolean
+}
+
 export interface TitiDesktopApi {
   settings: {
     get(): Promise<TitiSettings>
@@ -95,6 +134,8 @@ export interface TitiDesktopApi {
     get(id: string): Promise<Conversation | null>
     create(): Promise<Conversation>
     remove(id: string): Promise<void>
+    clear(): Promise<number>
+    export(): Promise<string | null>
     send(request: ChatRequest): Promise<ChatResponse>
   }
   runtime: {
@@ -102,10 +143,24 @@ export interface TitiDesktopApi {
     prepare(): Promise<RuntimeStatus>
     onSetupProgress(callback: (progress: RuntimeSetupProgress) => void): () => void
   }
+  activity: {
+    list(): Promise<ToolActionLogEntry[]>
+    clear(): Promise<void>
+  }
+  memory: {
+    list(): Promise<CuratedMemorySummary[]>
+    remove(id: string): Promise<boolean>
+    clear(): Promise<number>
+  }
+  tools: {
+    respondToConfirmation(response: ToolConfirmationResponse): Promise<boolean>
+    onConfirmationRequested(callback: (request: ToolConfirmationRequest) => void): () => void
+  }
   voice: {
     transcribe(wavAudio: ArrayBuffer): Promise<VoiceTranscription>
     setLiveMode(enabled: boolean): Promise<TitiSettings>
     onLiveModeChanged(callback: (enabled: boolean) => void): () => void
+    onPushToTalkRequested(callback: () => void): () => void
   }
   mascot: {
     setState(state: MascotState): Promise<void>

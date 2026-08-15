@@ -1,0 +1,33 @@
+name: Sugerir uma melhoria
+description: Explique uma necessidade ou ideia para o Titi.
+title: "[Ideia]: "
+labels: [enhancement, triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Descreva a necessidade antes da solução. Não inclua conversas, dados pessoais, senhas, chaves ou tokens.
+
+  - type: textarea
+    id: need
+    attributes:
+      label: O que você gostaria de conseguir fazer?
+      description: Conte a situação e por que ela é importante para você.
+    validations:
+      required: true
+
+  - type: textarea
+    id: experience
+    attributes:
+      label: Como seria uma boa experiência?
+      description: Se quiser, descreva o resultado ideal usando linguagem comum.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacidade
+      options:
+        - label: Revisei a sugestão e removi dados pessoais e segredos.
+          required: true

@@ -4,7 +4,9 @@ import type {
   MascotState,
   RuntimeSetupProgress,
   TitiDesktopApi,
-  TitiSettings
+  TitiSettings,
+  ToolConfirmationRequest,
+  ToolConfirmationResponse
 } from '../shared/contracts'
 
 const api: TitiDesktopApi = {
@@ -18,6 +20,8 @@ const api: TitiDesktopApi = {
     get: (id: string) => ipcRenderer.invoke('conversations:get', id),
     create: () => ipcRenderer.invoke('conversations:create'),
     remove: (id: string) => ipcRenderer.invoke('conversations:remove', id),
+    clear: () => ipcRenderer.invoke('conversations:clear'),
+    export: () => ipcRenderer.invoke('conversations:export'),
     send: (request: ChatRequest) =>
       ipcRenderer.invoke('conversations:send', request)
   },
@@ -31,6 +35,27 @@ const api: TitiDesktopApi = {
       return () => ipcRenderer.removeListener('runtime:setup-progress', listener)
     }
   },
+  activity: {
+    list: () => ipcRenderer.invoke('activity:list'),
+    clear: () => ipcRenderer.invoke('activity:clear')
+  },
+  memory: {
+    list: () => ipcRenderer.invoke('memory:list'),
+    remove: (id: string) => ipcRenderer.invoke('memory:remove', id),
+    clear: () => ipcRenderer.invoke('memory:clear')
+  },
+  tools: {
+    respondToConfirmation: (response: ToolConfirmationResponse) =>
+      ipcRenderer.invoke('tools:confirmation-response', response),
+    onConfirmationRequested: (callback) => {
+      const listener = (
+        _event: Electron.IpcRendererEvent,
+        request: ToolConfirmationRequest
+      ): void => callback(request)
+      ipcRenderer.on('tools:confirmation-requested', listener)
+      return () => ipcRenderer.removeListener('tools:confirmation-requested', listener)
+    }
+  },
   voice: {
     transcribe: (wavAudio: ArrayBuffer) =>
       ipcRenderer.invoke('voice:transcribe', wavAudio),
@@ -39,6 +64,11 @@ const api: TitiDesktopApi = {
       const listener = (_event: Electron.IpcRendererEvent, enabled: boolean): void => callback(enabled)
       ipcRenderer.on('voice:live-mode-changed', listener)
       return () => ipcRenderer.removeListener('voice:live-mode-changed', listener)
+    },
+    onPushToTalkRequested: (callback) => {
+      const listener = (): void => callback()
+      ipcRenderer.on('voice:push-to-talk-requested', listener)
+      return () => ipcRenderer.removeListener('voice:push-to-talk-requested', listener)
     }
   },
   mascot: {

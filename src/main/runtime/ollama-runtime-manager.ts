@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process'
+import { spawn, type ChildProcess } from 'node:child_process'
 import { accessSync } from 'node:fs'
 import { open, unlink } from 'node:fs/promises'
 import { join } from 'node:path'
@@ -15,6 +15,7 @@ type ProgressReporter = (progress: RuntimeSetupProgress) => void
 export class OllamaRuntimeManager {
   private startingEngine: Promise<boolean> | null = null
   private preparingRuntime: Promise<RuntimeStatus> | null = null
+  private ownedEngine: ChildProcess | null = null
 
   constructor(
     private readonly settings: SettingsStore,
@@ -45,7 +46,7 @@ export class OllamaRuntimeManager {
     if (this.startingEngine) return this.startingEngine
     const executable = findOllamaExecutable()
     if (!executable) return false
-    this.startingEngine = this.startEngine(executable)
+    this.startingEngine = this.startConfiguredEngine(executable)
     try {
       return await this.startingEngine
     } finally {
@@ -53,10 +54,55 @@ export class OllamaRuntimeManager {
     }
   }
 
-  private async startEngine(executable: string): Promise<boolean> {
+  private async startConfiguredEngine(executable: string): Promise<boolean> {
+    const settings = await this.settings.get()
+    return this.startEngine(executable, settings.provider.endpoint)
+  }
+
+  private async startEngine(executable: string, endpoint: string): Promise<boolean> {
     this.report({ stage: 'starting-engine', message: 'Preparando a inteligência do Titi em segundo plano…' })
-    await launchBackground(executable, ['serve'])
-    return waitForOllama(15_000)
+    const parsedEndpoint = new URL(endpoint.trim())
+    const child = await launchBackground(executable, ['serve'], {
+      ...process.env,
+      OLLAMA_HOST: parsedEndpoint.host
+    })
+    this.ownedEngine = child
+    child.once('exit', () => {
+      if (this.ownedEngine === child) this.ownedEngine = null
+    })
+    return waitForOllama(endpoint, 15_000)
+  }
+
+  /**
+   * Stops only the Ollama process launched by this Titi instance. An Ollama
+   * service that was already connected is never adopted or terminated.
+   */
+  shutdownOwnedEngine(): boolean {
+    const child = this.ownedEngine
+    this.ownedEngine = null
+    if (!child || child.exitCode !== null || child.killed) return false
+    return child.kill()
+  }
+
+  async unloadSelectedModel(): Promise<boolean> {
+    const settings = await this.settings.get()
+    const endpoint = settings.provider.endpoint.trim().replace(/\/+$/, '')
+    try {
+      const response = await fetch(`${endpoint}/api/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: settings.provider.model,
+          prompt: '',
+          stream: false,
+          keep_alive: 0
+        }),
+        signal: AbortSignal.timeout(10_000)
+      })
+      return response.ok
+    } catch {
+      return false
+    }
   }
 
   async prepare(): Promise<RuntimeStatus> {
@@ -167,27 +213,33 @@ function findOllamaExecutable(): string | null {
   }
 }
 
-function launchBackground(executable: string, args: string[]): Promise<void> {
+function launchBackground(
+  executable: string,
+  args: string[],
+  environment: NodeJS.ProcessEnv
+): Promise<ChildProcess> {
   return new Promise((resolve, reject) => {
     const child = spawn(executable, args, {
       detached: false,
       windowsHide: true,
       shell: false,
-      stdio: 'ignore'
+      stdio: 'ignore',
+      env: environment
     })
     child.once('spawn', () => {
       child.unref()
-      resolve()
+      resolve(child)
     })
     child.once('error', reject)
   })
 }
 
-async function waitForOllama(timeout: number): Promise<boolean> {
+async function waitForOllama(endpoint: string, timeout: number): Promise<boolean> {
+  const tagsUrl = ollamaTagsUrl(endpoint)
   const deadline = Date.now() + timeout
   while (Date.now() < deadline) {
     try {
-      const response = await fetch('http://127.0.0.1:11434/api/tags', {
+      const response = await fetch(tagsUrl, {
         signal: AbortSignal.timeout(1000)
       })
       if (response.ok) return true
@@ -197,6 +249,19 @@ async function waitForOllama(timeout: number): Promise<boolean> {
     await new Promise((resolve) => setTimeout(resolve, 500))
   }
   return false
+}
+
+export function ollamaTagsUrl(endpoint: string): string {
+  const parsed = new URL(endpoint.trim())
+  if (!['http:', 'https:'].includes(parsed.protocol)) {
+    throw new Error('O endereço do Ollama precisa usar HTTP ou HTTPS.')
+  }
+  parsed.username = ''
+  parsed.password = ''
+  parsed.pathname = `${parsed.pathname.replace(/\/+$/, '')}/api/tags`
+  parsed.search = ''
+  parsed.hash = ''
+  return parsed.toString()
 }
 
 async function downloadFile(

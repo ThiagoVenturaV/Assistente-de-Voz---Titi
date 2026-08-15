@@ -1,0 +1,257 @@
+import { access, mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { LocalMemoryStore } from '../memory'
+import { ConversationStore } from '../storage/conversation-store'
+import { SettingsStore } from '../storage/settings-store'
+import type { ToolExecutor } from '../tools/contracts'
+import { AssistantHarness } from './assistant-harness'
+
+const temporaryDirectories: string[] = []
+
+afterEach(async () => {
+  vi.unstubAllGlobals()
+  await Promise.all(temporaryDirectories.splice(0).map((directory) =>
+    rm(directory, { recursive: true, force: true })
+  ))
+})
+
+describe('AssistantHarness privacy', () => {
+  it('keeps a conversation functional in memory without writing history', async () => {
+    const directory = await createTemporaryDirectory()
+    const settings = new SettingsStore(directory)
+    const conversations = new ConversationStore(directory)
+    await settings.update({ keepHistory: false })
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
+    const harness = new AssistantHarness(settings, conversations, fakeTools())
+
+    const first = await harness.send({ content: 'Primeira mensagem privada' })
+    const second = await harness.send({
+      conversationId: first.conversation.id,
+      content: 'Você ainda lembra desta conversa?'
+    })
+
+    expect(first.conversation.messages).toHaveLength(2)
+    expect(second.conversation.messages).toHaveLength(4)
+    expect(second.conversation.messages[0].content).toBe('Primeira mensagem privada')
+    expect(await conversations.get(first.conversation.id)).not.toBeNull()
+    expect(await new ConversationStore(directory).get(first.conversation.id)).toBeNull()
+    await expect(access(join(directory, 'conversations.json'))).rejects.toMatchObject({
+      code: 'ENOENT'
+    })
+  })
+})
+
+describe('AssistantHarness deterministic tools', () => {
+  it('executa um comando explícito mesmo quando o modelo local está offline', async () => {
+    const directory = await createTemporaryDirectory()
+    const settings = new SettingsStore(directory)
+    const conversations = new ConversationStore(directory)
+    const tools = fakeTools()
+    tools.execute.mockResolvedValue({ ok: true, message: 'Brave aberto.' })
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
+    const harness = new AssistantHarness(settings, conversations, tools)
+
+    const response = await harness.send({ content: 'abra o Brave' })
+
+    expect(tools.execute).toHaveBeenCalledWith('open_application', { application: 'brave' })
+    expect(response.assistantMessage.content).toBe('Brave aberto.')
+    expect(response.runtime.connected).toBe(false)
+  })
+
+  it('expõe a falha real e não afirma sucesso quando a ferramenta falha', async () => {
+    const directory = await createTemporaryDirectory()
+    const settings = new SettingsStore(directory)
+    const conversations = new ConversationStore(directory)
+    const tools = fakeTools()
+    tools.execute.mockResolvedValue({
+      ok: false,
+      message: 'Não encontrei o Antigravity instalado neste computador.'
+    })
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
+    const harness = new AssistantHarness(settings, conversations, tools)
+
+    const response = await harness.send({ content: 'abra o Antigravity' })
+
+    expect(response.assistantMessage.content).toBe(
+      'Não consegui executar essa ação. Não encontrei o Antigravity instalado neste computador.'
+    )
+  })
+
+  it('não espera o Ollama e reutiliza uma única consulta de status em andamento', async () => {
+    const directory = await createTemporaryDirectory()
+    const settings = new SettingsStore(directory)
+    const conversations = new ConversationStore(directory)
+    const tools = fakeTools()
+    tools.execute.mockResolvedValue({ ok: true, message: 'Spotify aberto.' })
+    let resolveStatus!: (response: Response) => void
+    const fetchMock = vi.fn(() => new Promise<Response>((resolve) => {
+      resolveStatus = resolve
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+    const harness = new AssistantHarness(settings, conversations, tools)
+
+    const response = await harness.send({ content: 'abra o Spotify' })
+
+    expect(response.assistantMessage.content).toBe('Spotify aberto.')
+    expect(response.runtime.message).toContain('segundo plano')
+    expect(fetchMock).toHaveBeenCalledOnce()
+
+    const settingsRead = vi.spyOn(settings, 'get')
+    const statusPromise = harness.status()
+    await settingsRead.mock.results[0].value
+    await Promise.resolve()
+    expect(fetchMock).toHaveBeenCalledOnce()
+    resolveStatus(jsonResponse({ models: [{ name: 'qwen3.5:9b' }] }))
+    await expect(statusPromise).resolves.toMatchObject({ connected: true })
+  })
+
+  it('não dispara ferramenta determinística para uma pergunta sobre um aplicativo', async () => {
+    const directory = await createTemporaryDirectory()
+    const settings = new SettingsStore(directory)
+    const conversations = new ConversationStore(directory)
+    const tools = fakeTools()
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input)
+      if (url.endsWith('/api/tags')) {
+        return jsonResponse({ models: [{ name: 'qwen3.5:9b' }] })
+      }
+      return jsonResponse({ message: { role: 'assistant', content: 'Explicação normal.' } })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const harness = new AssistantHarness(settings, conversations, tools)
+
+    const response = await harness.send({ content: 'me ensina sobre Spotify' })
+
+    expect(tools.execute).not.toHaveBeenCalled()
+    expect(response.assistantMessage.content).toBe('Explicação normal.')
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('AssistantHarness curated memory', () => {
+  it('aprende uma preferência somente após um comando explícito', async () => {
+    const directory = await createTemporaryDirectory()
+    const settings = new SettingsStore(directory)
+    const conversations = new ConversationStore(directory)
+    const memory = new LocalMemoryStore(directory)
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
+    const harness = new AssistantHarness(settings, conversations, fakeTools(), memory)
+
+    const response = await harness.send({
+      content: 'Lembre que meu navegador preferido é o Brave.'
+    })
+
+    expect(response.assistantMessage.content).toBe(
+      'Certo, salvei na memória: navegador preferido — Brave.'
+    )
+    expect(await memory.list({ kind: 'preference' })).toEqual([
+      expect.objectContaining({
+        kind: 'preference',
+        key: 'navegador preferido',
+        value: 'Brave',
+        source: expect.objectContaining({ kind: 'user-statement' })
+      })
+    ])
+  })
+
+  it('não aprende uma afirmação comum ou ambígua', async () => {
+    const directory = await createTemporaryDirectory()
+    const settings = new SettingsStore(directory)
+    const conversations = new ConversationStore(directory)
+    const memory = new LocalMemoryStore(directory)
+    vi.stubGlobal('fetch', connectedModel('Resposta normal.'))
+    const harness = new AssistantHarness(settings, conversations, fakeTools(), memory)
+
+    const response = await harness.send({
+      content: 'Meu navegador preferido é o Brave.'
+    })
+
+    expect(response.assistantMessage.content).toBe('Resposta normal.')
+    expect(await memory.list()).toEqual([])
+  })
+
+  it('injeta a memória curada no modelo quando o histórico está ativo', async () => {
+    const directory = await createTemporaryDirectory()
+    const settings = new SettingsStore(directory)
+    const conversations = new ConversationStore(directory)
+    const memory = new LocalMemoryStore(directory)
+    await memory.rememberPreference(
+      { key: 'navegador preferido', value: 'Brave' },
+      { keepHistory: true, source: { kind: 'user-statement' } }
+    )
+    const fetchMock = connectedModel('Seu navegador é o Brave.')
+    vi.stubGlobal('fetch', fetchMock)
+    const harness = new AssistantHarness(settings, conversations, fakeTools(), memory)
+
+    await harness.send({ content: 'Qual navegador eu prefiro?' })
+
+    const chatCall = fetchMock.mock.calls.find(([input]) => String(input).endsWith('/api/chat'))
+    const body = JSON.parse(String((chatCall?.[1] as RequestInit | undefined)?.body)) as {
+      messages: Array<{ role: string; content: string }>
+    }
+    expect(body.messages).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        role: 'system',
+        content: expect.stringContaining('navegador preferido: Brave')
+      })
+    ]))
+  })
+
+  it('não lê nem grava memória persistente quando o histórico está desligado', async () => {
+    const directory = await createTemporaryDirectory()
+    const settings = new SettingsStore(directory)
+    const conversations = new ConversationStore(directory)
+    const memory = new LocalMemoryStore(directory)
+    await memory.rememberPreference(
+      { key: 'navegador preferido', value: 'Brave' },
+      { keepHistory: true, source: { kind: 'user-statement' } }
+    )
+    await settings.update({ keepHistory: false })
+    const readSpy = vi.spyOn(memory, 'buildPromptContext')
+    vi.stubGlobal('fetch', connectedModel('Não tenho uma preferência disponível.'))
+    const harness = new AssistantHarness(settings, conversations, fakeTools(), memory)
+
+    await harness.send({ content: 'Qual navegador eu prefiro?' })
+    const learnResponse = await harness.send({
+      content: 'Lembre que meu aplicativo de música preferido é o Spotify.'
+    })
+
+    expect(readSpy).not.toHaveBeenCalled()
+    expect(learnResponse.assistantMessage.content).toContain('modo privado')
+    expect(await memory.list()).toHaveLength(1)
+    expect(await memory.list({ kind: 'preference' })).toEqual([
+      expect.objectContaining({ value: 'Brave' })
+    ])
+  })
+})
+
+function fakeTools() {
+  return {
+    definitions: [] as ToolExecutor['definitions'],
+    execute: vi.fn<ToolExecutor['execute']>()
+  }
+}
+
+function jsonResponse(value: unknown): Response {
+  return new Response(JSON.stringify(value), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' }
+  })
+}
+
+function connectedModel(answer: string) {
+  return vi.fn(async (input: string | URL | Request, _init?: RequestInit) => {
+    const url = String(input)
+    return url.endsWith('/api/tags')
+      ? jsonResponse({ models: [{ name: 'qwen3.5:9b' }] })
+      : jsonResponse({ message: { role: 'assistant', content: answer } })
+  })
+}
+
+async function createTemporaryDirectory(): Promise<string> {
+  const directory = await mkdtemp(join(tmpdir(), 'titi-harness-privacy-'))
+  temporaryDirectories.push(directory)
+  return directory
+}

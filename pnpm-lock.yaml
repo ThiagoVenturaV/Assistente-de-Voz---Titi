@@ -15,6 +15,9 @@ importers:
         specifier: ^19.2.8
         version: 19.2.8(react@19.2.8)
     devDependencies:
+      '@electron/asar':
+        specifier: 3.4.1
+        version: 3.4.1
       '@types/node':
         specifier: ^26.2.0
         version: 26.2.0

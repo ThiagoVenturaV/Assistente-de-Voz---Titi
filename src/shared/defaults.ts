@@ -15,7 +15,7 @@ export const DEFAULT_SETTINGS: TitiSettings = {
   },
   voice: {
     enabled: true,
-    pushToTalkShortcut: 'Space',
+    pushToTalkShortcut: 'CommandOrControl+Shift+Space',
     liveMode: false,
     speechRate: 1
   }
