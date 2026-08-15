@@ -69,7 +69,10 @@ export default function Home() {
       </section>
 
       <div className="signal-line" aria-hidden="true">
-        <div><span>TEXTO</span><i>✦</i><span>VOZ</span><i>✦</i><span>SEUS DADOS</span><i>✦</i><span>MASCOTE VIVO</span><i>✦</i><span>WINDOWS</span><i>✦</i><span>PRIVACIDADE</span></div>
+        <div className="signal-track">
+          <div className="signal-group"><span>TEXTO</span><i>✦</i><span>VOZ</span><i>✦</i><span>SEUS DADOS</span><i>✦</i><span>MASCOTE VIVO</span><i>✦</i><span>WINDOWS</span><i>✦</i><span>PRIVACIDADE</span></div>
+          <div className="signal-group"><span>TEXTO</span><i>✦</i><span>VOZ</span><i>✦</i><span>SEUS DADOS</span><i>✦</i><span>MASCOTE VIVO</span><i>✦</i><span>WINDOWS</span><i>✦</i><span>PRIVACIDADE</span></div>
+        </div>
       </div>
 
       <section className="story-section shell" id="recursos">

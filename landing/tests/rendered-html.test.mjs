@@ -42,8 +42,12 @@ test("keeps product metadata and accessible landmarks", async () => {
   assert.match(page, /<nav[^>]+aria-label="Navegação principal"/);
   assert.match(page, /<main[^>]*>/);
   assert.match(page, /<details>/);
+  assert.match(page, /className="signal-track"/);
+  assert.equal(page.match(/className="signal-group"/g)?.length, 2);
   assert.match(layout, /lang="pt-BR"/);
   assert.match(layout, /openGraph/);
   assert.match(css, /prefers-reduced-motion/);
+  assert.match(css, /@keyframes signal-scroll/);
+  assert.match(css, /\.signal-line \.signal-track\{animation:none\}/);
   assert.doesNotMatch(packageJson, /react-loading-skeleton/);
 });
