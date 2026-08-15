@@ -1,34 +1,64 @@
 # Assistente de Voz — Titi
 
-Titi é o mascote de um futuro assistente de voz para Windows capaz de conversar, abrir e controlar aplicativos e encaminhar tarefas especializadas para ferramentas como o Codex.
+Titi é um aplicativo desktop para Windows que reúne conversa por texto, voz local e um mascote 2D animado. A arquitetura usa um harness de provedores e ferramentas para crescer até controlar aplicativos do computador com confirmações de segurança.
 
-## Estado atual
+## O que já funciona
 
-O primeiro ativo concluído é o mascote animado Titi:
+- aplicativo gráfico instalável, sem depender de uma janela de terminal;
+- interface minimalista com histórico local de conversas e configurações;
+- mascote Titi flutuante com estados de ouvindo, pensando, falando, sucesso, erro e standby;
+- chat local com Ollama e `qwen3.5:9b`;
+- aperte-para-falar e conversa ao vivo;
+- transcrição local com `whisper.cpp` e Whisper Small multilíngue;
+- resposta falada com as vozes instaladas no Windows;
+- onboarding com nome personalizado para o mascote;
+- detecção e preparação assistida da IA local.
 
-- visual 2D semi-pixel, inclusivo e apropriado para públicos variados;
-- pacote Codex v2 em atlas 8×11, com células de 192×208;
-- 9 estados padrão de animação;
-- 16 direções de olhar;
-- validação estrutural, revisão visual e revisão cega de direções aprovadas.
+## Primeira execução e Ollama
 
-Arquivos principais:
+O instalador do Titi já contém a interface, o mascote e o runtime de transcrição. O modelo de conversa não é embutido porque tem aproximadamente 6,6 GB.
 
-- `mascotes/titi/package/titi/pet.json`
-- `mascotes/titi/package/titi/spritesheet.webp`
-- `mascotes/titi/qa/contact-sheet-extended.png`
-- `BACKLOG.md`
+Na primeira execução, o aplicativo verifica quatro estados:
 
-## Perfil de desenvolvimento
+1. se o Ollama não existir, oferece **Instalar** e usa o instalador oficial após validar sua assinatura digital;
+2. se o Ollama existir mas o serviço estiver parado, o Titi tenta iniciá-lo em segundo plano;
+3. se o serviço estiver ativo mas `qwen3.5:9b` não existir, oferece **Baixar modelo** com progresso;
+4. se tudo estiver disponível, mostra **IA local pronta**.
 
-O protótipo será local-first no computador de teste: Ryzen 5 5600, 32 GB de RAM e RTX 2060 Super com 8 GB de VRAM. A configuração planejada usa um modelo quantizado de 7–8B, voz local, modos aperte-para-falar e conversa ao vivo e standby do modelo durante jogos.
+Nenhum download grande é iniciado sem uma ação explícita do usuário. Um modelo já instalado, mas fora da memória, é carregado automaticamente pelo Ollama na primeira mensagem.
 
-Integrações prioritárias: Chrome ou Brave, Spotify, Codex App e Antigravity.
+## Desenvolvimento
 
-## Próximos passos
+Requisitos: Node.js, pnpm e Windows 10/11.
 
-1. Criar o shell flutuante do Windows e renderizar as animações do Titi.
-2. Implementar captura de voz local e síntese de fala.
-3. Adicionar orquestração segura de aplicativos e confirmações para ações sensíveis.
-4. Acrescentar estados do produto como ouvindo, pensando, falando e standby.
-5. Implementar no futuro a escolha do provedor de IA no onboarding, conforme o backlog.
+```powershell
+pnpm install
+powershell -ExecutionPolicy Bypass -File .\scripts\setup-whisper.ps1
+pnpm dev
+```
+
+Validação e empacotamento:
+
+```powershell
+pnpm typecheck
+pnpm test
+pnpm package:win
+```
+
+O instalador é gerado em `release/Titi-Setup-0.1.0.exe`. Os binários e o modelo do Whisper ficam fora do Git e são incorporados ao instalador durante o empacotamento.
+
+## Arquitetura
+
+- `src/main`: processo principal do Electron, armazenamento, harness, provedor local e voz;
+- `src/preload`: ponte IPC restrita entre interface e recursos nativos;
+- `src/renderer`: interface React, chat, onboarding, configurações e animações;
+- `src/shared`: contratos compartilhados;
+- `mascotes/titi/package/titi`: pacote de animação Codex v2 do Titi;
+- `runtime/whisper`: documentação e arquivos locais de reconhecimento de voz;
+- `BACKLOG.md`: próximas integrações e opções de provedores.
+
+## Hardware de desenvolvimento
+
+O perfil atual usa Ryzen 5 5600, 32 GB de RAM e RTX 2060 Super com 8 GB de VRAM. O `qwen3.5:9b` roda pelo Ollama na GPU; o Whisper usa a CPU para não disputar VRAM com o modelo de conversa.
+
+Integrações prioritárias da próxima etapa: Chrome ou Brave, Spotify, Codex App e Antigravity, além do standby automático do modelo durante jogos.

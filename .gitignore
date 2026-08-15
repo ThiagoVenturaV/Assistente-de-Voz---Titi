@@ -1,0 +1,11 @@
+node_modules/
+out/
+release/
+.tmp/
+.pnpm-store/
+qa/
+*.tsbuildinfo
+
+# Binários e modelos locais são baixados pelo script de preparação.
+runtime/whisper/bin/
+runtime/whisper/models/*.bin

@@ -1,0 +1,72 @@
+{
+  "name": "titi-desktop",
+  "version": "0.1.0",
+  "description": "Assistente local para Windows com chat, voz, ferramentas e o mascote Titi.",
+  "main": "./out/main/index.js",
+  "author": "Thiago Ventura",
+  "license": "MIT",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "typecheck": "tsc --noEmit -p tsconfig.web.json && tsc --noEmit -p tsconfig.node.json",
+    "test": "vitest run",
+    "build": "pnpm typecheck && electron-vite build",
+    "package:dir": "pnpm build && electron-builder --dir --win",
+    "package:win": "pnpm build && electron-builder --win nsis"
+  },
+  "build": {
+    "appId": "com.thiagoventura.titi",
+    "productName": "Titi",
+    "artifactName": "Titi-Setup-${version}.${ext}",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "runtime/whisper",
+        "to": "runtime/whisper",
+        "filter": [
+          "bin/**/*",
+          "models/**/*"
+        ]
+      }
+    ],
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Titi"
+    }
+  },
+  "dependencies": {
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@vitejs/plugin-react": "^5.2.0",
+    "electron": "^43.4.0",
+    "electron-builder": "^26.15.3",
+    "electron-vite": "^5.0.0",
+    "typescript": "^7.0.2",
+    "vite": "^7.3.6",
+    "vitest": "^4.1.10"
+  }
+}

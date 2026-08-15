@@ -15,11 +15,24 @@ O onboarding deve explicar privacidade, custo, necessidade de internet, velocida
 Para o computador de teste de Thiago, manter a decisão local-first:
 
 - Ryzen 5 5600, 32 GB de RAM e RTX 2060 Super com 8 GB de VRAM.
-- Modelo local quantizado de 7–8B para orquestração e conversa.
+- Modelo local `qwen3.5:9b` para orquestração e conversa.
 - Reconhecimento e síntese de voz locais sempre que possível.
 - Modos aperte-para-falar e conversa ao vivo.
 - Colocar o modelo em standby ao abrir jogos.
 - Integrações prioritárias: Chrome/Brave, Spotify, Codex App e Antigravity.
+
+## Ferramentas do computador
+
+Adicionar uma camada segura de ferramentas, separada do provedor de IA:
+
+- abrir, focar e fechar aplicativos conhecidos;
+- pesquisar e navegar no Chrome ou Brave;
+- controlar reprodução e volume do Spotify;
+- encaminhar tarefas de programação para o Codex App;
+- abrir e operar fluxos do Antigravity;
+- reconhecer processos de jogos e colocar o modelo local em standby;
+- pedir confirmação antes de ações destrutivas, compras, envios ou alterações sensíveis;
+- manter registro local das ações solicitadas e executadas.
 
 ## Personalização do mascote
 
