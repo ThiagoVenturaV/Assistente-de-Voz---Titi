@@ -20,6 +20,12 @@ Este candidato corrige o núcleo de ações no computador e adiciona memória lo
 
 O instalador pode ser executado normalmente após remover uma versão anterior. Configurações e conversas preservadas em `%APPDATA%\titi-desktop` são reutilizadas. O modelo de conversa continua sendo um download separado de aproximadamente 6,6 GB.
 
+## Integridade do instalador
+
+SHA-256 de `Titi-Setup-0.2.0-beta.1.exe`:
+
+`A4E83368A0345BB37289A745116C90087DCA2E69D385BE5CDF0E5023CD921471`
+
 ## Limites conhecidos
 
 - Delegar uma tarefa completa para Codex/Antigravity e operar botões internos de qualquer aplicativo ainda não está implementado; nesta versão o Titi encontra e abre esses aplicativos.
