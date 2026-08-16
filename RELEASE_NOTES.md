@@ -1,6 +1,6 @@
 # Titi Beta 0.2.0-beta.2
 
-Este candidato corretivo substitui a `0.2.0-beta.1`, que não deve mais ser recomendada. É uma prévia privada para validação no Windows e continua sem assinatura Authenticode pública.
+Esta pré-release corretiva substitui a `0.2.0-beta.1`, que não deve mais ser recomendada. É uma prévia pública para testadores no Windows e continua sem assinatura Authenticode pública.
 
 ## O que mudou
 

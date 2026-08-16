@@ -2,7 +2,7 @@
 
 Titi é um assistente local para Windows com interface gráfica, conversa por texto e voz, mascote 2D animado e ferramentas controladas para agir no computador. O objetivo é permitir que a pessoa use seus aplicativos por voz sem entregar um terminal irrestrito ao modelo.
 
-> **Estado atual:** a pré-release pública `0.2.0-beta.1` precisa ser substituída. A fonte e o NSIS local estão preparados como `0.2.0-beta.2`, sem a rota interna de QA do pacote anterior e com cancelamento, concorrência, fidelidade dos efeitos externos, standby, CI, controle local de interfaces acessíveis e fallback visual local para Play/Pause no Spotify. Durante a beta, comandos permitidos executam direto; somente abrir ou controlar o Antigravity pede confirmação. O candidato só deve trocar o download público depois da matriz de instalação descrita em `QA_PLAN.md`; ele ainda não possui assinatura pública.
+> **Estado atual:** a pré-release `0.2.0-beta.2` substitui a beta.1, sem a rota interna de QA do pacote anterior e com cancelamento, concorrência, fidelidade dos efeitos externos, standby, CI, controle local de interfaces acessíveis, fallback visual local para Play/Pause no Spotify e transcrição contextual aprimorada. Durante a beta, comandos permitidos executam direto; somente abrir ou controlar o Antigravity pede confirmação. O instalador ainda não possui assinatura pública e deve ser tratado como uma prévia para testadores; consulte a matriz pendente em `QA_PLAN.md`.
 
 ## O que está implementado no código atual
 
