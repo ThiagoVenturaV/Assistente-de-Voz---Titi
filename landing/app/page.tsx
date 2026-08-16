@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-const DOWNLOAD_URL = "https://github.com/ThiagoVenturaV/Assistente-de-Voz---Titi/releases/download/v0.2.0-beta.3/Titi-Setup-0.2.0-beta.3.exe";
+const DOWNLOAD_URL = "https://github.com/ThiagoVenturaV/Assistente-de-Voz---Titi/releases/download/v0.2.0-beta.4/Titi-Setup-0.2.0-beta.4.exe";
 
 export const metadata: Metadata = {
   title: "Titi — Seu PC agora escuta você",
@@ -165,7 +165,7 @@ export default function Home() {
             <p><span>BETA PÚBLICO</span> V0.2</p>
             <h2>Dê voz ao<br />seu computador.</h2>
             <p className="poster-lead">Converse por texto ou voz, acompanhe a transcrição ao vivo e ouça respostas neurais sem enviar sua fala para a nuvem.</p>
-            <a className="download-button download-button--light" href={DOWNLOAD_URL}><span className="windows-glyph">⊞</span><span><strong>Baixar Titi Beta</strong><small>Windows 10 ou 11 · aproximadamente 840 MB</small></span><b>↓</b></a>
+            <a className="download-button download-button--light" href={DOWNLOAD_URL}><span className="windows-glyph">⊞</span><span><strong>Baixar Titi Beta</strong><small>Windows 10 ou 11 · aproximadamente 850 MB</small></span><b>↓</b></a>
           </div>
           <div className="download-visual"><div className="poster-orbit poster-orbit--one" /><div className="poster-orbit poster-orbit--two" /><div className="titi-sprite titi-sprite--poster" role="img" aria-label="Mascote Titi" /><span>HELLO,<br />HUMAN.</span></div>
         </div>
