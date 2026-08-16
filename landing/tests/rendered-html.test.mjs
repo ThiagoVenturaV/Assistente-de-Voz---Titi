@@ -57,7 +57,7 @@ test("keeps product metadata, motion fallbacks and accessible landmarks", async 
   assert.match(page, /<CommandDeck \/>/);
   assert.match(layout, /lang="pt-BR"/);
   assert.match(layout, /openGraph/);
-  assert.match(layout, /og-v4\.png/);
+  assert.match(layout, /og-v5\.png/);
   assert.match(css, /prefers-reduced-motion/);
   assert.match(css, /@keyframes signal-scroll/);
   assert.match(css, /\.signal-line \.signal-track\{animation:none\}/);

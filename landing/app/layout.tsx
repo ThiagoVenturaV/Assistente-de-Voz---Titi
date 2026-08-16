@@ -29,9 +29,9 @@ export async function generateMetadata(): Promise<Metadata> {
       description,
       type: "website",
       locale: "pt_BR",
-      images: [{ url: "/og-v4.png", width: 1732, height: 909, alt: "Titi — Fale do seu jeito. O PC entende e faz." }],
+      images: [{ url: "/og-v5.png", width: 1732, height: 909, alt: "Titi — Fale do seu jeito. O PC entende e faz." }],
     },
-    twitter: { card: "summary_large_image", title, description, images: ["/og-v4.png"] },
+    twitter: { card: "summary_large_image", title, description, images: ["/og-v5.png"] },
     icons: { icon: "/titi-icon.png", shortcut: "/titi-icon.png" },
   };
 }
