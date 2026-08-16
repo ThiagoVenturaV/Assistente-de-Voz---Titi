@@ -1,6 +1,6 @@
 {
   "name": "titi-desktop",
-  "version": "0.2.0-beta.5",
+  "version": "0.2.0-beta.6",
   "packageManager": "pnpm@10.22.0",
   "description": "Assistente local para Windows com chat, voz, ferramentas e o mascote Titi.",
   "main": "./out/main/index.js",

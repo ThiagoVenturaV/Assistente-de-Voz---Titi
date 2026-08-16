@@ -15,6 +15,7 @@ import { SettingsPanel } from './components/SettingsPanel'
 import { Sidebar } from './components/Sidebar'
 import { ToolConfirmationModal } from './components/ToolConfirmationModal'
 import { WindowControls } from './components/WindowControls'
+import { createOptimisticConversation } from './conversation-ui'
 import { PcmRecorder } from './voice/pcm-recorder'
 import { resolveLiveVoiceCommand } from './voice/live-voice-command'
 
@@ -28,6 +29,7 @@ export function App(): React.JSX.Element {
   const [listening, setListening] = useState(false)
   const [voiceProcessing, setVoiceProcessing] = useState(false)
   const [mascotState, setMascotState] = useState<MascotState>('idle')
+  const [activityStartedAt, setActivityStartedAt] = useState<number | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
@@ -194,10 +196,36 @@ export function App(): React.JSX.Element {
     sendingRef.current = true
     setSending(true)
     setNotice(null)
+    let baseConversation = currentRef.current
     try {
+      if (!baseConversation) {
+        baseConversation = await window.titi.conversations.create()
+        if (generation !== interactionGeneration.current) return
+        currentRef.current = baseConversation
+      }
+
+      const startedAt = Date.now()
+      const optimisticConversation = createOptimisticConversation(
+        baseConversation,
+        content,
+        `pending-${requestId}`,
+        new Date(startedAt).toISOString()
+      )
+      setCurrent(optimisticConversation)
+      setConversations((previous) => [
+        {
+          id: optimisticConversation.id,
+          title: optimisticConversation.title,
+          updatedAt: optimisticConversation.updatedAt,
+          preview: optimisticConversation.preview
+        },
+        ...previous.filter(({ id }) => id !== optimisticConversation.id)
+      ])
+      setActivityStartedAt(startedAt)
+
       const response = await window.titi.conversations.send({
         requestId,
-        conversationId: currentRef.current?.id,
+        conversationId: baseConversation.id,
         content
       })
       if (generation !== interactionGeneration.current) return
@@ -205,6 +233,7 @@ export function App(): React.JSX.Element {
       setCurrent(response.conversation)
       setRuntime(response.runtime)
       await refreshConversations(response.conversation.id)
+      setActivityStartedAt(null)
       const activeSettings = settingsRef.current
       if (activeSettings?.voice.enabled) {
         await speakText(
@@ -215,6 +244,15 @@ export function App(): React.JSX.Element {
       }
     } catch (error) {
       if (generation !== interactionGeneration.current) return
+      setActivityStartedAt(null)
+      if (baseConversation) {
+        try {
+          await refreshConversations(baseConversation.id)
+        } catch {
+          currentRef.current = baseConversation
+          setCurrent(baseConversation)
+        }
+      }
       setNotice(error instanceof Error ? error.message : 'Não foi possível enviar a mensagem.')
     } finally {
       if (generation !== interactionGeneration.current) return
@@ -222,6 +260,7 @@ export function App(): React.JSX.Element {
       activeSpeech.current = null
       sendingRef.current = false
       setSending(false)
+      setActivityStartedAt(null)
     }
   }
 
@@ -456,6 +495,7 @@ export function App(): React.JSX.Element {
     sendingRef.current = false
     voiceProcessingRef.current = false
     setSending(false)
+    setActivityStartedAt(null)
     setListening(false)
     setVoiceProcessing(false)
     setNotice(message)
@@ -489,6 +529,7 @@ export function App(): React.JSX.Element {
     sendingRef.current = false
     voiceProcessingRef.current = false
     setSending(false)
+    setActivityStartedAt(null)
     setListening(false)
     setVoiceProcessing(false)
     setNotice('Modo jogo ativo. Tarefas e microfone foram pausados; a descarga do modelo foi solicitada.')
@@ -536,7 +577,7 @@ export function App(): React.JSX.Element {
               messages={current.messages}
               mascotName={settings.mascotName}
               mascotState={mascotState}
-              sending={sending}
+              activityStartedAt={activityStartedAt}
             />
           ) : (
             <EmptyState

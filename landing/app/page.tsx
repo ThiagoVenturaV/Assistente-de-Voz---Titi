@@ -1,7 +1,7 @@
 import { CommandDeck, MotionRuntime } from "./motion-runtime";
 import Image from "next/image";
 
-const DOWNLOAD_URL = "https://github.com/ThiagoVenturaV/Assistente-de-Voz---Titi/releases/download/v0.2.0-beta.5/Titi-Setup-0.2.0-beta.5.exe";
+const DOWNLOAD_URL = "https://github.com/ThiagoVenturaV/Assistente-de-Voz---Titi/releases/download/v0.2.0-beta.6/Titi-Setup-0.2.0-beta.6.exe";
 
 export default function Home() {
   return (
@@ -11,7 +11,7 @@ export default function Home() {
 
       <nav className="masthead shell" aria-label="Navegação principal">
         <a className="wordmark" href="#inicio" aria-label="Titi — início">
-          <span className="wordmark-pet"><Image src="/titi-icon.png" alt="" width={32} height={35} /></span>
+          <span className="wordmark-pet"><Image src="/titi-icon.png" alt="" width={30} height={30} /></span>
           <span>Titi</span>
         </a>
         <div className="masthead-links">
@@ -46,7 +46,7 @@ export default function Home() {
               <div className="panel-chat">
                 <p className="panel-status"><i /> AO VIVO · ENTENDENDO ENQUANTO VOCÊ FALA</p>
                 <p className="panel-user">Titi, abre meu aplicativo de música e coloca alguma coisa calma.</p>
-                <div className="panel-answer"><Image src="/titi-icon.png" alt="" width={26} height={29} /><p><small>ENTENDI</small>Abrindo seu aplicativo de música e iniciando uma seleção tranquila.</p></div>
+                <div className="panel-answer"><Image src="/titi-icon.png" alt="" width={26} height={26} /><p><small>ENTENDI</small>Abrindo seu aplicativo de música e iniciando uma seleção tranquila.</p></div>
                 <div className="panel-action"><span>♪</span><p><small>AÇÃO CONCLUÍDA</small><b>Aplicativo aberto · tocando</b></p><i>Pronto</i></div>
                 <div className="panel-composer">Converse com o Titi… <span>⌁</span></div>
               </div>
@@ -104,7 +104,7 @@ export default function Home() {
       </section>
 
       <section className="download-section shell" id="download">
-        <div className="download-poster" data-reveal><div className="download-copy"><p><span>BETA PÚBLICO</span> V0.2.0 BETA.5</p><h2>Seu PC<br />já pode<br /><em>entender.</em></h2><p className="download-lead">Instale o Titi, fale naturalmente e descubra uma maneira mais humana de usar o Windows.</p><a className="primary-button primary-button--mint" href={DOWNLOAD_URL}><span className="windows-glyph">⊞</span><span><strong>Baixar Titi Beta</strong><small>Windows 10 ou 11 · aproximadamente 850 MB</small></span><b>↓</b></a></div><div className="download-art" data-parallax="0.06"><span className="download-orbit download-orbit--one" /><span className="download-orbit download-orbit--two" /><div className="titi-sprite download-titi" role="img" aria-label="Mascote Titi" /><p>OLÁ,<br />HUMANO.</p></div></div>
+        <div className="download-poster" data-reveal><div className="download-copy"><p><span>BETA PÚBLICO</span> V0.2.0 BETA.6</p><h2>Seu PC<br />já pode<br /><em>entender.</em></h2><p className="download-lead">Instale o Titi, fale naturalmente e descubra uma maneira mais humana de usar o Windows.</p><a className="primary-button primary-button--mint" href={DOWNLOAD_URL}><span className="windows-glyph">⊞</span><span><strong>Baixar Titi Beta</strong><small>Windows 10 ou 11 · aproximadamente 850 MB</small></span><b>↓</b></a></div><div className="download-art" data-parallax="0.06"><span className="download-orbit download-orbit--one" /><span className="download-orbit download-orbit--two" /><div className="titi-sprite download-titi" role="img" aria-label="Mascote Titi" /><p>OLÁ,<br />HUMANO.</p></div></div>
         <div className="requirements"><article><span>01</span><p><b>Windows 10 ou 11</b>Em um computador recente</p></article><article><span>02</span><p><b>16 GB de memória</b>Recomendados para conversar bem</p></article><article><span>03</span><p><b>Cerca de 8 GB livres</b>Para o aplicativo e o modelo local</p></article><article><span>04</span><p><b>GPU recomendada</b>Para voz e respostas mais rápidas</p></article></div>
         <p className="setup-note">Na primeira configuração, o Titi explica tudo antes de baixar o modelo adicional de aproximadamente 6,6 GB.</p>
       </section>
@@ -114,7 +114,7 @@ export default function Home() {
         <div className="faq-list" data-reveal><details><summary><span>01</span>Preciso configurar modelos manualmente?<i /></summary><p>Não. Na primeira vez, o Titi orienta a configuração e só baixa o modelo adicional depois da sua confirmação.</p></details><details><summary><span>02</span>Tudo já vem no instalador?<i /></summary><p>A interface, o mascote, a transcrição incremental e a voz neural local já vêm. O modelo de conversa, com aproximadamente 6,6 GB, é baixado depois.</p></details><details><summary><span>03</span>O que o Titi já consegue fazer no Windows?<i /></summary><p>O beta abre aplicativos compatíveis, usa seu navegador, pesquisa, controla Play/Pause no aplicativo de música e aciona controles acessíveis. A cobertura cresce a cada versão.</p></details><details><summary><span>04</span>Ele pede permissão antes de cada comando?<i /></summary><p>Durante o beta, os comandos compatíveis executam direto. O Antigravity permanece como uma confirmação especial antes da ação.</p></details><details><summary><span>05</span>Como interrompo uma conversa ao vivo?<i /></summary><p>Diga “parar” ou pressione Esc. O Titi encerra a escuta e devolve o controle imediatamente.</p></details><details><summary><span>06</span>Meus dados saem do computador?<i /></summary><p>Sua voz, suas conversas e seu histórico podem ficar no seu computador. Se uma ação pedida precisar de internet, como uma pesquisa, o Titi usa a conexão para essa ação.</p></details></div>
       </section>
 
-      <footer className="footer"><div className="shell footer-main"><a className="wordmark wordmark--footer" href="#inicio"><span className="wordmark-pet"><Image src="/titi-icon.png" alt="" width={32} height={35} /></span><span>Titi</span></a><p>Uma conversa mais natural<br />entre você e o seu computador.</p><div><a href="#como-funciona">Como funciona ↑</a><a href="#privacidade">Privacidade ↑</a><a href="#download">Download ↓</a></div></div><div className="shell footer-bottom"><span>© 2026 Titi</span><span>Feito no Brasil · Beta público</span><a href="#inicio">Voltar ao topo ↑</a></div></footer>
+      <footer className="footer"><div className="shell footer-main"><a className="wordmark wordmark--footer" href="#inicio"><span className="wordmark-pet"><Image src="/titi-icon.png" alt="" width={30} height={30} /></span><span>Titi</span></a><p>Uma conversa mais natural<br />entre você e o seu computador.</p><div><a href="#como-funciona">Como funciona ↑</a><a href="#privacidade">Privacidade ↑</a><a href="#download">Download ↓</a></div></div><div className="shell footer-bottom"><span>© 2026 Titi</span><span>Feito no Brasil · Beta público</span><a href="#inicio">Voltar ao topo ↑</a></div></footer>
     </main>
   );
 }

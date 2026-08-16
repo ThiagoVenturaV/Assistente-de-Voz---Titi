@@ -50,8 +50,8 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
   padding: 0 13px 0 15px;
 }
 .brand { display: flex; align-items: center; gap: 8px; font-weight: 650; letter-spacing: -0.01em; }
-.brand .titi-sprite { flex: none; filter: drop-shadow(0 3px 7px rgba(0, 0, 0, .25)); }
-.brand span { margin-left: -4px; }
+.brand-icon { width: 34px; height: 34px; flex: none; object-fit: contain; filter: drop-shadow(0 3px 7px rgba(0, 0, 0, .25)); }
+.brand span { margin-left: 0; }
 .icon-button {
   display: grid;
   width: 34px;
@@ -175,17 +175,21 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .message { display: flex; gap: 13px; margin-bottom: 30px; }
 .message--user { justify-content: flex-end; }
 .message-avatar { width: 36px; height: 36px; flex: none; display: grid; place-items: center; overflow: hidden; background: rgba(255, 255, 255, .04); border: 1px solid var(--line); border-radius: 10px; }
-.message-avatar .titi-sprite { transform: translateY(2px); }
+.message-avatar img { width: 30px; height: 30px; object-fit: contain; }
+.message-avatar--thinking img, .message-avatar--speaking img { animation: brand-breathe 900ms ease-in-out infinite alternate; }
 .message-content { max-width: min(680px, 83%); color: #dce0d8; font-size: 14px; line-height: 1.65; }
 .message--user .message-content { padding: 10px 15px; color: #eff1ed; background: #272b27; border: 1px solid rgba(255, 255, 255, .065); border-radius: 17px 17px 5px 17px; }
 .message-author { display: block; margin-bottom: 6px; color: var(--accent); font-size: 11px; font-weight: 650; }
 .message-content p { margin: 0 0 10px; white-space: pre-wrap; }
 .message-content p:last-child { margin-bottom: 0; }
-.typing-indicator { display: flex; gap: 5px; padding: 11px 0; }
-.typing-indicator i { width: 6px; height: 6px; background: var(--muted); border-radius: 50%; animation: typing 1.15s infinite ease-in-out; }
-.typing-indicator i:nth-child(2) { animation-delay: .15s; }
-.typing-indicator i:nth-child(3) { animation-delay: .3s; }
+.activity-indicator { display: flex; align-items: center; gap: 10px; padding: 9px 0; }
+.activity-indicator small { color: var(--quiet); font-size: 11px; font-variant-numeric: tabular-nums; }
+.typing-dots { display: flex; gap: 5px; }
+.typing-dots i { width: 6px; height: 6px; background: var(--muted); border-radius: 50%; animation: typing 1.15s infinite ease-in-out; }
+.typing-dots i:nth-child(2) { animation-delay: .15s; }
+.typing-dots i:nth-child(3) { animation-delay: .3s; }
 @keyframes typing { 0%, 60%, 100% { opacity: .35; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-4px); } }
+@keyframes brand-breathe { to { transform: scale(1.08); filter: drop-shadow(0 0 7px rgba(112, 214, 189, .55)); } }
 
 .composer-shell { position: absolute; z-index: 4; width: min(780px, calc(100% - 48px)); left: 50%; bottom: 13px; transform: translateX(-50%); }
 .composer-shell::before { content: ""; position: absolute; z-index: -1; inset: -70px -40px -18px; background: linear-gradient(transparent, var(--bg) 56%); pointer-events: none; }

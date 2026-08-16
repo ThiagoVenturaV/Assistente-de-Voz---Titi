@@ -1,8 +1,12 @@
-# Assistente de Voz — Titi
+<p align="center">
+  <img src="./branding/titi-head-master.png" alt="Ícone do Titi, um gato-robô" width="176" />
+</p>
+
+# Titi
 
 Titi é um assistente local para Windows com interface gráfica, conversa por texto e voz, mascote 2D animado e ferramentas controladas para agir no computador. O objetivo é permitir que a pessoa use seus aplicativos por voz sem entregar um terminal irrestrito ao modelo.
 
-> **Estado atual:** a pré-release pública `0.2.0-beta.5` entende destinos conhecidos sem pesquisar, confirma janelas em qualquer monitor e pode observar todos os monitores com visão local quando a pessoa pede explicitamente. A voz Supertonic usa DirectML com fallback para CPU, e a transcrição Parakeet continua incremental na CPU porque foi mais rápida assim no hardware medido. Durante a beta, comandos permitidos executam direto; somente abrir ou controlar o Antigravity pede confirmação. O instalador não possui assinatura pública e deve ser tratado como uma prévia para testadores; consulte `QA_PLAN.md`.
+> **Estado atual:** a pré-release pública `0.2.0-beta.6` adota a cabeça do mascote como ícone oficial do aplicativo e do site. Mensagens ditadas aparecem no chat assim que a transcrição termina, enquanto um cronômetro mostra por quanto tempo o Titi está pensando ou agindo. Permanecem a visão local de múltiplos monitores, a transcrição Parakeet incremental, a voz Supertonic em DirectML com fallback para CPU e a execução direta dos comandos compatíveis durante a beta; somente abrir ou controlar o Antigravity pede confirmação. O instalador não possui assinatura pública e deve ser tratado como uma prévia para testadores; consulte `QA_PLAN.md`.
 
 ## O que está implementado no código atual
 
@@ -12,6 +16,7 @@ Titi é um assistente local para Windows com interface gráfica, conversa por te
 - correção contextual fechada: aliases conhecidos são determinísticos e, para aplicativos novos, o Ollama só pode sugerir a troca de um trecho literal por um nome do catálogo; verbos, negações, números, baixa confiança e nomes distantes são rejeitados pelo código;
 - resposta falada pelo Supertonic 3 INT8, uma voz neural em português executada localmente na GPU por DirectML, com fallback automático para CPU; Markdown, links e emojis são removidos somente da fala e continuam visíveis no chat;
 - frases como “pare a conversa” e “encerre o modo ao vivo” desligam a escuta sem enviar o comando ao modelo;
+- a mensagem transcrita entra no chat assim que a fala termina, sem esperar a resposta; enquanto o Titi pensa ou executa ações, um cronômetro mostra há quanto tempo a interação está em andamento;
 - botão **Ao vivo** diretamente no mascote;
 - execução de ferramentas com validação de nome, argumentos, repetição, quantidade e número de rodadas;
 - o Ollama interpreta linguagem natural, correções, referências e pedidos compostos; se responder com uma promessa ou uma mensagem totalmente vazia, o Titi classifica semanticamente o pedido e refaz ações com uso obrigatório de ferramentas, enquanto perguntas conceituais bloqueiam efeitos desnecessários;
@@ -36,7 +41,7 @@ Titi é um assistente local para Windows com interface gráfica, conversa por te
 - standby conservador durante jogos conhecidos ou executáveis adicionados pelo usuário; ele cancela tarefas, pausa voz, oculta o mascote e verifica a descarga do modelo pela API local;
 - gravações de conversas e configurações são serializadas para não perder atualizações concorrentes.
 
-O código passa por `pnpm typecheck` e por **328 testes em 32 arquivos**. `pnpm package:dir` também verifica o ASAR, os workers, os módulos nativos, o runtime de automação, o CSP necessário para reproduzir a voz, o Parakeet e os binários DirectML do Supertonic por SHA-256, além de rejeitar rotas de QA proibidas em produção. Essa evidência ainda não substitui a validação do instalador em uma máquina limpa.
+O código passa por `pnpm typecheck` e por **330 testes em 33 arquivos**. `pnpm package:dir` também verifica o ASAR, os workers, os módulos nativos, o runtime de automação, o CSP necessário para reproduzir a voz, o Parakeet e os binários DirectML do Supertonic por SHA-256, além de rejeitar rotas de QA proibidas em produção. Essa evidência ainda não substitui a validação do instalador em uma máquina limpa.
 
 ## Limites desta versão
 
