@@ -4,7 +4,7 @@ Auditoria atualizada em 16/08/2026. Este documento define o que precisa estar co
 
 ## Veredito atual
 
-**A PRÉ-RELEASE PÚBLICA `0.2.0-beta.2` PRECISA SER SUBSTITUÍDA; A `0.2.0-beta.3` É O CANDIDATO NÃO ASSINADO.** A beta.3 corrige tool calls indevidas em perguntas conceituais, torna estável a distinção navegador/página e Spotify open/play, preserva contexto entre turnos e expõe os controles observados de forma útil. Permanecem cancelamento, estados honestos, standby, controle opt-in de interfaces, fallback visual local, Parakeet incremental e Supertonic neural local. Por decisão explícita para a beta, ferramentas permitidas executam direto; somente o Antigravity pede confirmação. Typecheck, 306 testes, matriz local 19/19, NSIS, verificação estrutural, instalação preservando o perfil e os dois workers executados do pacote passam. Como o candidato continua `NotSigned`, pode acionar o aviso de reputação do Windows e só deve ser tratado como pré-release para testadores.
+**A PRÉ-RELEASE PÚBLICA ATUAL É `0.2.0-beta.3`, NÃO ASSINADA.** A beta.3 corrige tool calls indevidas em perguntas conceituais, torna estável a distinção navegador/página e Spotify open/play, preserva contexto entre turnos e expõe os controles observados de forma útil. Permanecem cancelamento, estados honestos, standby, controle opt-in de interfaces, fallback visual local, Parakeet incremental e Supertonic neural local. Por decisão explícita para a beta, ferramentas permitidas executam direto; somente o Antigravity pede confirmação. Typecheck, 306 testes, matriz local 19/19, CI, NSIS, verificação estrutural, instalação preservando o perfil, os dois workers empacotados e os hashes publicados passam. Como o candidato continua `NotSigned`, pode acionar o aviso de reputação do Windows e só deve ser tratado como pré-release para testadores.
 
 Antes do teste, o usuário havia desinstalado a versão anterior: a pasta de instalação foi removida, enquanto configurações e conversas permaneceram em `%APPDATA%\titi-desktop`. A beta.2 foi instalada sobre esse perfil e reabriu os dados existentes.
 
@@ -18,7 +18,7 @@ Antes do teste, o usuário havia desinstalado a versão anterior: a pasta de ins
 | Build de produção | Aprovado | `pnpm build`: main, preload e renderer compilados |
 | Linguagem natural e seleção de ferramentas | Aprovado no nível de contrato | `pnpm qa:ollama-tools`: 19/19 no Qwen 3.5 9B local, cobrindo as seis ferramentas, aplicativo genérico, pedidos compostos, correções, referências entre turnos, conversa sem efeito e observar → agir; o script não executa efeitos externos |
 | Dados da versão anterior | Preservados após o NSIS | A instalação reabriu o nome, as configurações e a conversa anterior; `settings.json` e `conversations.json` continuam presentes em `%APPDATA%\titi-desktop` |
-| Instalador publicado | Substituição pendente | a beta.2 pública continua disponível até a beta.3 ser ligada ao commit final e seus três ativos serem verificados |
+| Instalador publicado | Aprovado como pré-release | tag `v0.2.0-beta.3` aponta para `a0298a2`; EXE, blockmap e `latest.yml` públicos conferem em tamanho e SHA-256, e o download anônimo responde HTTP 200 |
 | Pacote corretivo de diretório | Aprovado | `pnpm package:win` regenerou `win-unpacked`; `verify:package` confirmou beta.3, workers, módulos nativos, Parakeet, Supertonic e marcadores funcionais |
 | Runtime local de voz empacotado | Aprovado | `ggml-parakeet-tdt-0.6b-v3-q8_0.bin` com 668.757.119 bytes e runtime mínimo de 9.104.960 bytes em `win-unpacked/resources/runtime/whisper`; executáveis de teste e modelos Whisper/VAD não entram no pacote |
 | Ensaio local de transcrição pt-BR | Aprovado sem microfone real | voz Microsoft Maria curta transcrita exatamente em 1,21 s; áudio controlado de 55,4 s transcrito por inteiro em 7,81 s, enquanto o Whisper anterior cortou o meio e repetiu o final três vezes; microfone do usuário continua no smoke manual |
@@ -39,8 +39,8 @@ Antes do teste, o usuário havia desinstalado a versão anterior: a pasta de ins
 - [x] remover `TITI_CAPTURE_DIR`, `captureQaScreens` e cliques automáticos do processo principal;
 - [x] fazer o verificador falhar se qualquer marcador reaparecer no ASAR;
 - [x] gerar e verificar um novo `win-unpacked` sem esses marcadores;
-- [x] gerar o NSIS beta.3 a partir da fonte final; tag própria ainda pendente;
-- [ ] instalar, executar a matriz crítica e só então trocar o download público.
+- [x] gerar o NSIS beta.3 a partir da fonte final e ligar a tag própria ao commit `a0298a2`;
+- [x] instalar sobre o perfil preservado, executar a matriz automatizada crítica e só então trocar o download público; os smokes manuais restantes continuam abaixo.
 
 ### RC-01 — gerar o artefato correto
 
@@ -48,7 +48,7 @@ Antes do teste, o usuário havia desinstalado a versão anterior: a pasta de ins
 - [x] Existir `release/Titi-Setup-0.2.0-beta.3.exe` e seu `.blockmap`.
 - [x] `release/win-unpacked/resources/app.asar` conter `titi-desktop` versão `0.2.0-beta.3`.
 - [x] `pnpm verify:package` terminar com código 0 após o empacotamento beta.3.
-- [ ] Conferir que nenhum arquivo `0.1.x` será enviado por engano ao release novo.
+- [x] Conferir que somente o EXE beta.3, seu blockmap e `latest.yml` foram enviados ao release novo.
 
 Instaladores anteriores continuam no diretório local `release/`; o upload deve selecionar explicitamente somente o EXE beta.3, seu `.blockmap` e `latest.yml`.
 
@@ -58,14 +58,14 @@ Instaladores anteriores continuam no diretório local `release/`; o upload deve 
 - [x] Calcular e registrar o SHA-256 do NSIS final: `42458B01E7144B7C03D2CEB0CA355EF8E436D988107E306B9DBCE750B1E32BA1`.
 - [ ] Recalcular e publicar o SHA-256 se o arquivo for assinado, pois a assinatura altera os bytes.
 - [x] `RELEASE_NOTES.md`, README e a fonte da landing page identificarem `0.2.0-beta.3`; a landing só deve ser publicada depois do release existir.
-- [ ] Título, tag, ativo e link do GitHub Release publicado apontarem para essa mesma versão e arquivo.
+- [x] Título, tag, ativos e link do GitHub Release publicado apontarem para essa mesma versão e arquivo.
 - [x] Não anunciar atualização automática: o aplicativo ainda usa atualização manual.
 
 ### RC-03 — confiança do executável
 
 - [ ] `Get-AuthenticodeSignature` retornar `Valid` e o editor esperado para o instalador e o executável principal.
 - [x] Identificar o candidato beta.3: 878.333.160 bytes (837,64 MiB) e SHA-256 `42458B…32BA1`.
-- [ ] O hash publicado corresponder byte a byte ao arquivo baixado do release.
+- [x] O digest SHA-256 publicado pelo GitHub corresponder ao arquivo local e o link anônimo responder HTTP 200.
 - [ ] O Microsoft Defender com proteção em tempo real ativa examinar o instalador beta.3 final sem registrar detecção correspondente.
 - [ ] Nenhum segredo, conversa, arquivo de perfil ou caminho pessoal da máquina de build estar dentro do ASAR ou dos recursos.
 
@@ -201,10 +201,10 @@ Sem assinatura, a mensagem permitida é “pré-release de teste não assinada�
 
 ### Estado contra esse critério
 
-- **Artefato e integridade beta.3:** aprovado localmente para o hash atual; candidato não assinado.
+- **Artefato e integridade beta.3:** aprovado localmente e no GitHub para o hash atual; pré-release pública não assinada.
 - **Execução isolada do `win-unpacked` beta.3 atual:** workers Parakeet e Supertonic aprovados de dentro do pacote; inspeção visual final pendente.
 - **Instalação NSIS beta.3 sobre dados preservados:** aprovada para integridade, versão e preservação exata do perfil; microfone/áudio audível e matriz completa de ferramentas permanecem manuais.
 - **Smoke funcional real de voz, abertura aprovada dos quatro aplicativos, memória e jogo:** pendente.
-- **Assinatura e verificação do download publicado:** pendente.
+- **Verificação do download publicado:** aprovada para tag, commit, três ativos, tamanhos, digests e acesso anônimo; assinatura continua ausente.
 
-Portanto, o candidato pode seguir para a publicação beta após commit/tag/CI e conferência dos três ativos, sempre com hash e aviso explícito de que não é assinado. Ainda não deve ser apresentado como versão estável.
+Portanto, a beta.3 está publicada para testadores com hash e aviso explícito de que não é assinada. Os smokes manuais restantes continuam impedindo tratá-la como versão estável.
