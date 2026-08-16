@@ -125,7 +125,7 @@ export function CommandDeck() {
         </div>
         <div className="screen-dialogue">
           <p className="screen-you"><small>VOCÊ DISSE</small>{demo.command}</p>
-          <div className="screen-thinking"><span className="mini-titi"><Image src="/titi-icon.png" alt="" width={41} height={45} /></span><p><small>TITI ENTENDEU</small>{demo.thought}</p></div>
+          <div className="screen-thinking"><span className="mini-titi"><Image src="/titi-icon.png" alt="" width={39} height={39} /></span><p><small>TITI ENTENDEU</small>{demo.thought}</p></div>
           <div className="screen-result"><span>{demo.icon}</span><p><small>AÇÃO NO WINDOWS</small><strong>{demo.result}</strong></p><i>Pronto</i></div>
         </div>
         <div className="screen-wave" aria-hidden="true">

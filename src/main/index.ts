@@ -261,6 +261,7 @@ function createMainWindow(): BrowserWindow {
     show: false,
     frame: false,
     title: 'Titi',
+    icon: app.isPackaged ? undefined : join(process.cwd(), 'build', 'icon.ico'),
     backgroundColor: '#101210',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),

@@ -2,7 +2,6 @@ import type {
   ConversationSummary,
   TitiSettings
 } from '../../../shared/contracts'
-import { TitiSprite } from './TitiSprite'
 import {
   MessageIcon,
   MoreIcon,
@@ -40,7 +39,7 @@ export function Sidebar({
     <aside className={`sidebar ${collapsed ? 'sidebar--collapsed' : ''}`}>
       <div className="sidebar-top drag-region">
         <div className="brand no-drag">
-          <TitiSprite size={34} state="idle" label={settings.mascotName} />
+          <img className="brand-icon" src="./titi-icon.png" alt="" width={34} height={34} />
           {!collapsed && <span>{settings.mascotName}</span>}
         </div>
         <button className="icon-button no-drag" title="Recolher barra lateral" onClick={onToggle}>

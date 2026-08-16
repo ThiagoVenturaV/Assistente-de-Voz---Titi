@@ -1,5 +1,4 @@
 import type { ChatMessage, MascotState } from '../../../shared/contracts'
-import { TitiSprite } from './TitiSprite'
 
 interface MessageListProps {
   messages: ChatMessage[]
@@ -19,7 +18,7 @@ export function MessageList({
       {messages.map((message) => (
         <article className={`message message--${message.role}`} key={message.id}>
           {message.role === 'assistant' && (
-            <div className="message-avatar"><TitiSprite size={38} state="idle" label={mascotName} /></div>
+            <div className="message-avatar"><img src="./titi-icon.png" alt="" width={30} height={30} /></div>
           )}
           <div className="message-content">
             {message.role === 'assistant' && <strong className="message-author">{mascotName}</strong>}
@@ -31,7 +30,7 @@ export function MessageList({
       ))}
       {sending && (
         <article className="message message--assistant">
-          <div className="message-avatar"><TitiSprite size={38} state={mascotState} label={mascotName} /></div>
+          <div className={`message-avatar message-avatar--${mascotState}`}><img src="./titi-icon.png" alt="" width={30} height={30} /></div>
           <div className="message-content typing-indicator"><i /><i /><i /></div>
         </article>
       )}
