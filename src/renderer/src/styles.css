@@ -246,6 +246,8 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .activity-list article:last-child { border-bottom: 0; }
 .activity-list article > i { width: 7px; height: 7px; margin-top: 4px; border-radius: 50%; background: #8d948a; }
 .activity-list article.is-success > i { background: #81c784; }
+.activity-list article.is-pending > i { background: #e4b765; }
+.activity-list article.is-cancelled > i { background: #8d948a; }
 .activity-list article.is-error > i { background: #ef8a80; }
 .activity-list article strong { display: block; color: var(--text); font-size: 12px; font-weight: 580; text-transform: capitalize; }
 .activity-list article p { margin: 3px 0 0; color: var(--muted); font-size: 11px; line-height: 1.45; }

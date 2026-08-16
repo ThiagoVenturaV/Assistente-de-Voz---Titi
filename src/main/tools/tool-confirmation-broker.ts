@@ -8,6 +8,8 @@ import type {
 interface PendingConfirmation {
   resolve: (decision: ToolConfirmationDecision) => void
   timeout: NodeJS.Timeout
+  signal?: AbortSignal
+  abort?: () => void
 }
 
 export class ToolConfirmationBroker {
@@ -15,11 +17,18 @@ export class ToolConfirmationBroker {
 
   constructor(
     private readonly dispatch: (request: ToolConfirmationRequest) => void,
-    private readonly timeoutMs = 45_000
+    private readonly timeoutMs = 45_000,
+    private readonly dismiss: (requestId: string) => void = () => undefined
   ) {}
 
-  request(prompt: ToolConfirmationPrompt): Promise<ToolConfirmationDecision> {
+  request(
+    prompt: ToolConfirmationPrompt,
+    signal?: AbortSignal
+  ): Promise<ToolConfirmationDecision> {
     const id = randomUUID()
+    if (signal?.aborted) {
+      return Promise.resolve({ status: 'cancelled', requestId: id })
+    }
     const request: ToolConfirmationRequest = {
       ...prompt,
       id,
@@ -28,10 +37,13 @@ export class ToolConfirmationBroker {
 
     return new Promise((resolve) => {
       const timeout = setTimeout(() => {
-        this.pending.delete(id)
-        resolve({ status: 'expired', requestId: id })
+        this.settle(id, 'expired')
       }, this.timeoutMs)
-      this.pending.set(id, { resolve, timeout })
+      const abort = signal ? (): void => {
+        this.settle(id, 'cancelled')
+      } : undefined
+      this.pending.set(id, { resolve, timeout, signal, abort })
+      signal?.addEventListener('abort', abort!, { once: true })
       this.dispatch(request)
     })
   }
@@ -39,20 +51,31 @@ export class ToolConfirmationBroker {
   respond(response: ToolConfirmationResponse): boolean {
     const confirmation = this.pending.get(response.requestId)
     if (!confirmation) return false
-    clearTimeout(confirmation.timeout)
-    this.pending.delete(response.requestId)
-    confirmation.resolve({
-      status: response.approved ? 'approved' : 'denied',
-      requestId: response.requestId
-    })
+    this.settle(response.requestId, response.approved ? 'approved' : 'denied')
     return true
   }
 
   cancelAll(): void {
-    for (const [requestId, confirmation] of this.pending) {
-      clearTimeout(confirmation.timeout)
-      confirmation.resolve({ status: 'denied', requestId })
+    for (const requestId of [...this.pending.keys()]) this.settle(requestId, 'cancelled')
+  }
+
+  private settle(
+    requestId: string,
+    status: ToolConfirmationDecision['status']
+  ): boolean {
+    const confirmation = this.pending.get(requestId)
+    if (!confirmation) return false
+    clearTimeout(confirmation.timeout)
+    if (confirmation.abort) {
+      confirmation.signal?.removeEventListener('abort', confirmation.abort)
     }
-    this.pending.clear()
+    this.pending.delete(requestId)
+    try {
+      this.dismiss(requestId)
+    } catch {
+      // A camada visual nunca pode impedir a decisão de segurança de concluir.
+    }
+    confirmation.resolve({ status, requestId })
+    return true
   }
 }

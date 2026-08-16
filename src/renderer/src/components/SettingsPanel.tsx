@@ -66,8 +66,14 @@ export function SettingsPanel({
   const [loadingActivity, setLoadingActivity] = useState(false)
   const [memory, setMemory] = useState<CuratedMemorySummary[]>([])
   const [loadingMemory, setLoadingMemory] = useState(false)
+  const [gameExecutables, setGameExecutables] = useState(
+    settings.games.executables.join(', ')
+  )
 
-  useEffect(() => setDraft(settings), [settings])
+  useEffect(() => {
+    setDraft(settings)
+    setGameExecutables(settings.games.executables.join(', '))
+  }, [settings])
   useEffect(() => {
     if (section !== 'activity') return
     setLoadingActivity(true)
@@ -87,7 +93,13 @@ export function SettingsPanel({
     setSaving(true)
     setSaveError(null)
     try {
-      await onSave(draft)
+      await onSave({
+        ...draft,
+        games: {
+          ...draft.games,
+          executables: parseExecutableList(gameExecutables)
+        }
+      })
       if (clearHistoryOnSave) await window.titi.conversations.clear()
       onClose()
       if (clearHistoryOnSave) window.location.reload()
@@ -144,6 +156,34 @@ export function SettingsPanel({
                     checked={draft.launchAtStartup}
                     onChange={(launchAtStartup) => setDraft({ ...draft, launchAtStartup })}
                   />
+                  <Toggle
+                    label="Permitir controle da interface"
+                    description="Permite operar controles acessíveis e usar visão local no Play/Pause do Spotify. Na beta, só o Antigravity pede confirmação."
+                    checked={draft.computerControlEnabled}
+                    onChange={(computerControlEnabled) => setDraft({ ...draft, computerControlEnabled })}
+                  />
+                </SettingsGroup>
+                <SettingsGroup title="Modo jogo" description="Pausa voz, modelo e tarefas enquanto um jogo reconhecido está em primeiro plano.">
+                  <Toggle
+                    label="Ativar standby durante jogos"
+                    description="Jogos conhecidos já vêm incluídos; você pode acrescentar executáveis abaixo."
+                    checked={draft.games.standbyEnabled}
+                    onChange={(standbyEnabled) => setDraft({
+                      ...draft,
+                      games: { ...draft.games, standbyEnabled }
+                    })}
+                  />
+                  <Field
+                    label="Executáveis adicionais"
+                    hint="Separe por vírgulas. Informe apenas nomes, como MeuJogo.exe; caminhos e comandos são bloqueados."
+                  >
+                    <input
+                      value={gameExecutables}
+                      spellCheck={false}
+                      placeholder="MeuJogo.exe, OutroJogo.exe"
+                      onChange={(event) => setGameExecutables(event.target.value)}
+                    />
+                  </Field>
                 </SettingsGroup>
               </>
             )}
@@ -283,7 +323,7 @@ export function SettingsPanel({
                 </div>
                 {clearHistoryOnSave && <p className="privacy-choice">As conversas antigas serão apagadas quando você salvar.</p>}
                 {privacyNotice && <p className="privacy-choice">{privacyNotice}</p>}
-                <div className="privacy-banner"><ShieldIcon /><div><strong>Confirmações de segurança sempre ativas</strong><p>Páginas, buscas externas e ações mais delicadas só avançam depois da sua permissão.</p></div></div>
+                <div className="privacy-banner"><ShieldIcon /><div><strong>Confirmação simplificada durante a beta</strong><p>Os comandos executam direto; abrir ou controlar o Antigravity continua pedindo sua permissão.</p></div></div>
                 <div className="privacy-banner"><ShieldIcon /><div><strong>Local por padrão</strong><p>Configurações e conversas são gravadas na pasta privada do aplicativo no Windows.</p></div></div>
               </SettingsGroup>
             )}
@@ -359,9 +399,9 @@ export function SettingsPanel({
                 </div>
                 <div className="activity-list">
                   {loadingActivity ? <p className="activity-empty">Carregando atividade…</p> : activity.length ? activity.map((entry) => (
-                    <article className={entry.ok ? 'is-success' : 'is-error'} key={entry.id}>
+                    <article className={activityClass(entry)} key={entry.id}>
                       <i />
-                      <div><strong>{toolLabel(entry.tool)}</strong><p>{entry.message}</p>{confirmationLabel(entry.details) && <small>{confirmationLabel(entry.details)}</small>}</div>
+                      <div><strong>{toolLabel(entry.tool)}</strong><p>{entry.message}</p><small>{activityLabels(entry).join(' · ')}</small></div>
                       <time dateTime={entry.createdAt}>{formatActionTime(entry.createdAt)}</time>
                     </article>
                   )) : <p className="activity-empty">O Titi ainda não executou nenhuma ferramenta.</p>}
@@ -423,6 +463,8 @@ function toolLabel(tool: string): string {
     open_application: 'Abrir aplicativo',
     open_web: 'Abrir página ou pesquisa',
     spotify: 'Controlar música',
+    computer_observe: 'Observar interface',
+    computer_action: 'Acionar controle da interface',
     current_datetime: 'Consultar data e hora'
   } as Record<string, string>)[tool] ?? tool.replaceAll('_', ' ')
 }
@@ -442,10 +484,39 @@ function confirmationLabel(details: unknown): string | null {
   } as Record<string, string>)[String(status)] ?? null
 }
 
+function activityClass(entry: ToolActionLogEntry): string {
+  if (entry.status === 'dispatched') return 'is-pending'
+  if (entry.status === 'cancelled') return 'is-cancelled'
+  return entry.ok ? 'is-success' : 'is-error'
+}
+
+function activityLabels(entry: ToolActionLogEntry): string[] {
+  const status = ({
+    confirmed: 'Efeito confirmado',
+    dispatched: 'Pedido enviado; efeito não confirmado',
+    failed: 'Falha',
+    cancelled: 'Cancelada',
+    timed_out: 'Tempo limite excedido'
+  } as Record<string, string>)[String(entry.status)] ?? (entry.ok ? 'Concluída' : 'Falha')
+  return [status, confirmationLabel(entry.details)].filter(
+    (label): label is string => Boolean(label)
+  )
+}
+
 function memoryKindLabel(kind: CuratedMemorySummary['kind']): string {
   return ({
     fact: 'Fato',
     preference: 'Preferência',
     recipe: 'Receita verificada'
   })[kind]
+}
+
+function parseExecutableList(value: string): string[] {
+  return [...new Map(
+    value
+      .split(/[,;\n]/)
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .map((item) => [item.toLocaleLowerCase(), item])
+  ).values()]
 }

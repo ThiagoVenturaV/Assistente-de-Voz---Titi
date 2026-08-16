@@ -36,6 +36,7 @@ export interface TitiSettings {
   mascotName: string
   launchAtStartup: boolean
   showFloatingMascot: boolean
+  computerControlEnabled: boolean
   keepHistory: boolean
   confirmSensitiveActions: boolean
   provider: {
@@ -49,6 +50,10 @@ export interface TitiSettings {
     liveMode: boolean
     speechRate: number
     inputDeviceId: string
+  }
+  games: {
+    standbyEnabled: boolean
+    executables: string[]
   }
 }
 
@@ -65,7 +70,7 @@ export interface RuntimeStatus {
 }
 
 export interface RuntimeSetupProgress {
-  stage: 'checking' | 'downloading-engine' | 'installing-engine' | 'starting-engine' | 'downloading-model' | 'ready' | 'error'
+  stage: 'checking' | 'downloading-engine' | 'installing-engine' | 'starting-engine' | 'downloading-model' | 'ready' | 'cancelled' | 'error'
   message: string
   percent?: number
 }
@@ -90,6 +95,12 @@ export interface VoiceTranscription {
 export interface ToolActionLogEntry {
   id: string
   tool: string
+  status?: 'confirmed' | 'dispatched' | 'failed' | 'cancelled' | 'timed_out'
+  chainId?: string
+  runId?: string
+  requestId?: string
+  round?: number
+  attempt?: number
   arguments: unknown
   ok: boolean
   message: string
@@ -146,6 +157,7 @@ export interface TitiDesktopApi {
   runtime: {
     status(): Promise<RuntimeStatus>
     prepare(): Promise<RuntimeStatus>
+    cancel(): Promise<boolean>
     onSetupProgress(callback: (progress: RuntimeSetupProgress) => void): () => void
   }
   activity: {
@@ -160,6 +172,11 @@ export interface TitiDesktopApi {
   tools: {
     respondToConfirmation(response: ToolConfirmationResponse): Promise<boolean>
     onConfirmationRequested(callback: (request: ToolConfirmationRequest) => void): () => void
+    onConfirmationDismissed(callback: (requestId: string) => void): () => void
+  }
+  game: {
+    isStandby(): Promise<boolean>
+    onStandbyChanged(callback: (enabled: boolean) => void): () => void
   }
   voice: {
     transcribe(wavAudio: ArrayBuffer): Promise<VoiceTranscription>

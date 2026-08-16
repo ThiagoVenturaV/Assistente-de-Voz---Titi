@@ -82,6 +82,20 @@ describe('ConversationStore', () => {
     await expect(store.list()).resolves.toEqual([])
     await expect(new ConversationStore(directory).list()).resolves.toEqual([])
   })
+
+  it('serializa mensagens concorrentes sem perder nenhuma atualização', async () => {
+    const directory = await createTemporaryDirectory()
+    const store = new ConversationStore(directory)
+    const conversation = await store.create({ persist: true })
+
+    await Promise.all(Array.from({ length: 20 }, (_, index) =>
+      store.addMessage(conversation.id, 'user', `Mensagem ${index + 1}`)
+    ))
+
+    const saved = await new ConversationStore(directory).get(conversation.id)
+    expect(saved?.messages).toHaveLength(20)
+    expect(new Set(saved?.messages.map(({ content }) => content)).size).toBe(20)
+  })
 })
 
 async function createTemporaryDirectory(): Promise<string> {

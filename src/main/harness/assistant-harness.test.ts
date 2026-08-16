@@ -90,7 +90,17 @@ describe('AssistantHarness deterministic tools', () => {
 
     const response = await harness.send({ content: 'abra o Brave' })
 
-    expect(tools.execute).toHaveBeenCalledWith('open_application', { application: 'brave' })
+    expect(tools.execute).toHaveBeenCalledWith(
+      'open_application',
+      { application: 'brave' },
+      expect.objectContaining({
+        chainId: expect.any(String),
+        runId: expect.any(String),
+        round: 1,
+        attempt: 1,
+        signal: expect.any(AbortSignal)
+      })
+    )
     expect(response.assistantMessage.content).toBe('Brave aberto.')
     expect(response.runtime.connected).toBe(false)
   })
@@ -152,7 +162,7 @@ describe('AssistantHarness deterministic tools', () => {
       if (url.endsWith('/api/tags')) {
         return jsonResponse({ models: [{ name: 'qwen3.5:9b' }] })
       }
-      return jsonResponse({ message: { role: 'assistant', content: 'Explicação normal.' } })
+      return jsonResponse({ message: { role: 'assistant', content: '[SEM_FERRAMENTA] Explicação normal.' } })
     })
     vi.stubGlobal('fetch', fetchMock)
     const harness = new AssistantHarness(settings, conversations, tools)
@@ -368,7 +378,7 @@ function connectedModel(answer: string) {
     const url = String(input)
     return url.endsWith('/api/tags')
       ? jsonResponse({ models: [{ name: 'qwen3.5:9b' }] })
-      : jsonResponse({ message: { role: 'assistant', content: answer } })
+      : jsonResponse({ message: { role: 'assistant', content: `[SEM_FERRAMENTA] ${answer}` } })
   })
 }
 

@@ -43,6 +43,17 @@ describe('SettingsStore', () => {
     await expect(store.get()).resolves.toMatchObject({ confirmSensitiveActions: true })
   })
 
+  it('mantém o controle da interface desativado por padrão e preserva o opt-in explícito', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'titi-settings-'))
+    temporaryDirectories.push(directory)
+    const store = new SettingsStore(directory)
+
+    await expect(store.get()).resolves.toMatchObject({ computerControlEnabled: false })
+    await store.update({ computerControlEnabled: true })
+    await expect(new SettingsStore(directory).get())
+      .resolves.toMatchObject({ computerControlEnabled: true })
+  })
+
   it('migrates the old unsafe Space placeholder to a modified global shortcut', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'titi-settings-'))
     temporaryDirectories.push(directory)
@@ -89,6 +100,24 @@ describe('SettingsStore', () => {
       confirmSensitiveActions: true,
       provider: { endpoint: 'http://127.0.0.1:11434', model: 'qwen3.5:9b' },
       voice: { pushToTalkShortcut: 'CommandOrControl+Shift+Space' }
+    })
+  })
+
+  it('preserva patches concorrentes em campos independentes', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'titi-settings-'))
+    temporaryDirectories.push(directory)
+    const store = new SettingsStore(directory)
+
+    await Promise.all([
+      store.update({ mascotName: 'Titi Concorrente' }),
+      store.update({ launchAtStartup: true }),
+      store.update({ showFloatingMascot: false })
+    ])
+
+    await expect(store.get()).resolves.toMatchObject({
+      mascotName: 'Titi Concorrente',
+      launchAtStartup: true,
+      showFloatingMascot: false
     })
   })
 })

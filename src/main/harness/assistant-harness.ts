@@ -12,8 +12,9 @@ import {
 } from '../memory'
 import { ConversationStore } from '../storage/conversation-store'
 import { SettingsStore } from '../storage/settings-store'
-import type { ToolExecutor } from '../tools/contracts'
+import type { ToolExecutionResult, ToolExecutor } from '../tools/contracts'
 import { DesktopToolkit } from '../tools/desktop-toolkit'
+import { executeToolWithControl } from '../tools/tool-execution-controller'
 import { resolveDeterministicIntent } from './deterministic-intent'
 import { OllamaProvider } from './ollama-provider'
 import type { AssistantProvider } from './provider'
@@ -94,10 +95,14 @@ export class AssistantHarness {
       )
       runtime = this.runtimeSnapshot(settings)
     } else if (directIntent) {
-      answer = toolResultMessage(await executeToolSafely(
+      answer = toolResultMessage(await executeToolWithControl(
         this.tools,
         directIntent.name,
         directIntent.arguments,
+        request.requestId ? {
+          requestId: request.requestId,
+          chainId: request.requestId
+        } : {},
         signal
       ))
       runtime = this.runtimeSnapshot(settings)
@@ -113,7 +118,7 @@ export class AssistantHarness {
             withUser.conversation.messages,
             settings.keepHistory
           )
-          answer = await this.provider.complete(messages, settings, signal)
+          answer = await this.provider.complete(messages, settings, signal, request.requestId)
         } catch (error) {
           if (isAbortError(error) || signal?.aborted) throw abortError(signal)
           answer = `Não consegui concluir a resposta local. ${errorMessage(error)}`
@@ -249,31 +254,6 @@ function runtimeKey(settings: TitiSettings): string {
   return `${settings.provider.endpoint.trim().replace(/\/+$/, '')}\u0000${settings.provider.model}`
 }
 
-async function executeToolSafely(
-  tools: ToolExecutor,
-  name: string,
-  argumentsValue: Record<string, unknown>,
-  signal?: AbortSignal
-): Promise<{ ok: boolean; message: string }> {
-  throwIfAborted(signal)
-  try {
-    const result = await waitWithAbort(tools.execute(name, argumentsValue), signal)
-    throwIfAborted(signal)
-    if (typeof result?.ok !== 'boolean' || typeof result.message !== 'string' || !result.message.trim()) {
-      return { ok: false, message: 'A ferramenta retornou um resultado inválido.' }
-    }
-    return { ok: result.ok, message: result.message.trim() }
-  } catch (error) {
-    if (isAbortError(error) || signal?.aborted) throw abortError(signal)
-    return {
-      ok: false,
-      message: error instanceof Error && error.message.trim()
-        ? error.message.trim()
-        : 'A ferramenta falhou de forma inesperada.'
-    }
-  }
-}
-
 function waitWithAbort<T>(promise: Promise<T>, signal?: AbortSignal): Promise<T> {
   if (!signal) return promise
   throwIfAborted(signal)
@@ -300,7 +280,16 @@ function isAbortError(error: unknown): boolean {
   return error instanceof Error && error.name === 'AbortError'
 }
 
-function toolResultMessage(result: { ok: boolean; message: string }): string {
+function toolResultMessage(result: ToolExecutionResult): string {
+  if (result.status === 'dispatched') {
+    return `Pedido enviado, ainda sem confirmação do efeito. ${result.message}`
+  }
+  if (result.status === 'timed_out') {
+    return `A ação excedeu o tempo limite. ${result.message}`
+  }
+  if (result.status === 'cancelled') {
+    return `A ação foi cancelada. ${result.message}`
+  }
   return result.ok
     ? result.message
     : `Não consegui executar essa ação. ${result.message}`

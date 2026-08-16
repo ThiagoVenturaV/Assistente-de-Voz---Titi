@@ -33,7 +33,12 @@ if (packagedPackage.version !== sourcePackage.version) {
 
 for (const marker of [
   'tool_calls',
+  'tool_choice',
+  '[SEM_FERRAMENTA]',
   'open_application',
+  'computer_observe',
+  'windows-ui-automation.ps1',
+  'focusImageBase64',
   'app-skills.json',
   'voice:push-to-talk-requested',
   'DADOS LOCAIS CURADOS',
@@ -64,8 +69,16 @@ const requiredResources = [
     minimumBytes: 100_000
   },
   {
-    path: join(resourcesPath, 'runtime', 'whisper', 'models', 'ggml-small.bin'),
-    minimumBytes: 400_000_000
+    path: join(resourcesPath, 'runtime', 'whisper', 'models', 'ggml-large-v3-turbo-q8_0.bin'),
+    minimumBytes: 800_000_000
+  },
+  {
+    path: join(resourcesPath, 'runtime', 'whisper', 'models', 'ggml-silero-v6.2.0.bin'),
+    minimumBytes: 800_000
+  },
+  {
+    path: join(resourcesPath, 'runtime', 'windows-ui-automation', 'windows-ui-automation.ps1'),
+    minimumBytes: 2_000
   }
 ]
 for (const resource of requiredResources) {
@@ -76,5 +89,5 @@ for (const resource of requiredResources) {
 }
 
 console.log(
-  `Pacote verificado: ${packagedPackage.name} ${packagedPackage.version}, ferramentas, processos ocultos e voz local presentes.`
+  `Pacote verificado: ${packagedPackage.name} ${packagedPackage.version}, ferramentas, processos ocultos, Whisper Large v3 Turbo Q8 e VAD presentes.`
 )

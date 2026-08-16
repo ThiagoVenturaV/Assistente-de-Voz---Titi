@@ -31,6 +31,7 @@ export function App(): React.JSX.Element {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
   const [preparingRuntime, setPreparingRuntime] = useState(false)
+  const [gameStandby, setGameStandby] = useState(false)
   const recorder = useRef<PcmRecorder | null>(null)
   const recordingStarting = useRef(false)
   const recordingGeneration = useRef(0)
@@ -43,19 +44,24 @@ export function App(): React.JSX.Element {
   const interactionGeneration = useRef(0)
   const activeRequestId = useRef<string | null>(null)
   const activeSpeech = useRef<AbortController | null>(null)
+  const gameStandbyRef = useRef(false)
+  const preparingRuntimeRef = useRef(false)
 
   useEffect(() => {
     let active = true
     void Promise.all([
       window.titi.settings.get(),
       window.titi.conversations.list(),
-      window.titi.runtime.status()
-    ]).then(async ([loadedSettings, summaries, loadedRuntime]) => {
+      window.titi.runtime.status(),
+      window.titi.game.isStandby()
+    ]).then(async ([loadedSettings, summaries, loadedRuntime, standby]) => {
       if (!active) return
       settingsRef.current = loadedSettings
       setSettings(loadedSettings)
       setConversations(summaries)
       setRuntime(loadedRuntime)
+      gameStandbyRef.current = standby
+      setGameStandby(standby)
       if (summaries[0]) {
         const firstConversation = await window.titi.conversations.get(summaries[0].id)
         currentRef.current = firstConversation
@@ -76,9 +82,15 @@ export function App(): React.JSX.Element {
       })
     })
     const unsubscribePushToTalk = window.titi.voice.onPushToTalkRequested(() => {
-      if (sendingRef.current || settingsRef.current?.voice.liveMode) return
+      if (gameStandbyRef.current || sendingRef.current || settingsRef.current?.voice.liveMode) return
       if (recorder.current || recordingStarting.current) endListening()
       else void beginListening(false)
+    })
+    const unsubscribeGameStandby = window.titi.game.onStandbyChanged((enabled) => {
+      gameStandbyRef.current = enabled
+      setGameStandby(enabled)
+      if (enabled) suspendForGame()
+      else if (settingsRef.current?.voice.liveMode) scheduleLiveListening(100)
     })
     return () => {
       active = false
@@ -86,6 +98,7 @@ export function App(): React.JSX.Element {
       unsubscribeRuntime()
       unsubscribeLive()
       unsubscribePushToTalk()
+      unsubscribeGameStandby()
       clearLiveRestart()
       recorder.current?.cancel()
       activeSpeech.current?.abort()
@@ -112,13 +125,14 @@ export function App(): React.JSX.Element {
     const shouldListen = settings?.onboardingComplete
       && settings.voice.enabled
       && settings.voice.liveMode
+      && !gameStandby
       && !listening
       && !sending
       && !voiceProcessing
     if (!shouldListen) return
     scheduleLiveListening(60)
     return clearLiveRestart
-  }, [settings?.onboardingComplete, settings?.voice.enabled, settings?.voice.liveMode, listening, sending, voiceProcessing])
+  }, [settings?.onboardingComplete, settings?.voice.enabled, settings?.voice.liveMode, gameStandby, listening, sending, voiceProcessing])
 
   async function refreshConversations(selectedId?: string): Promise<void> {
     const summaries = await window.titi.conversations.list()
@@ -157,6 +171,10 @@ export function App(): React.JSX.Element {
   async function sendMessage(value = draft): Promise<void> {
     const content = value.trim()
     if (!content || sendingRef.current) return
+    if (gameStandbyRef.current) {
+      setNotice('O Titi está em standby para preservar os recursos durante o jogo.')
+      return
+    }
     setDraft('')
     const generation = ++interactionGeneration.current
     const requestId = crypto.randomUUID()
@@ -208,7 +226,8 @@ export function App(): React.JSX.Element {
   }
 
   async function prepareRuntime(): Promise<void> {
-    if (preparingRuntime) return
+    if (preparingRuntimeRef.current) return
+    preparingRuntimeRef.current = true
     setPreparingRuntime(true)
     setNotice('Verificando o ambiente local…')
     try {
@@ -216,11 +235,16 @@ export function App(): React.JSX.Element {
     } catch (error) {
       setNotice(error instanceof Error ? error.message : 'Não consegui preparar a IA local.')
     } finally {
+      preparingRuntimeRef.current = false
       setPreparingRuntime(false)
     }
   }
 
   async function beginListening(autoStop = false): Promise<void> {
+    if (gameStandbyRef.current) {
+      setNotice('O microfone permanece pausado enquanto o modo jogo está ativo.')
+      return
+    }
     if (!settingsRef.current?.voice.enabled) {
       setNotice('Ative os recursos de voz nas configurações.')
       return
@@ -328,7 +352,7 @@ export function App(): React.JSX.Element {
     clearLiveRestart()
     liveRestartTimer.current = window.setTimeout(() => {
       liveRestartTimer.current = null
-      if (!settingsRef.current?.voice.liveMode || sendingRef.current || recorder.current) return
+      if (gameStandbyRef.current || !settingsRef.current?.voice.liveMode || sendingRef.current || recorder.current) return
       void beginListening(true)
     }, delay)
   }
@@ -360,6 +384,7 @@ export function App(): React.JSX.Element {
       || activeSpeech.current
       || window.speechSynthesis?.speaking
       || settingsRef.current?.voice.liveMode
+      || preparingRuntimeRef.current
     )
   }
 
@@ -377,6 +402,8 @@ export function App(): React.JSX.Element {
     const requestId = activeRequestId.current
     activeRequestId.current = null
     void window.titi.interaction.stop(requestId ?? undefined)
+    if (preparingRuntimeRef.current) void window.titi.runtime.cancel()
+    preparingRuntimeRef.current = false
     sendingRef.current = false
     voiceProcessingRef.current = false
     setSending(false)
@@ -391,6 +418,30 @@ export function App(): React.JSX.Element {
         setSettings(saved)
       }).catch(() => undefined)
     }
+  }
+
+  function suspendForGame(): void {
+    interactionGeneration.current += 1
+    recordingGeneration.current += 1
+    clearLiveRestart()
+    recorder.current?.cancel()
+    recorder.current = null
+    recordingStarting.current = false
+    stopRequested.current = false
+    activeSpeech.current?.abort()
+    activeSpeech.current = null
+    window.speechSynthesis?.cancel()
+    const requestId = activeRequestId.current
+    activeRequestId.current = null
+    void window.titi.interaction.stop(requestId ?? undefined)
+    if (preparingRuntimeRef.current) void window.titi.runtime.cancel()
+    preparingRuntimeRef.current = false
+    sendingRef.current = false
+    voiceProcessingRef.current = false
+    setSending(false)
+    setListening(false)
+    setVoiceProcessing(false)
+    setNotice('Modo jogo ativo. Tarefas e microfone foram pausados; a descarga do modelo foi solicitada.')
   }
 
   if (!settings) {
@@ -415,8 +466,8 @@ export function App(): React.JSX.Element {
         <header className="titlebar drag-region">
           <div className="conversation-title no-drag">
             <strong>{current?.title ?? 'Nova conversa'}</strong>
-            <span className={`connection-pill ${runtime?.connected ? 'is-connected' : ''}`}>
-              <i />{runtime?.connected ? 'Local conectado' : 'Local desconectado'}
+            <span className={`connection-pill ${runtime?.connected && !gameStandby ? 'is-connected' : ''}`}>
+              <i />{gameStandby ? 'Standby em jogo' : runtime?.connected ? 'Local conectado' : 'Local desconectado'}
             </span>
           </div>
           <WindowControls />
@@ -446,7 +497,7 @@ export function App(): React.JSX.Element {
         <Composer
           value={draft}
           sending={sending}
-          busy={sending || voiceProcessing}
+          busy={sending || voiceProcessing || gameStandby}
           listening={listening}
           liveMode={settings.voice.liveMode}
           onChange={setDraft}

@@ -62,13 +62,14 @@ export class GameStandbyMonitor {
   private readonly poll: () => Promise<ForegroundApplication | null>
   private readonly onEnter: GameStandbyMonitorOptions['onEnter']
   private readonly onExit: GameStandbyMonitorOptions['onExit']
-  private readonly knownGames: Set<string>
+  private readonly knownGames = new Set<string>()
   private readonly intervalMs: number
   private readonly enterSamples: number
   private readonly exitSamples: number
   private timer: NodeJS.Timeout | null = null
-  private checking = false
+  private checking: Promise<void> | null = null
   private entering = 0
+  private enteringExecutable: string | null = null
   private exiting = 0
   private active: ForegroundApplication | null = null
 
@@ -76,9 +77,7 @@ export class GameStandbyMonitor {
     this.poll = options.poll ?? readForegroundApplication
     this.onEnter = options.onEnter
     this.onExit = options.onExit
-    this.knownGames = new Set(
-      [...DEFAULT_KNOWN_GAMES, ...(options.knownGames ?? [])].map(normalizeExecutable)
-    )
+    this.setKnownGames(options.knownGames ?? [])
     this.intervalMs = Math.max(2_000, options.intervalMs ?? 5_000)
     this.enterSamples = Math.max(1, options.enterSamples ?? 2)
     this.exitSamples = Math.max(1, options.exitSamples ?? 2)
@@ -86,15 +85,17 @@ export class GameStandbyMonitor {
 
   start(): void {
     if (this.timer) return
-    void this.checkNow()
-    this.timer = setInterval(() => void this.checkNow(), this.intervalMs)
+    void this.checkNow().catch(() => undefined)
+    this.timer = setInterval(() => void this.checkNow().catch(() => undefined), this.intervalMs)
     this.timer.unref()
   }
 
   async stop(options: { restore?: boolean } = {}): Promise<void> {
     if (this.timer) clearInterval(this.timer)
     this.timer = null
+    await this.checking?.catch(() => undefined)
     this.entering = 0
+    this.enteringExecutable = null
     this.exiting = 0
     if (options.restore !== false && this.active) {
       const previous = this.active
@@ -104,39 +105,67 @@ export class GameStandbyMonitor {
   }
 
   async checkNow(): Promise<void> {
-    if (this.checking) return
-    this.checking = true
+    if (this.checking) return this.checking
+    const checking = this.checkOnce()
+    this.checking = checking
     try {
-      const foreground = await this.poll().catch(() => null)
-      const candidate = foreground && this.isGame(foreground) ? foreground : null
-
-      if (!this.active) {
-        this.exiting = 0
-        this.entering = candidate ? this.entering + 1 : 0
-        if (candidate && this.entering >= this.enterSamples) {
-          this.entering = 0
-          this.active = candidate
-          await this.onEnter(candidate)
-        }
-        return
-      }
-
-      const sameGame = candidate
-        && normalizeExecutable(candidate.executable) === normalizeExecutable(this.active.executable)
-      if (sameGame) {
-        this.exiting = 0
-        return
-      }
-
-      this.exiting += 1
-      if (this.exiting >= this.exitSamples) {
-        const previous = this.active
-        this.active = null
-        this.exiting = 0
-        await this.onExit(previous)
-      }
+      await checking
     } finally {
-      this.checking = false
+      if (this.checking === checking) this.checking = null
+    }
+  }
+
+  private async checkOnce(): Promise<void> {
+    let foreground: ForegroundApplication | null
+    try {
+      foreground = await this.poll()
+    } catch {
+      // Falha de observação não prova que o jogo terminou.
+      return
+    }
+    const candidate = foreground && this.isGame(foreground) ? foreground : null
+
+    if (!this.active) {
+      this.exiting = 0
+      const candidateExecutable = candidate
+        ? normalizeExecutable(candidate.executable)
+        : null
+      if (!candidateExecutable) {
+        this.entering = 0
+        this.enteringExecutable = null
+      } else if (candidateExecutable === this.enteringExecutable) {
+        this.entering += 1
+      } else {
+        this.entering = 1
+        this.enteringExecutable = candidateExecutable
+      }
+      if (candidate && this.entering >= this.enterSamples) {
+        this.entering = 0
+        this.enteringExecutable = null
+        await this.onEnter(candidate)
+        this.active = candidate
+      }
+      return
+    }
+
+    if (candidate) {
+      // Trocar de jogo não deve restaurar voz/modelo entre os dois processos.
+      this.active = candidate
+      this.exiting = 0
+      return
+    }
+
+    this.exiting += 1
+    if (this.exiting >= this.exitSamples) {
+      const previous = this.active
+      this.exiting = 0
+      this.active = null
+      try {
+        await this.onExit(previous)
+      } catch (error) {
+        this.active = previous
+        throw error
+      }
     }
   }
 
@@ -144,11 +173,18 @@ export class GameStandbyMonitor {
     return this.active !== null
   }
 
+  setKnownGames(configuredGames: string[]): void {
+    this.knownGames.clear()
+    for (const executable of [...DEFAULT_KNOWN_GAMES, ...configuredGames]) {
+      const normalized = normalizeExecutable(executable)
+      if (normalized) this.knownGames.add(normalized)
+    }
+  }
+
   private isGame(app: ForegroundApplication): boolean {
     const executable = normalizeExecutable(app.executable)
     if (!executable || NON_GAME_FULLSCREEN.has(executable)) return false
     return this.knownGames.has(executable)
-      || (app.fullscreen && /(?:game|(?:win(?:32|64)-)?shipping)$/i.test(executable))
   }
 }
 

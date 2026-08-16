@@ -6,6 +6,7 @@ import {
 import { basename, dirname, extname, join, normalize, resolve } from 'node:path'
 import { shell } from 'electron'
 import { JsonStore } from '../storage/json-store'
+import type { ToolExecutionStatus } from '../tools/contracts'
 
 export type AppLaunchRecipe =
   | { kind: 'shortcut'; path: string }
@@ -37,17 +38,18 @@ export interface AppLaunchEvidence {
 }
 
 export interface AppRecipeLauncher {
-  launch(recipe: AppLaunchRecipe): Promise<AppLaunchEvidence>
+  launch(recipe: AppLaunchRecipe, signal?: AbortSignal): Promise<AppLaunchEvidence>
 }
 
 export interface WindowsAppCatalogOpenResult {
   ok: boolean
+  status?: ToolExecutionStatus
   message: string
   details?: Record<string, unknown>
 }
 
 export interface ApplicationCatalog {
-  open(requestedName: string): Promise<WindowsAppCatalogOpenResult>
+  open(requestedName: string, signal?: AbortSignal): Promise<WindowsAppCatalogOpenResult>
 }
 
 interface LearnedAppSkill {
@@ -169,12 +171,14 @@ export class WindowsAppCatalog implements ApplicationCatalog {
     this.now = options.now ?? (() => new Date())
   }
 
-  async open(requestedName: string): Promise<WindowsAppCatalogOpenResult> {
+  async open(requestedName: string, signal?: AbortSignal): Promise<WindowsAppCatalogOpenResult> {
+    throwIfAborted(signal)
     const validationError = validateRequestedName(requestedName)
-    if (validationError) return { ok: false, message: validationError }
+    if (validationError) return { ok: false, status: 'failed', message: validationError }
 
     const query = normalizeAppName(requestedName)
     let entries = await this.index()
+    throwIfAborted(signal)
     let match = bestMatch(entries, query)
 
     if (!match || match.score < 70) {
@@ -184,18 +188,21 @@ export class WindowsAppCatalog implements ApplicationCatalog {
         this.platform
       )
       entries = deduplicateEntries([...entries, ...targeted])
+      throwIfAborted(signal)
       match = bestMatch(entries, query)
     }
 
     if (!match || match.score < 60) {
       // Force one fresh pass so an application installed during this session is found.
       entries = await this.index(true)
+      throwIfAborted(signal)
       match = bestMatch(entries, query)
     }
 
     if (!match || match.score < 60) {
       return {
         ok: false,
+        status: 'failed',
         message: `Não encontrei “${requestedName.trim()}” entre os aplicativos instalados. Atualizei o catálogo, mas não executei nenhum caminho ou comando informado pelo modelo.`
       }
     }
@@ -203,18 +210,25 @@ export class WindowsAppCatalog implements ApplicationCatalog {
     if (!await this.isRecipeCurrentlyTrusted(match.entry.recipe)) {
       return {
         ok: false,
+        status: 'failed',
         message: `Encontrei ${match.entry.displayName}, mas a origem deixou de ser confiável. Nenhum aplicativo foi aberto.`
       }
     }
 
     try {
-      const evidence = await this.launcher.launch(match.entry.recipe)
+      throwIfAborted(signal)
+      const evidence = signal
+        ? await this.launcher.launch(match.entry.recipe, signal)
+        : await this.launcher.launch(match.entry.recipe)
+      throwIfAborted(signal)
       const canLearn = await this.shouldLearn().catch(() => false)
+      throwIfAborted(signal)
       const skill = canLearn && evidence.verified
         ? await this.rememberSuccessfulLaunch(match.entry, query)
         : null
       return {
-        ok: true,
+        ok: evidence.verified,
+        status: evidence.verified ? 'confirmed' : 'dispatched',
         message: evidence.verified
           ? canLearn
             ? `${match.entry.displayName} aberto e processo confirmado. Aprendi uma forma segura de abrir este aplicativo novamente.`
@@ -230,11 +244,21 @@ export class WindowsAppCatalog implements ApplicationCatalog {
         }
       }
     } catch (error) {
+      throwIfAborted(signal)
       return {
         ok: false,
+        status: 'failed',
         message: `Encontrei ${match.entry.displayName}, mas o Windows não confirmou a abertura. ${errorMessage(error)}`
       }
     }
+  }
+
+  async recognitionVocabulary(): Promise<string[]> {
+    const entries = await this.index()
+    return uniqueDisplayValues(entries.flatMap((entry) => [
+      entry.displayName,
+      ...entry.aliases
+    ])).slice(0, 200)
   }
 
   private async isRecipeCurrentlyTrusted(recipe: AppLaunchRecipe): Promise<boolean> {
@@ -363,14 +387,17 @@ export class WindowsAppCatalog implements ApplicationCatalog {
 export class WindowsAppLauncher implements AppRecipeLauncher {
   constructor(private readonly platform: NodeJS.Platform = process.platform) {}
 
-  async launch(recipe: AppLaunchRecipe): Promise<AppLaunchEvidence> {
+  async launch(recipe: AppLaunchRecipe, signal?: AbortSignal): Promise<AppLaunchEvidence> {
+    throwIfAborted(signal)
     if (this.platform !== 'win32') {
       throw new Error('A descoberta de aplicativos está disponível somente no Windows.')
     }
 
     switch (recipe.kind) {
       case 'shortcut': {
+        throwIfAborted(signal)
         const failure = await shell.openPath(recipe.path)
+        throwIfAborted(signal)
         if (failure) throw new Error(failure)
         return { accepted: true, method: 'shortcut', verified: false }
       }
@@ -380,9 +407,10 @@ export class WindowsAppLauncher implements AppRecipeLauncher {
             accepted: true,
             method: 'executable',
             verified: true,
-            processId: await spawnAndConfirm(recipe.path, [])
+            processId: await spawnAndConfirm(recipe.path, [], 400, signal)
           }
         } catch (error) {
+          throwIfAborted(signal)
           const existingProcessId = await findRunningExecutableProcess(recipe.path)
             .catch(() => null)
           if (existingProcessId) {
@@ -398,11 +426,13 @@ export class WindowsAppLauncher implements AppRecipeLauncher {
       }
       case 'app-id':
         if (!APP_ID_PATTERN.test(recipe.appId)) throw new Error('Identificador de aplicativo inválido.')
-        await spawnAndConfirm('explorer.exe', [`shell:AppsFolder\\${recipe.appId}`], 0)
+        await spawnAndConfirm('explorer.exe', [`shell:AppsFolder\\${recipe.appId}`], 0, signal)
         return { accepted: true, method: 'app-id', verified: false }
       case 'protocol':
         if (!SAFE_PROTOCOLS.has(recipe.uri)) throw new Error('Protocolo de aplicativo inválido.')
+        throwIfAborted(signal)
         await shell.openExternal(recipe.uri)
+        throwIfAborted(signal)
         return { accepted: true, method: 'protocol', verified: false }
     }
   }
@@ -730,6 +760,16 @@ function uniqueAliases(aliases: string[]): string[] {
   return [...new Set(aliases.map(normalizeAppName).filter(Boolean))]
 }
 
+function uniqueDisplayValues(values: string[]): string[] {
+  const unique = new Map<string, string>()
+  for (const value of values) {
+    const clean = value.replace(/\s+/g, ' ').trim()
+    const key = clean.toLocaleLowerCase('pt-BR')
+    if (clean && clean.length <= 80 && !unique.has(key)) unique.set(key, clean)
+  }
+  return [...unique.values()]
+}
+
 function stableId(name: string, recipe: AppLaunchRecipe): string {
   const source = `${normalizeAppName(name)}:${serializeRecipe(recipe)}`
   let hash = 2166136261
@@ -794,8 +834,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 async function spawnAndConfirm(
   executable: string,
   args: string[],
-  verificationDelayMs = 400
+  verificationDelayMs = 400,
+  signal?: AbortSignal
 ): Promise<number> {
+  throwIfAborted(signal)
   return await new Promise<number>((resolveLaunch, rejectLaunch) => {
     const child = spawn(executable, args, {
       detached: true,
@@ -803,33 +845,53 @@ async function spawnAndConfirm(
       stdio: 'ignore',
       windowsHide: true
     })
+    let settled = false
+    let timer: NodeJS.Timeout | null = null
+    const finish = (error?: Error, processId?: number): void => {
+      if (settled) return
+      settled = true
+      if (timer) clearTimeout(timer)
+      signal?.removeEventListener('abort', abort)
+      if (error) rejectLaunch(error)
+      else resolveLaunch(processId ?? 0)
+    }
+    const abort = (): void => {
+      child.kill()
+      finish(abortError(signal))
+    }
+    signal?.addEventListener('abort', abort, { once: true })
     child.once('spawn', () => {
       child.unref()
       const processId = child.pid
       if (!processId) {
-        rejectLaunch(new Error('O Windows não retornou o processo iniciado.'))
+        finish(new Error('O Windows não retornou o processo iniciado.'))
         return
       }
       if (verificationDelayMs === 0) {
-        resolveLaunch(processId)
+        finish(undefined, processId)
         return
       }
-      let settled = false
-      const timer = setTimeout(() => {
-        settled = true
-        if (child.exitCode === null) resolveLaunch(processId)
-        else rejectLaunch(new Error('O processo encerrou antes de confirmar a abertura.'))
+      timer = setTimeout(() => {
+        if (child.exitCode === null) finish(undefined, processId)
+        else finish(new Error('O processo encerrou antes de confirmar a abertura.'))
       }, verificationDelayMs)
       child.once('exit', () => {
-        clearTimeout(timer)
-        if (!settled) {
-          settled = true
-          rejectLaunch(new Error('O processo encerrou antes de confirmar a abertura.'))
-        }
+        finish(new Error('O processo encerrou antes de confirmar a abertura.'))
       })
     })
-    child.once('error', rejectLaunch)
+    child.once('error', (error) => finish(error))
   })
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) throw abortError(signal)
+}
+
+function abortError(signal?: AbortSignal): Error {
+  if (signal?.reason instanceof Error) return signal.reason
+  const error = new Error('A abertura do aplicativo foi interrompida antes da confirmação.')
+  error.name = 'AbortError'
+  return error
 }
 
 async function captureProcess(executable: string, args: string[]): Promise<string> {

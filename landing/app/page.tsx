@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-const DOWNLOAD_URL = "https://github.com/ThiagoVenturaV/Assistente-de-Voz---Titi/releases/download/v0.2.0-beta.1/Titi-Setup-0.2.0-beta.1.exe";
+const DOWNLOAD_URL = "https://github.com/ThiagoVenturaV/Assistente-de-Voz---Titi/releases/download/v0.2.0-beta.2/Titi-Setup-0.2.0-beta.2.exe";
 
 export const metadata: Metadata = {
   title: "Titi — Seu PC agora escuta você",
@@ -27,7 +27,7 @@ export default function Home() {
         <div className="hero-status"><span>Beta 0.2</span><i /> Feito para o seu computador</div>
         <h1><span>O seu PC.</span><br />Agora ele <em>escuta.</em></h1>
         <div className="hero-intro">
-          <p>O Titi conversa por texto e voz hoje — e está evoluindo para transformar pedidos em ações no seu computador.</p>
+          <p>O Titi conversa por texto e voz, abre seus aplicativos e já consegue operar controles acessíveis no Windows.</p>
           <div className="hero-actions-new">
             <a className="download-button" href={DOWNLOAD_URL}>
               <span className="windows-glyph">⊞</span>
@@ -123,23 +123,23 @@ export default function Home() {
       <section className="agent-section" id="aplicativos">
         <div className="shell">
           <header className="agent-heading">
-            <div><p className="section-index"><span>03</span> A PRÓXIMA ETAPA</p><h2>Um agente.<br />Todo o seu PC.</h2></div>
-            <p>A visão do Titi é conectar sua voz aos aplicativos que você já usa e mostrar cada passo antes de agir.</p>
+            <div><p className="section-index"><span>03</span> AGINDO NO WINDOWS</p><h2>Um agente.<br />Todo o seu PC.</h2></div>
+            <p>O Titi conecta sua voz aos aplicativos, observa controles acessíveis e registra o resultado de cada ação.</p>
           </header>
           <div className="apps-rail" aria-label="Aplicativos que o Titi pode ajudar a usar"><span><b>◎</b> Seu navegador</span><span><b>♪</b> Aplicativo de música</span><span><b>⌘</b> Editor de código</span><span><b>✣</b> Agente de código</span><span><b>◇</b> Seus jogos</span><span><b>＋</b> Outros aplicativos</span></div>
           <div className="agent-showcase">
             <div className="command-flow">
               <div className="command-query"><span className="mini-pet"><img src="/titi-icon.png" alt="" /></span><p><small>VOCÊ DISSE</small>“Abre o projeto do Titi no meu editor de código.”</p><b>⌁</b></div>
               <div className="flow-line"><i /><span>Entendendo seu pedido</span><i /></div>
-              <div className="permission-card"><span>⌘</span><div><small>PRÓXIMO PASSO</small><strong>Abrir editor de código</strong><p>Projeto: Assistente de Voz — Titi</p></div><button type="button">Permitir</button></div>
+              <div className="permission-card"><span>⌘</span><div><small>CONFIRMAÇÃO ESPECIAL</small><strong>Abrir Antigravity</strong><p>Exceção mantida durante a fase beta</p></div><button type="button">Permitir</button></div>
             </div>
             <div className="agent-points">
               <article><b>01</b><h3>Entende o pedido</h3><p>Você fala do seu jeito. O Titi entende o que você quis fazer e prepara o próximo passo.</p></article>
               <article><b>02</b><h3>Mostra o que fará</h3><p>Nada acontece escondido. A interface informa aplicativo, alvo e resultado esperado.</p></article>
-              <article><b>03</b><h3>Pede permissão</h3><p>Pedidos que precisam de mais cuidado só avançam depois da sua confirmação.</p></article>
+              <article><b>03</b><h3>Confirma a exceção</h3><p>Na fase beta, os comandos executam direto; o Antigravity continua pedindo sua permissão.</p></article>
             </div>
           </div>
-          <p className="roadmap-disclaimer">Abrir aplicativos, navegar e controlar música já funciona; tarefas mais avançadas chegam nas próximas atualizações.</p>
+          <p className="roadmap-disclaimer">Abrir aplicativos, navegar e acionar controles acessíveis já funciona; Play/Pause no aplicativo de música também usa visão local quando necessário. Visão genérica e digitação livre chegam depois.</p>
         </div>
       </section>
 

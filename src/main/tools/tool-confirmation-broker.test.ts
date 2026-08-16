@@ -44,7 +44,7 @@ describe('ToolConfirmationBroker', () => {
     expect(broker.respond({ requestId: sent!.id, approved: true })).toBe(false)
   })
 
-  it('nega pendências quando o aplicativo encerra', async () => {
+  it('cancela pendências quando o aplicativo encerra', async () => {
     let sent: ToolConfirmationRequest | undefined
     const broker = new ToolConfirmationBroker((request) => { sent = request })
     const decisionPromise = broker.request(prompt)
@@ -52,8 +52,24 @@ describe('ToolConfirmationBroker', () => {
     broker.cancelAll()
 
     await expect(decisionPromise).resolves.toEqual({
-      status: 'denied',
+      status: 'cancelled',
       requestId: sent!.id
     })
+  })
+
+  it('cancela somente a confirmação ligada ao sinal e dispensa a modal', async () => {
+    const requests: ToolConfirmationRequest[] = []
+    const dismiss = vi.fn()
+    const broker = new ToolConfirmationBroker((request) => requests.push(request), 45_000, dismiss)
+    const controller = new AbortController()
+    const first = broker.request(prompt, controller.signal)
+    const second = broker.request(prompt)
+
+    controller.abort()
+
+    await expect(first).resolves.toMatchObject({ status: 'cancelled' })
+    expect(dismiss).toHaveBeenCalledWith(requests[0].id)
+    expect(broker.respond({ requestId: requests[1].id, approved: true })).toBe(true)
+    await expect(second).resolves.toMatchObject({ status: 'approved' })
   })
 })

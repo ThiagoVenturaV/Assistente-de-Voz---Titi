@@ -16,7 +16,7 @@ export type DeterministicToolCall =
   | {
     name: 'spotify'
     arguments: {
-      action: 'search' | 'play_pause' | 'next' | 'previous' | 'volume_up' | 'volume_down' | 'mute'
+      action: 'search' | 'play' | 'pause' | 'play_pause' | 'next' | 'previous' | 'volume_up' | 'volume_down' | 'mute'
       query?: string
     }
   }
@@ -183,8 +183,11 @@ function resolveMediaControl(request: string): DeterministicToolCall | null {
   const command = fold(stripTrailingCourtesy(request).replace(/[.!?]+$/u, ''))
   const suffix = '(?: (?:no|do) spotify)?'
 
-  if (new RegExp(`^(?:pause|pausar|pare|parar|continue|continuar|retome|retomar|de play|play|reproduza|reproduzir|toque|tocar)(?: (?:a |o )?(?:musica|faixa|reproducao|som))?${suffix}$`, 'u').test(command)) {
-    return { name: 'spotify', arguments: { action: 'play_pause' } }
+  if (new RegExp(`^(?:pause|pausar|pare|parar)(?: (?:a |o |na |no )?(?:musica|faixa|reproducao|som))?${suffix}$`, 'u').test(command)) {
+    return { name: 'spotify', arguments: { action: 'pause' } }
+  }
+  if (new RegExp(`^(?:continue|continuar|retome|retomar|de play|da play|dar play|play|reproduza|reproduzir|toque|tocar)(?: (?:a |o |na |no )?(?:musica|faixa|reproducao|som))?${suffix}$`, 'u').test(command)) {
+    return { name: 'spotify', arguments: { action: 'play' } }
   }
   if (new RegExp(`^(?:proxima|proxima musica|proxima faixa|pule (?:a )?(?:musica|faixa)|pular (?:a )?(?:musica|faixa)|avance (?:a )?(?:musica|faixa)|avancar (?:a )?(?:musica|faixa))${suffix}$`, 'u').test(command)) {
     return { name: 'spotify', arguments: { action: 'next' } }

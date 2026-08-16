@@ -1,6 +1,7 @@
 {
   "name": "titi-desktop",
-  "version": "0.2.0-beta.1",
+  "version": "0.2.0-beta.2",
+  "packageManager": "pnpm@10.22.0",
   "description": "Assistente local para Windows com chat, voz, ferramentas e o mascote Titi.",
   "main": "./out/main/index.js",
   "author": "Thiago Ventura",
@@ -9,6 +10,8 @@
     "dev": "electron-vite dev",
     "typecheck": "tsc --noEmit -p tsconfig.web.json && tsc --noEmit -p tsconfig.node.json",
     "test": "vitest run src",
+    "setup:electron": "node node_modules/electron/install.js",
+    "setup:whisper": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/setup-whisper.ps1",
     "qa:ollama-tools": "node scripts/check-ollama-tool-calling.mjs",
     "build": "pnpm typecheck && electron-vite build",
     "verify:package": "node scripts/verify-package.mjs",
@@ -32,7 +35,15 @@
         "to": "runtime/whisper",
         "filter": [
           "bin/**/*",
-          "models/**/*"
+          "models/ggml-large-v3-turbo-q8_0.bin",
+          "models/ggml-silero-v6.2.0.bin"
+        ]
+      },
+      {
+        "from": "runtime/windows-ui-automation",
+        "to": "runtime/windows-ui-automation",
+        "filter": [
+          "windows-ui-automation.ps1"
         ]
       }
     ],

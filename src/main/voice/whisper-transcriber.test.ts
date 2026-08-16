@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { WhisperTranscriber } from './whisper-transcriber'
+import {
+  sanitizeTranscription,
+  WhisperTranscriber,
+  whisperArguments
+} from './whisper-transcriber'
 
 describe('WhisperTranscriber input validation', () => {
   const transcriber = new WhisperTranscriber('C:\\missing-resources', 'C:\\Temp')
@@ -22,5 +26,39 @@ describe('WhisperTranscriber input validation', () => {
 
     await expect(transcriber.transcribe(invalidAudio))
       .rejects.toThrow('O áudio recebido não está no formato WAV esperado.')
+  })
+})
+
+describe('WhisperTranscriber quality controls', () => {
+  it('ativa VAD e supressão de tokens não falados', () => {
+    const args = whisperArguments('model.bin', 'vad.bin', 'input.wav', 'output')
+
+    expect(args).toEqual(expect.arrayContaining([
+      '--suppress-nst',
+      '--vad',
+      '--vad-model', 'vad.bin',
+      '--language', 'pt',
+      '--audio-ctx', '768',
+      '--beam-size', '8'
+    ]))
+  })
+
+  it.each([
+    '[música de fundo]',
+    '[SILÊNCIO]',
+    '(ruído)',
+    '♪♫'
+  ])('não transforma som sem fala em mensagem: %s', (value) => {
+    expect(() => sanitizeTranscription(value)).toThrow('Não identifiquei voz humana')
+  })
+
+  it('remove uma anotação acústica sem apagar a fala reconhecida', () => {
+    expect(sanitizeTranscription('[música] Abra o Spotify e dê play.'))
+      .toBe('Abra o Spotify e dê play.')
+  })
+
+  it('preserva linguagem natural sem reescrever palavras', () => {
+    expect(sanitizeTranscription('  Não, ele não está rodando.  '))
+      .toBe('Não, ele não está rodando.')
   })
 })

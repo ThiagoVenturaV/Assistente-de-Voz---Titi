@@ -40,7 +40,10 @@ import { AuditedToolExecutor } from './tools/audited-tool-executor'
 import { ConfirmationToolExecutor } from './tools/confirmation-tool-executor'
 import { DesktopToolkit } from './tools/desktop-toolkit'
 import { ToolConfirmationBroker } from './tools/tool-confirmation-broker'
+import { WindowsUiAutomationController } from './tools/windows-ui-automation'
+import { OllamaVisualComputerAgent } from './tools/visual-computer-agent'
 import { WhisperTranscriber } from './voice/whisper-transcriber'
+import { LocalTranscriptionRefiner } from './voice/transcription-refiner'
 import { GlobalPushToTalk } from './voice/global-push-to-talk'
 
 let mainWindow: BrowserWindow | null = null
@@ -54,9 +57,10 @@ let harness: AssistantHarness
 let runtimeManager: OllamaRuntimeManager
 let gameStandbyMonitor: GameStandbyMonitor
 let transcriber: WhisperTranscriber
+let transcriptionRefiner: LocalTranscriptionRefiner
 let globalPushToTalk: GlobalPushToTalk
 let idleTimer: NodeJS.Timeout | null = null
-let resumeLiveModeAfterGame = false
+let gameStandbyTransitioning = false
 const activeChatRequests = new Map<string, { controller: AbortController; ownerId: number }>()
 const activeTranscriptions = new Map<number, AbortController>()
 
@@ -78,17 +82,37 @@ app.whenReady().then(async () => {
     recipeFilePath: join(userDataPath, 'app-skills.json'),
     shouldLearn: async () => (await settingsStore.get()).keepHistory
   })
-  confirmationBroker = new ToolConfirmationBroker(dispatchToolConfirmation)
+  const runtimeResourcesPath = app.isPackaged ? process.resourcesPath : app.getAppPath()
+  const computerController = new WindowsUiAutomationController(join(
+    runtimeResourcesPath,
+    'runtime',
+    'windows-ui-automation',
+    'windows-ui-automation.ps1'
+  ))
+  const visualComputerAgent = new OllamaVisualComputerAgent(
+    computerController,
+    () => settingsStore.get()
+  )
+  confirmationBroker = new ToolConfirmationBroker(
+    dispatchToolConfirmation,
+    45_000,
+    (requestId) => broadcast('tools:confirmation-dismissed', requestId)
+  )
   harness = new AssistantHarness(
     settingsStore,
     conversationStore,
     new AuditedToolExecutor(
       new ConfirmationToolExecutor(
-        new DesktopToolkit(appCatalog),
-        async (prompt) => {
+        new DesktopToolkit(
+          appCatalog,
+          computerController,
+          async () => (await settingsStore.get()).computerControlEnabled,
+          visualComputerAgent
+        ),
+        async (prompt, context) => {
           setMascotState('review')
           try {
-            return await confirmationBroker.request(prompt)
+            return await confirmationBroker.request(prompt, context?.signal)
           } finally {
             setMascotState('thinking')
           }
@@ -109,8 +133,12 @@ app.whenReady().then(async () => {
     app.isPackaged ? process.resourcesPath : app.getAppPath(),
     app.getPath('temp')
   )
+  transcriptionRefiner = new LocalTranscriptionRefiner(
+    () => settingsStore.get(),
+    () => appCatalog.recognitionVocabulary()
+  )
   globalPushToTalk = new GlobalPushToTalk(globalShortcut, () => {
-    if (gameStandbyMonitor?.isInStandby()) return
+    if (isGameStandbyEffective()) return
     showMainWindow()
     mainWindow?.webContents.send('voice:push-to-talk-requested')
   })
@@ -130,15 +158,20 @@ app.whenReady().then(async () => {
   }
   gameStandbyMonitor = new GameStandbyMonitor({
     onEnter: enterGameStandby,
-    onExit: exitGameStandby
+    onExit: exitGameStandby,
+    knownGames: initialSettings.games.executables
   })
 
   registerIpcHandlers()
   configureMediaPermissions()
   createMainWindow()
   await createMascotWindow()
-  gameStandbyMonitor.start()
+  if (initialSettings.games.standbyEnabled) gameStandbyMonitor.start()
   void runtimeManager.ensureRunning().then(async (started) => {
+    if (isGameStandbyEffective()) {
+      await runtimeManager.unloadSelectedModel()
+      return
+    }
     if (started) broadcast('runtime:status-changed', await runtimeManager.status())
   })
   app.on('activate', () => {
@@ -159,34 +192,39 @@ app.on('before-quit', () => {
   confirmationBroker?.cancelAll()
   globalPushToTalk?.dispose()
   void gameStandbyMonitor?.stop({ restore: false })
+  runtimeManager?.cancelActiveWork(abortReason())
   runtimeManager?.shutdownOwnedEngine()
 })
 
 async function enterGameStandby(): Promise<void> {
-  const settings = await settingsStore.get()
-  resumeLiveModeAfterGame = settings.voice.liveMode
-  if (settings.voice.liveMode) {
-    await settingsStore.update({
-      voice: { ...settings.voice, liveMode: false }
-    })
-    notifyLiveModeChanged(false)
-  }
-  setMascotState('standby')
+  gameStandbyTransitioning = true
+  setMascotState('standby', true)
   mascotWindow?.hide()
-  await runtimeManager.unloadSelectedModel()
+  broadcast('game:standby-changed', true)
+  for (const { controller } of activeChatRequests.values()) {
+    controller.abort(gameStandbyReason())
+  }
+  for (const controller of activeTranscriptions.values()) {
+    controller.abort(gameStandbyReason())
+  }
+  confirmationBroker.cancelAll()
+  runtimeManager.cancelActiveWork(gameStandbyReason())
+  try {
+    await runtimeManager.unloadSelectedModel()
+  } finally {
+    gameStandbyTransitioning = false
+  }
 }
 
 async function exitGameStandby(): Promise<void> {
-  const settings = await settingsStore.get()
-  if (settings.showFloatingMascot) mascotWindow?.showInactive()
-  setMascotState('idle')
-  if (resumeLiveModeAfterGame) {
-    resumeLiveModeAfterGame = false
-    const latest = await settingsStore.get()
-    await settingsStore.update({
-      voice: { ...latest.voice, enabled: true, liveMode: true }
-    })
-    notifyLiveModeChanged(true)
+  gameStandbyTransitioning = true
+  try {
+    const settings = await settingsStore.get()
+    if (settings.showFloatingMascot) mascotWindow?.showInactive()
+    setMascotState('idle', true)
+    broadcast('game:standby-changed', false)
+  } finally {
+    gameStandbyTransitioning = false
   }
 }
 
@@ -253,7 +291,9 @@ async function createMascotWindow(): Promise<void> {
   lockNavigation(mascotWindow)
   loadView(mascotWindow, 'mascot')
   mascotWindow.once('ready-to-show', () => {
-    if (settings.showFloatingMascot) mascotWindow?.showInactive()
+    if (settings.showFloatingMascot && !isGameStandbyEffective()) {
+      mascotWindow?.showInactive()
+    }
   })
   mascotWindow.on('closed', () => {
     mascotWindow = null
@@ -297,6 +337,11 @@ function registerIpcHandlers(): void {
       broadcast('settings:changed', settings)
       if (previous.voice.liveMode !== settings.voice.liveMode) {
         notifyLiveModeChanged(settings.voice.liveMode)
+      }
+      gameStandbyMonitor.setKnownGames(settings.games.executables)
+      if (previous.games.standbyEnabled !== settings.games.standbyEnabled) {
+        if (settings.games.standbyEnabled) gameStandbyMonitor.start()
+        else await gameStandbyMonitor.stop()
       }
       return settings
     }
@@ -347,6 +392,10 @@ function registerIpcHandlers(): void {
     requireRenderer(event, 'main')
     return actionLogStore.clear()
   })
+  ipcMain.handle('game:is-standby', (event) => {
+    requireRenderer(event)
+    return isGameStandbyEffective()
+  })
   ipcMain.handle('memory:list', async (event) => {
     requireRenderer(event, 'main')
     return (await memoryStore.list()).map(memorySummary)
@@ -368,6 +417,7 @@ function registerIpcHandlers(): void {
   )
   ipcMain.handle('conversations:send', async (event, value: unknown) => {
     requireRenderer(event, 'main')
+    assertNotInGameStandby()
     const request = validatedChatRequest(value)
     const requestId = request.requestId ?? randomUUID()
     if (activeChatRequests.has(requestId)) throw new Error('Este pedido já está em andamento.')
@@ -375,15 +425,15 @@ function registerIpcHandlers(): void {
     activeChatRequests.set(requestId, { controller, ownerId: event.sender.id })
     setMascotState('thinking')
     try {
-      const beforeSend = await runtimeManager.status()
+      const beforeSend = await runtimeManager.status(controller.signal)
       throwIfAborted(controller.signal)
       if (!beforeSend.connected && beforeSend.engineInstalled) {
-        await runtimeManager.ensureRunning()
+        await runtimeManager.ensureRunning(controller.signal)
       }
       throwIfAborted(controller.signal)
       const response = await harness.send({ ...request, requestId }, controller.signal)
       throwIfAborted(controller.signal)
-      response.runtime = await runtimeManager.enrich(response.runtime)
+      response.runtime = await runtimeManager.enrich(response.runtime, controller.signal)
       throwIfAborted(controller.signal)
       setMascotState('speaking')
       scheduleIdle(Math.min(6000, Math.max(1800, response.assistantMessage.content.length * 18)))
@@ -416,7 +466,7 @@ function registerIpcHandlers(): void {
       transcription.abort(abortReason())
       stopped = true
     }
-    if (stopped) confirmationBroker.cancelAll()
+    if (runtimeManager.cancelActiveWork(abortReason())) stopped = true
     setMascotState('idle')
     return stopped
   })
@@ -427,17 +477,29 @@ function registerIpcHandlers(): void {
   })
   ipcMain.handle('runtime:prepare', (event) => {
     requireRenderer(event, 'main')
+    assertNotInGameStandby()
     return runtimeManager.prepare()
+  })
+  ipcMain.handle('runtime:cancel', (event) => {
+    requireRenderer(event, 'main')
+    return runtimeManager.cancelActiveWork(abortReason())
   })
   ipcMain.handle('voice:transcribe', async (event, value: unknown) => {
     requireRenderer(event, 'main')
+    assertNotInGameStandby()
     const wavAudio = validatedWavAudio(value)
     activeTranscriptions.get(event.sender.id)?.abort(abortReason())
     const controller = new AbortController()
     activeTranscriptions.set(event.sender.id, controller)
     setMascotState('thinking')
     try {
-      return await transcriber.transcribe(wavAudio, controller.signal)
+      const startedAt = performance.now()
+      const transcription = await transcriber.transcribe(wavAudio, controller.signal)
+      const text = await transcriptionRefiner.refine(transcription.text, controller.signal)
+      return {
+        text,
+        processingTimeMs: Math.round(performance.now() - startedAt)
+      }
     } catch (error) {
       if (isAbortError(error) || controller.signal.aborted) {
         setMascotState('idle')
@@ -492,6 +554,21 @@ function abortReason(): Error {
   return error
 }
 
+function gameStandbyReason(): Error {
+  const error = new Error('A interação foi interrompida porque o modo jogo entrou em standby.')
+  error.name = 'AbortError'
+  return error
+}
+
+function assertNotInGameStandby(): void {
+  if (!isGameStandbyEffective()) return
+  throw new Error('O Titi está em standby para preservar os recursos durante o jogo.')
+}
+
+function isGameStandbyEffective(): boolean {
+  return gameStandbyTransitioning || Boolean(gameStandbyMonitor?.isInStandby())
+}
+
 function throwIfAborted(signal: AbortSignal): void {
   if (signal.aborted) throw abortReason()
 }
@@ -544,6 +621,7 @@ function showMainWindow(): void {
 }
 
 function dispatchToolConfirmation(request: ToolConfirmationRequest): void {
+  if (isGameStandbyEffective()) return
   showMainWindow()
   const target = mainWindow
   if (!target || target.isDestroyed()) return
@@ -609,10 +687,13 @@ function notifyLiveModeChanged(enabled: boolean): void {
 
 function syncMascotVisibility(settings: TitiSettings): void {
   if (!mascotWindow || mascotWindow.isDestroyed()) return
-  settings.showFloatingMascot ? mascotWindow.showInactive() : mascotWindow.hide()
+  settings.showFloatingMascot && !isGameStandbyEffective()
+    ? mascotWindow.showInactive()
+    : mascotWindow.hide()
 }
 
-function setMascotState(state: MascotState): void {
+function setMascotState(state: MascotState, force = false): void {
+  if (!force && isGameStandbyEffective() && state !== 'standby') return
   if (idleTimer) {
     clearTimeout(idleTimer)
     idleTimer = null

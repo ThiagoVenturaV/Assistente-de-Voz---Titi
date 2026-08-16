@@ -16,4 +16,4 @@ npm run build
 node --test tests/rendered-html.test.mjs
 ```
 
-O botão principal aponta para o instalador `Titi-Setup-0.2.0-beta.1.exe` publicado na versão `v0.2.0-beta.1` do GitHub Releases.
+O botão principal está preparado para apontar ao instalador `Titi-Setup-0.2.0-beta.2.exe` da versão `v0.2.0-beta.2`. Não publique a landing antes de o release e o hash final existirem.

@@ -1,7 +1,12 @@
 import type { ToolConfirmationRequest } from '../../shared/contracts'
-import type { ToolDefinition, ToolExecutionResult, ToolExecutor } from './contracts'
+import type {
+  ToolDefinition,
+  ToolExecutionContext,
+  ToolExecutionResult,
+  ToolExecutor
+} from './contracts'
 
-export type ToolConfirmationDecisionStatus = 'approved' | 'denied' | 'expired'
+export type ToolConfirmationDecisionStatus = 'approved' | 'denied' | 'expired' | 'cancelled'
 
 export interface ToolConfirmationDecision {
   status: ToolConfirmationDecisionStatus
@@ -11,7 +16,8 @@ export interface ToolConfirmationDecision {
 export type ToolConfirmationPrompt = Omit<ToolConfirmationRequest, 'id' | 'expiresAt'>
 
 export type ToolConfirmationRequester = (
-  prompt: ToolConfirmationPrompt
+  prompt: ToolConfirmationPrompt,
+  context?: ToolExecutionContext
 ) => Promise<ToolConfirmationDecision>
 
 type ToolRiskAssessment =
@@ -19,19 +25,7 @@ type ToolRiskAssessment =
   | { kind: 'sensitive'; prompt: ToolConfirmationPrompt }
   | { kind: 'blocked'; message: string }
 
-const KNOWN_APPLICATION_ALIASES = new Set([
-  'chrome',
-  'google chrome',
-  'brave',
-  'brave browser',
-  'spotify',
-  'chatgpt',
-  'chat gpt',
-  'codex',
-  'codex app',
-  'antigravity',
-  'anti gravity'
-])
+const ANTIGRAVITY_APPLICATION_NAMES = new Set(['antigravity', 'anti gravity', 'anti draft'])
 const BLOCKED_APPLICATION_NAMES = new Set([
   'cmd',
   'command prompt',
@@ -52,6 +46,8 @@ const BLOCKED_APPLICATION_NAMES = new Set([
 const SPOTIFY_ACTIONS = [
   'open',
   'search',
+  'play',
+  'pause',
   'play_pause',
   'next',
   'previous',
@@ -59,6 +55,28 @@ const SPOTIFY_ACTIONS = [
   'volume_down',
   'mute'
 ] as const
+const COMPUTER_CONTROL_TYPES = [
+  'Button',
+  'CheckBox',
+  'Hyperlink',
+  'ListItem',
+  'MenuItem',
+  'RadioButton',
+  'TabItem'
+] as const
+const BLOCKED_UI_APPLICATION_NAMES = new Set([
+  ...BLOCKED_APPLICATION_NAMES,
+  'titi',
+  'windows security',
+  'seguranca do windows',
+  'task manager',
+  'gerenciador de tarefas',
+  'credential manager',
+  'gerenciador de credenciais',
+  '1password',
+  'bitwarden',
+  'keepass'
+])
 
 /**
  * Central safety boundary for every tool invocation.
@@ -76,20 +94,37 @@ export class ConfirmationToolExecutor implements ToolExecutor {
     this.definitions = delegate.definitions
   }
 
-  async execute(name: string, argumentsValue: unknown): Promise<ToolExecutionResult> {
+  async execute(
+    name: string,
+    argumentsValue: unknown,
+    context?: ToolExecutionContext
+  ): Promise<ToolExecutionResult> {
+    throwIfAborted(context?.signal)
     const assessment = assessToolRisk(name, argumentsValue)
     if (assessment.kind === 'blocked') {
       return {
         ok: false,
+        status: 'failed',
         message: assessment.message,
         details: { confirmationStatus: 'blocked', risk: 'blocked' }
       }
     }
-    if (assessment.kind === 'safe') return this.delegate.execute(name, argumentsValue)
+    if (assessment.kind === 'safe') {
+      return context
+        ? this.delegate.execute(name, argumentsValue, context)
+        : this.delegate.execute(name, argumentsValue)
+    }
 
-    const decision = await this.requestConfirmation(assessment.prompt)
+    const decision = context
+      ? await this.requestConfirmation(assessment.prompt, context)
+      : await this.requestConfirmation(assessment.prompt)
+    throwIfAborted(context?.signal)
     if (decision.status === 'approved') {
-      const result = await this.delegate.execute(name, argumentsValue)
+      // This second check closes the approve -> stop race before any effect.
+      throwIfAborted(context?.signal)
+      const result = context
+        ? await this.delegate.execute(name, argumentsValue, context)
+        : await this.delegate.execute(name, argumentsValue)
       return {
         ...result,
         details: {
@@ -103,9 +138,12 @@ export class ConfirmationToolExecutor implements ToolExecutor {
 
     return {
       ok: false,
+      status: decision.status === 'cancelled' ? 'cancelled' : 'failed',
       message: decision.status === 'expired'
         ? 'A ação não foi executada porque a confirmação expirou.'
-        : 'A ação não foi executada porque você não permitiu.',
+        : decision.status === 'cancelled'
+          ? 'A ação não foi executada porque a interação foi interrompida.'
+          : 'A ação não foi executada porque você não permitiu.',
       details: {
         confirmationStatus: decision.status,
         requestId: decision.requestId,
@@ -113,6 +151,14 @@ export class ConfirmationToolExecutor implements ToolExecutor {
       }
     }
   }
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+  if (!signal?.aborted) return
+  if (signal.reason instanceof Error) throw signal.reason
+  const error = new Error('A interação foi interrompida antes da ferramenta.')
+  error.name = 'AbortError'
+  throw error
 }
 
 export function assessToolRisk(name: string, argumentsValue: unknown): ToolRiskAssessment {
@@ -126,43 +172,46 @@ export function assessToolRisk(name: string, argumentsValue: unknown): ToolRiskA
       if (!application) {
         return blocked('O nome do aplicativo é inválido. Informe somente o nome, sem caminho, comando ou argumentos.')
       }
-      const knownApplication = KNOWN_APPLICATION_ALIASES.has(normalizeApplicationName(application))
-      return sensitive(
-        'open_application',
-        'Abrir este aplicativo?',
-        `O Titi quer localizar e abrir “${safeLabel(application, 80)}”.`,
-        [
-          'O Titi procurará somente nos aplicativos registrados e pastas confiáveis do Windows.',
-          knownApplication
-            ? 'Confirme que este é o aplicativo que você pediu.'
-            : 'Se um processo correspondente for confirmado, ele poderá guardar localmente essa forma segura para a próxima vez.'
-        ]
-      )
+      if (!ANTIGRAVITY_APPLICATION_NAMES.has(normalizeApplicationName(application))) {
+        return { kind: 'safe' }
+      }
+      return antigravityConfirmation('open_application', 'abrir o aplicativo')
     }
     case 'spotify': {
       if (!isAllowedString(args.action, SPOTIFY_ACTIONS)) {
         return blocked('A ação solicitada para o aplicativo de música não é permitida.')
       }
-      if (args.action === 'open') {
-        return sensitive(
-          'spotify',
-          'Abrir este aplicativo?',
-          'O Titi quer localizar e abrir o aplicativo de música.',
-          [
-            'O Titi procurará somente nos aplicativos registrados e pastas confiáveis do Windows.',
-            'Confirme que este é o aplicativo que você pediu.'
-          ]
-        )
+      if (args.action === 'search' && !optionalString(args.query)) {
+        return blocked('A busca foi bloqueada porque não informou o que pesquisar.')
       }
-      if (args.action !== 'search') return { kind: 'safe' }
-      const query = optionalString(args.query)
-      if (!query) return blocked('A busca foi bloqueada porque não informou o que pesquisar.')
-      return sensitive(
-        'spotify',
-        'Pesquisar no aplicativo de música?',
-        `O Titi quer pesquisar por “${safeLabel(query, 120)}”.`,
-        ['O aplicativo de música será aberto.', 'O termo da busca será enviado ao serviço de música.']
-      )
+      return { kind: 'safe' }
+    }
+    case 'computer_observe': {
+      const application = safeApplicationName(args.application)
+      if (!application || BLOCKED_UI_APPLICATION_NAMES.has(normalizeApplicationName(application))) {
+        return blocked('A observação foi bloqueada porque o nome do aplicativo é inválido ou protegido.')
+      }
+      return { kind: 'safe' }
+    }
+    case 'computer_action': {
+      if (args.action !== 'click') {
+        return blocked('A ação de interface solicitada não é permitida.')
+      }
+      const application = safeApplicationName(args.application)
+      if (!application || BLOCKED_UI_APPLICATION_NAMES.has(normalizeApplicationName(application))) {
+        return blocked('O Titi não pode controlar este aplicativo por segurança.')
+      }
+      const target = safeControlName(args.target)
+      if (!target) {
+        return blocked('O controle solicitado é inválido. Use exatamente um nome retornado pela observação da interface.')
+      }
+      if (args.controlType !== undefined && !isAllowedString(args.controlType, COMPUTER_CONTROL_TYPES)) {
+        return blocked('O tipo de controle solicitado não é permitido.')
+      }
+      if (ANTIGRAVITY_APPLICATION_NAMES.has(normalizeApplicationName(application))) {
+        return antigravityConfirmation('computer_action', `acionar “${safeLabel(target, 120)}”`)
+      }
+      return { kind: 'safe' }
     }
     case 'open_web':
       return assessWebNavigation(args)
@@ -177,24 +226,25 @@ function assessWebNavigation(args: Record<string, unknown>): ToolRiskAssessment 
   if (!query && !requestedUrl) return blocked('A navegação foi bloqueada porque não informou uma página ou busca.')
 
   if (query) {
-    const label = safeLabel(query, 120)
-    return sensitive(
-      'open_web',
-      'Pesquisar na web?',
-      `O Titi quer pesquisar por “${label}” no navegador.`,
-      ['Seu navegador será aberto.', 'A busca será enviada ao mecanismo de pesquisa.']
-    )
+    return { kind: 'safe' }
   }
 
   const destination = parseHttpDestination(requestedUrl ?? '')
   if (!destination) {
     return blocked('A navegação foi bloqueada porque o endereço não é HTTP ou HTTPS válido.')
   }
+  return { kind: 'safe' }
+}
+
+function antigravityConfirmation(tool: string, action: string): ToolRiskAssessment {
   return sensitive(
-    'open_web',
-    'Abrir esta página?',
-    `O Titi quer abrir ${destination.label} no navegador.`,
-    ['Seu navegador será aberto.', `O computador se conectará ao site ${destination.host}.`]
+    tool,
+    'Permitir ação no Antigravity?',
+    `O Titi quer ${action} no Antigravity.`,
+    [
+      'Durante a beta, o Antigravity é o único aplicativo que continua exigindo confirmação.',
+      'A ação só será executada depois da sua permissão.'
+    ]
   )
 }
 
@@ -275,6 +325,17 @@ function safeApplicationName(value: unknown): string | null {
   return BLOCKED_APPLICATION_NAMES.has(normalizeApplicationName(trimmed))
     ? null
     : trimmed
+}
+
+function safeControlName(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim()
+  if (
+    !trimmed
+    || trimmed.length > 120
+    || /[\u0000-\u001f\u007f\u202a-\u202e\u2066-\u2069]/.test(trimmed)
+  ) return null
+  return trimmed
 }
 
 function normalizeApplicationName(value: string): string {

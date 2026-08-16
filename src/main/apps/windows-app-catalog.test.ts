@@ -65,6 +65,19 @@ describe('WindowsAppCatalog', () => {
     expect(JSON.stringify(persisted)).not.toContain('arguments')
   })
 
+  it('expõe nomes instalados para contextualizar o reconhecimento de voz', async () => {
+    const catalog = createCatalog({
+      startApps: [
+        { name: 'Spotify', appId: 'SpotifyAB.SpotifyMusic!Spotify' },
+        { name: 'Nebula Editor', appId: 'Nebula.Editor!App' }
+      ]
+    })
+
+    await expect(catalog.recognitionVocabulary()).resolves.toEqual(
+      expect.arrayContaining(['Spotify', 'Nebula Editor'])
+    )
+  })
+
   it.each<[
     string,
     string,
@@ -138,7 +151,11 @@ describe('WindowsAppCatalog', () => {
   ])('never treats a path or command as an application name: %s', async (value) => {
     const result = await createCatalog().open(value)
 
-    expect(result).toEqual({ ok: false, message: 'Valor inválido para application.' })
+    expect(result).toEqual({
+      ok: false,
+      status: 'failed',
+      message: 'Valor inválido para application.'
+    })
     expect(launch).not.toHaveBeenCalled()
   })
 
@@ -193,7 +210,8 @@ describe('WindowsAppCatalog', () => {
     const result = await createCatalog().open('Novo Editor')
 
     expect(result).toMatchObject({
-      ok: true,
+      ok: false,
+      status: 'dispatched',
       details: { learned: false, verified: false }
     })
     expect(result.message).toMatch(/não consegui confirmar/i)

@@ -8,11 +8,21 @@ export function ToolConfirmationModal(): React.JSX.Element | null {
   const [clock, setClock] = useState(() => Date.now())
   const request = requests[0]
 
-  useEffect(() => window.titi.tools.onConfirmationRequested((incoming) => {
-    setRequests((current) => current.some(({ id }) => id === incoming.id)
-      ? current
-      : [...current, incoming])
-  }), [])
+  useEffect(() => {
+    const unsubscribeRequest = window.titi.tools.onConfirmationRequested((incoming) => {
+      setRequests((current) => current.some(({ id }) => id === incoming.id)
+        ? current
+        : [...current, incoming])
+    })
+    const unsubscribeDismiss = window.titi.tools.onConfirmationDismissed((requestId) => {
+      setRequests((current) => current.filter(({ id }) => id !== requestId))
+      setRespondingId((current) => current === requestId ? null : current)
+    })
+    return () => {
+      unsubscribeRequest()
+      unsubscribeDismiss()
+    }
+  }, [])
 
   useEffect(() => {
     if (!request) return

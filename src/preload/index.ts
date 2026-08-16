@@ -31,6 +31,7 @@ const api: TitiDesktopApi = {
   runtime: {
     status: () => ipcRenderer.invoke('runtime:status'),
     prepare: () => ipcRenderer.invoke('runtime:prepare'),
+    cancel: () => ipcRenderer.invoke('runtime:cancel'),
     onSetupProgress: (callback) => {
       const listener = (_event: Electron.IpcRendererEvent, progress: RuntimeSetupProgress): void =>
         callback(progress)
@@ -57,6 +58,21 @@ const api: TitiDesktopApi = {
       ): void => callback(request)
       ipcRenderer.on('tools:confirmation-requested', listener)
       return () => ipcRenderer.removeListener('tools:confirmation-requested', listener)
+    },
+    onConfirmationDismissed: (callback) => {
+      const listener = (_event: Electron.IpcRendererEvent, requestId: string): void =>
+        callback(requestId)
+      ipcRenderer.on('tools:confirmation-dismissed', listener)
+      return () => ipcRenderer.removeListener('tools:confirmation-dismissed', listener)
+    }
+  },
+  game: {
+    isStandby: () => ipcRenderer.invoke('game:is-standby'),
+    onStandbyChanged: (callback) => {
+      const listener = (_event: Electron.IpcRendererEvent, enabled: boolean): void =>
+        callback(enabled)
+      ipcRenderer.on('game:standby-changed', listener)
+      return () => ipcRenderer.removeListener('game:standby-changed', listener)
     }
   },
   voice: {

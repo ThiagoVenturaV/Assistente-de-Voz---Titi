@@ -27,6 +27,7 @@ describe('OllamaRuntimeManager process lifecycle', () => {
   })
 
   afterEach(() => {
+    vi.useRealTimers()
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
     if (originalLocalAppData === undefined) delete process.env.LOCALAPPDATA
@@ -100,6 +101,48 @@ describe('OllamaRuntimeManager process lifecycle', () => {
     expect(manager.shutdownOwnedEngine()).toBe(false)
   })
 
+  it('cancela a inicialização pendente e encerra somente o processo que iniciou', async () => {
+    process.env.LOCALAPPDATA = 'C:\\Users\\qa\\AppData\\Local'
+    vi.mocked(accessSync).mockReturnValue(undefined)
+    const child = new EventEmitter() as EventEmitter & {
+      unref: ReturnType<typeof vi.fn>
+      kill: ReturnType<typeof vi.fn>
+      exitCode: number | null
+      killed: boolean
+    }
+    child.unref = vi.fn()
+    child.kill = vi.fn(() => true)
+    child.exitCode = null
+    child.killed = false
+    vi.mocked(spawn).mockImplementation(() => {
+      queueMicrotask(() => child.emit('spawn'))
+      return child as never
+    })
+    vi.stubGlobal('fetch', vi.fn((_url: unknown, init?: RequestInit) =>
+      new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => reject(init.signal?.reason), { once: true })
+      })
+    ))
+    const settings = {
+      get: vi.fn(async () => DEFAULT_SETTINGS)
+    } as unknown as SettingsStore
+    const manager = new OllamaRuntimeManager(
+      settings,
+      vi.fn(async () => disconnected),
+      vi.fn(),
+      'C:\\Temp'
+    )
+    const controller = new AbortController()
+
+    const pending = manager.ensureRunning(controller.signal)
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledOnce())
+    controller.abort(abortError())
+
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' })
+    expect(child.kill).toHaveBeenCalledOnce()
+    expect(manager.shutdownOwnedEngine()).toBe(false)
+  })
+
   it('unloads the selected model without stopping the Ollama service', async () => {
     const settings = {
       get: vi.fn(async () => DEFAULT_SETTINGS)
@@ -122,6 +165,31 @@ describe('OllamaRuntimeManager process lifecycle', () => {
       })
     )
   })
+
+  it('só confirma a descarga depois que o modelo desaparece de /api/ps', async () => {
+    vi.useFakeTimers()
+    const settings = {
+      get: vi.fn(async () => DEFAULT_SETTINGS)
+    } as unknown as SettingsStore
+    const request = vi.fn()
+      .mockResolvedValueOnce(new Response('{}', { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        models: [{ name: DEFAULT_SETTINGS.provider.model }]
+      }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ models: [] }), { status: 200 }))
+    vi.stubGlobal('fetch', request)
+    const manager = new OllamaRuntimeManager(settings, vi.fn(), vi.fn(), 'C:\\Temp')
+
+    const unloading = manager.unloadSelectedModel()
+    await vi.advanceTimersByTimeAsync(250)
+
+    await expect(unloading).resolves.toBe(true)
+    expect(request.mock.calls.map(([url]) => String(url))).toEqual([
+      'http://127.0.0.1:11434/api/generate',
+      'http://127.0.0.1:11434/api/ps',
+      'http://127.0.0.1:11434/api/ps'
+    ])
+  })
 })
 
 describe('ollamaTagsUrl', () => {
@@ -135,3 +203,9 @@ describe('ollamaTagsUrl', () => {
     expect(() => ollamaTagsUrl('file:///tmp/ollama')).toThrow(/HTTP ou HTTPS/)
   })
 })
+
+function abortError(): Error {
+  const error = new Error('Interrompido.')
+  error.name = 'AbortError'
+  return error
+}

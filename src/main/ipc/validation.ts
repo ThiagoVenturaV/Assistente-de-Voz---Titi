@@ -42,7 +42,7 @@ export function validatedSettingsPatch(value: unknown): Partial<TitiSettings> {
   if (!isRecord(value)) throw new Error('Configurações inválidas.')
   rejectUnknownKeys(value, [
     'version', 'onboardingComplete', 'mascotName', 'launchAtStartup',
-    'showFloatingMascot', 'keepHistory', 'confirmSensitiveActions', 'provider', 'voice'
+    'showFloatingMascot', 'computerControlEnabled', 'keepHistory', 'confirmSensitiveActions', 'provider', 'voice', 'games'
   ])
   const result: Partial<TitiSettings> = {}
   if ('version' in value) {
@@ -51,7 +51,7 @@ export function validatedSettingsPatch(value: unknown): Partial<TitiSettings> {
   }
   for (const key of [
     'onboardingComplete', 'launchAtStartup', 'showFloatingMascot',
-    'keepHistory', 'confirmSensitiveActions'
+    'computerControlEnabled', 'keepHistory', 'confirmSensitiveActions'
   ] as const) {
     if (key in value) {
       if (typeof value[key] !== 'boolean') throw new Error(`Valor inválido para ${key}.`)
@@ -65,6 +65,7 @@ export function validatedSettingsPatch(value: unknown): Partial<TitiSettings> {
   }
   if ('provider' in value) result.provider = validatedProvider(value.provider)
   if ('voice' in value) result.voice = validatedVoice(value.voice)
+  if ('games' in value) result.games = validatedGames(value.games)
   return result
 }
 
@@ -137,6 +138,32 @@ function validatedVoice(value: unknown): TitiSettings['voice'] {
     pushToTalkShortcut: value.pushToTalkShortcut.trim(),
     speechRate: value.speechRate,
     inputDeviceId: value.inputDeviceId
+  }
+}
+
+function validatedGames(value: unknown): TitiSettings['games'] {
+  if (!isRecord(value)) throw new Error('Configurações do modo jogo inválidas.')
+  rejectUnknownKeys(value, ['standbyEnabled', 'executables'])
+  if (typeof value.standbyEnabled !== 'boolean' || !Array.isArray(value.executables)) {
+    throw new Error('Configurações do modo jogo inválidas.')
+  }
+  if (value.executables.length > 100) {
+    throw new Error('A lista do modo jogo pode ter no máximo 100 executáveis.')
+  }
+  const executables = value.executables.map((item) => {
+    if (typeof item !== 'string') throw new Error('Nome de executável de jogo inválido.')
+    const executable = item.trim()
+    if (
+      !/^[\p{L}\p{N}][\p{L}\p{N}._ -]{0,79}$/u.test(executable)
+      || executable.includes('..')
+    ) {
+      throw new Error('Use somente o nome do executável do jogo, sem caminho ou comando.')
+    }
+    return executable
+  })
+  return {
+    standbyEnabled: value.standbyEnabled,
+    executables: [...new Map(executables.map((item) => [item.toLocaleLowerCase(), item])).values()]
   }
 }
 

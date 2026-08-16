@@ -1,5 +1,10 @@
 import type { ActionLogStore } from '../storage/action-log-store'
-import type { ToolDefinition, ToolExecutionResult, ToolExecutor } from './contracts'
+import type {
+  ToolDefinition,
+  ToolExecutionContext,
+  ToolExecutionResult,
+  ToolExecutor
+} from './contracts'
 
 const SENSITIVE_KEY = /api[-_]?key|authorization|cookie|password|secret|token|query|url/i
 
@@ -14,18 +19,35 @@ export class AuditedToolExecutor implements ToolExecutor {
     this.definitions = delegate.definitions
   }
 
-  async execute(name: string, argumentsValue: unknown): Promise<ToolExecutionResult> {
+  async execute(
+    name: string,
+    argumentsValue: unknown,
+    context?: ToolExecutionContext
+  ): Promise<ToolExecutionResult> {
     const startedAt = performance.now()
     let result: ToolExecutionResult
     try {
-      result = await this.delegate.execute(name, argumentsValue)
+      result = context
+        ? await this.delegate.execute(name, argumentsValue, context)
+        : await this.delegate.execute(name, argumentsValue)
     } catch (error) {
       const message = error instanceof Error ? error.message : 'A ferramenta falhou de forma inesperada.'
+      const cancelled = context?.signal?.aborted === true
+      const sideEffect = this.definitions.find(
+        ({ function: definition }) => definition.name === name
+      )?.execution?.sideEffect
       await this.record({
         tool: name,
+        status: cancelled ? 'cancelled' : 'failed',
+        ...executionIds(context),
         arguments: redactSensitive(argumentsValue),
         ok: false,
         message: auditMessage(name, message, false),
+        ...(cancelled ? {
+          details: {
+            effectState: sideEffect === 'external' ? 'may_have_occurred' : 'not_started'
+          }
+        } : {}),
         durationMs: Math.round(performance.now() - startedAt)
       })
       throw error
@@ -33,9 +55,11 @@ export class AuditedToolExecutor implements ToolExecutor {
 
     await this.record({
       tool: name,
+      status: result.status ?? (result.ok ? 'confirmed' : 'failed'),
+      ...executionIds(context),
       arguments: redactSensitive(argumentsValue),
       ok: result.ok,
-      message: auditMessage(name, result.message, result.ok),
+      message: auditMessage(name, result.message, result.ok, result.status),
       details: redactSensitive(result.details),
       durationMs: Math.round(performance.now() - startedAt)
     })
@@ -51,11 +75,29 @@ export class AuditedToolExecutor implements ToolExecutor {
   }
 }
 
-export function auditMessage(tool: string, message: string, ok: boolean): string {
+function executionIds(context?: ToolExecutionContext): Partial<ToolExecutionContext> {
+  if (!context) return {}
+  return {
+    chainId: context.chainId,
+    runId: context.runId,
+    ...(context.requestId ? { requestId: context.requestId } : {}),
+    round: context.round,
+    attempt: context.attempt
+  }
+}
+
+export function auditMessage(
+  tool: string,
+  message: string,
+  ok: boolean,
+  status?: ToolExecutionResult['status']
+): string {
   if (tool === 'open_web') {
+    if (status === 'dispatched') return 'Pedido de página ou pesquisa enviado; efeito não confirmado.'
     return ok ? 'Página ou pesquisa aberta.' : 'Não foi possível abrir a página ou pesquisa.'
   }
   if (tool === 'spotify' && /pesquis/i.test(message)) {
+    if (status === 'dispatched') return 'Pedido de pesquisa enviado ao aplicativo de música; efeito não confirmado.'
     return ok ? 'Pesquisa aberta no aplicativo de música.' : 'Não foi possível pesquisar no aplicativo de música.'
   }
   return redactUrls(message)

@@ -30,6 +30,26 @@ describe('OllamaProvider tool calling', () => {
     await expect(pending).rejects.toMatchObject({ name: 'AbortError' })
   })
 
+  it('mantém cancelamento ativo enquanto o corpo JSON ainda está pendente', async () => {
+    let bodyStarted = false
+    vi.stubGlobal('fetch', vi.fn((_input: unknown, init?: RequestInit) => Promise.resolve({
+      ok: true,
+      status: 200,
+      json: () => new Promise((_resolve, reject) => {
+        bodyStarted = true
+        init?.signal?.addEventListener('abort', () => reject(init.signal?.reason), { once: true })
+      })
+    } as Response)))
+    const controller = new AbortController()
+    const provider = new OllamaProvider(fakeTools(vi.fn()))
+
+    const pending = provider.complete(messages, DEFAULT_SETTINGS, controller.signal)
+    await vi.waitFor(() => expect(bodyStarted).toBe(true))
+    controller.abort()
+
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' })
+  })
+
   it('aborta enquanto uma ferramenta ainda aguarda sem executar rodadas seguintes', async () => {
     let release!: () => void
     const execute = vi.fn(() => new Promise<{ ok: true; message: string }>((resolve) => {
@@ -71,13 +91,23 @@ describe('OllamaProvider tool calling', () => {
 
     const provider = new OllamaProvider(tools)
     await expect(provider.complete(messages, DEFAULT_SETTINGS)).resolves.toBe('sexta-feira, 10:30')
-    expect(execute).toHaveBeenCalledWith('current_datetime', {})
+    expect(execute).toHaveBeenCalledWith(
+      'current_datetime',
+      {},
+      expect.objectContaining({
+        chainId: expect.any(String),
+        runId: expect.any(String),
+        round: 1,
+        attempt: 1,
+        signal: expect.any(AbortSignal)
+      })
+    )
 
     const firstBody = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as { tools: unknown[] }
     const secondBody = JSON.parse(String(fetchMock.mock.calls[1][1]?.body)) as {
       messages: Array<{ role: string; tool_name?: string; content?: string }>
     }
-    expect(firstBody.tools).toHaveLength(3)
+    expect(firstBody.tools).toHaveLength(4)
     expect(secondBody.messages).toContainEqual(expect.objectContaining({
       role: 'tool',
       tool_name: 'current_datetime',
@@ -108,6 +138,157 @@ describe('OllamaProvider tool calling', () => {
     expect(finalBody.messages.at(-1)?.content).toContain('"ok":false')
   })
 
+  it('recovers a natural compound action after the model only promises to act', async () => {
+    const actionMessages: ChatMessage[] = [{
+      id: 'natural-action',
+      role: 'user',
+      content: 'Titi, o Spotify não está rodando; abre ele e dá play na minha playlist.',
+      createdAt: new Date(0).toISOString()
+    }]
+    const execute = vi.fn(async (name: string) => name === 'open_application'
+      ? { ok: false, status: 'dispatched' as const, message: 'Spotify solicitado ao Windows.' }
+      : { ok: true, status: 'confirmed' as const, message: 'A música começou a tocar no Spotify.' })
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({
+        message: { role: 'assistant', content: 'Vou abrir o Spotify e tocar agora mesmo.' }
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        message: {
+          role: 'assistant',
+          content: JSON.stringify({
+            decision: 'needs_tool', confidence: 0.98, reason: 'Pedido de ação composto.'
+          })
+        }
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        choices: [{
+          message: {
+            role: 'assistant',
+            content: '',
+            tool_calls: [
+              { type: 'function', function: { name: 'open_application', arguments: '{"application":"spotify"}' } },
+              { type: 'function', function: { name: 'spotify', arguments: '{"action":"play"}' } }
+            ]
+          }
+        }]
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        message: { role: 'assistant', content: 'Spotify aberto e tocando.' }
+      }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const provider = new OllamaProvider(fakeTools(execute))
+    const answer = await provider.complete(actionMessages, DEFAULT_SETTINGS)
+
+    expect(answer).toContain('Pedido enviado, ainda sem confirmação do efeito. Spotify solicitado ao Windows.')
+    expect(answer).toContain('A música começou a tocar no Spotify.')
+    expect(answer).not.toContain('Vou abrir')
+    expect(execute.mock.calls.map(([name]) => name)).toEqual(['open_application', 'spotify'])
+    expect(String(fetchMock.mock.calls[2][0])).toContain('/v1/chat/completions')
+    const forcedBody = JSON.parse(String(fetchMock.mock.calls[2][1]?.body)) as {
+      tool_choice?: string
+      messages: Array<{ role: string; content: string }>
+    }
+    expect(forcedBody.tool_choice).toBe('required')
+    expect(forcedBody.messages.at(-1)?.content).toContain('AUDITORIA INTERNA')
+  })
+
+  it('strips the no-tool marker without adding a classifier round', async () => {
+    const execute = vi.fn()
+    const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse({
+      message: {
+        role: 'assistant',
+        content: '[SEM_FERRAMENTA] O Spotify é um serviço de música.'
+      }
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const provider = new OllamaProvider(fakeTools(execute))
+    await expect(provider.complete(messages, DEFAULT_SETTINGS)).resolves.toBe(
+      'O Spotify é um serviço de música.'
+    )
+    expect(fetchMock).toHaveBeenCalledOnce()
+    expect(execute).not.toHaveBeenCalled()
+  })
+
+  it('accepts an unmarked conversational answer only after local classification', async () => {
+    const execute = vi.fn()
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({
+        message: { role: 'assistant', content: 'Uma explicação normal.' }
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        message: {
+          role: 'assistant',
+          content: JSON.stringify({ decision: 'respond', confidence: 0.95, reason: 'Pergunta conceitual.' })
+        }
+      }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const provider = new OllamaProvider(fakeTools(execute))
+    await expect(provider.complete(messages, DEFAULT_SETTINGS)).resolves.toBe('Uma explicação normal.')
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(execute).not.toHaveBeenCalled()
+  })
+
+  it('blocks an unnecessary tool call when the semantic classifier identifies conversation', async () => {
+    const conceptualMessages: ChatMessage[] = [{
+      id: 'conceptual-question',
+      role: 'user',
+      content: 'Me explica o que é o Spotify.',
+      createdAt: new Date(0).toISOString()
+    }]
+    const execute = vi.fn()
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({
+        message: {
+          role: 'assistant',
+          content: 'O Spotify é um serviço de streaming de música.',
+          tool_calls: [{
+            type: 'function',
+            function: { name: 'open_web', arguments: { query: 'O que é Spotify?' } }
+          }]
+        }
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        message: {
+          role: 'assistant',
+          content: JSON.stringify({ decision: 'respond', confidence: 0.97, reason: 'Explicação.' })
+        }
+      }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const provider = new OllamaProvider(fakeTools(execute))
+    await expect(provider.complete(conceptualMessages, DEFAULT_SETTINGS)).resolves.toBe(
+      'O Spotify é um serviço de streaming de música.'
+    )
+    expect(execute).not.toHaveBeenCalled()
+  })
+
+  it('never preserves a success promise when required tool calling still returns no call', async () => {
+    const execute = vi.fn()
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({
+        message: { role: 'assistant', content: 'Vou fazer agora.' }
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        message: {
+          role: 'assistant',
+          content: JSON.stringify({ decision: 'needs_tool', confidence: 0.99, reason: 'Ação.' })
+        }
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        choices: [{ message: { role: 'assistant', content: 'Pronto, concluído.' } }]
+      }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const provider = new OllamaProvider(fakeTools(execute))
+    const answer = await provider.complete(messages, DEFAULT_SETTINGS)
+    expect(answer).toContain('Nenhuma ação foi executada')
+    expect(answer).not.toContain('concluído')
+    expect(execute).not.toHaveBeenCalled()
+  })
+
   it('rejects unknown tools without invoking the executor', async () => {
     const execute = vi.fn(async () => ({ ok: true, message: 'não deveria executar' }))
     const fetchMock = vi.fn()
@@ -123,7 +304,7 @@ describe('OllamaProvider tool calling', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     const provider = new OllamaProvider(fakeTools(execute))
-    await expect(provider.complete(messages, DEFAULT_SETTINGS)).resolves.toBe('Essa ferramenta não está disponível.')
+    await expect(provider.complete(messages, DEFAULT_SETTINGS)).resolves.toContain('não existe')
     expect(execute).not.toHaveBeenCalled()
 
     const retryBody = requestBody(fetchMock, 1)
@@ -149,7 +330,7 @@ describe('OllamaProvider tool calling', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     const provider = new OllamaProvider(fakeTools(execute))
-    await expect(provider.complete(messages, DEFAULT_SETTINGS)).resolves.toBe('Não consegui interpretar o aplicativo.')
+    await expect(provider.complete(messages, DEFAULT_SETTINGS)).resolves.toContain('JSON inválido')
     expect(execute).not.toHaveBeenCalled()
     expect(requestBody(fetchMock, 1).messages.at(-1)?.content).toContain('JSON inválido')
   })
@@ -178,7 +359,7 @@ describe('OllamaProvider tool calling', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     const provider = new OllamaProvider(fakeTools(execute))
-    await expect(provider.complete(messages, DEFAULT_SETTINGS)).resolves.toBe('Preciso de um aplicativo válido.')
+    await expect(provider.complete(messages, DEFAULT_SETTINGS)).resolves.toContain('argumento obrigatório')
     expect(execute).not.toHaveBeenCalled()
     expect(requestBody(fetchMock, 1).messages.at(-1)?.content).toContain('argumento obrigatório')
     expect(requestBody(fetchMock, 2).messages.at(-1)?.content).toContain('não é aceito')
@@ -332,7 +513,21 @@ function fakeTools(execute: ToolExecutor['execute']): ToolExecutor {
             type: 'object',
             required: ['application'],
             properties: {
-              application: { type: 'string', enum: ['codex', 'chrome'] }
+              application: { type: 'string', enum: ['codex', 'chrome', 'spotify'] }
+            }
+          }
+        }
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'spotify',
+          description: 'Abre o Spotify quando necessário e controla a reprodução.',
+          parameters: {
+            type: 'object',
+            required: ['action'],
+            properties: {
+              action: { type: 'string', enum: ['play', 'pause'] }
             }
           }
         }

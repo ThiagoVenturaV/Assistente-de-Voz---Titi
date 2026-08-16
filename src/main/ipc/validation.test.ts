@@ -19,7 +19,9 @@ describe('IPC validation', () => {
     { ...DEFAULT_SETTINGS, provider: { ...DEFAULT_SETTINGS.provider, endpoint: 'https://remote.example.com' } },
     { ...DEFAULT_SETTINGS, voice: { ...DEFAULT_SETTINGS.voice, pushToTalkShortcut: 'Space' } },
     { ...DEFAULT_SETTINGS, voice: { ...DEFAULT_SETTINGS.voice, speechRate: 99 } },
-    { ...DEFAULT_SETTINGS, voice: { ...DEFAULT_SETTINGS.voice, inputDeviceId: 'x'.repeat(513) } }
+    { ...DEFAULT_SETTINGS, voice: { ...DEFAULT_SETTINGS.voice, inputDeviceId: 'x'.repeat(513) } },
+    { ...DEFAULT_SETTINGS, games: { standbyEnabled: true, executables: ['C:\\Jogos\\jogo.exe'] } },
+    { ...DEFAULT_SETTINGS, games: { standbyEnabled: true, executables: ['jogo.exe', 42] } }
   ])('rejects malformed or externally routed settings', (value) => {
     expect(() => validatedSettingsPatch(value)).toThrow()
   })
@@ -28,6 +30,24 @@ describe('IPC validation', () => {
     expect(validatedSettingsPatch({
       voice: { ...DEFAULT_SETTINGS.voice, inputDeviceId: 'microfone-usb-123' }
     })).toMatchObject({ voice: { inputDeviceId: 'microfone-usb-123' } })
+  })
+
+  it('aceita somente booleano para o opt-in de controle do computador', () => {
+    expect(validatedSettingsPatch({ computerControlEnabled: true }))
+      .toEqual({ computerControlEnabled: true })
+    expect(() => validatedSettingsPatch({ computerControlEnabled: 'sim' }))
+      .toThrow('Valor inválido para computerControlEnabled')
+  })
+
+  it('aceita e remove duplicatas da lista explícita de jogos', () => {
+    expect(validatedSettingsPatch({
+      games: {
+        standbyEnabled: true,
+        executables: ['MeuJogo.exe', 'meujogo.EXE']
+      }
+    })).toEqual({
+      games: { standbyEnabled: true, executables: ['meujogo.EXE'] }
+    })
   })
 
   it('normalizes a valid chat request', () => {

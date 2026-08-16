@@ -37,11 +37,23 @@ jobs:
       - name: Instalar dependências
         run: pnpm install --frozen-lockfile
 
+      - name: Preparar Electron sem corrida entre testes
+        run: pnpm setup:electron
+
       - name: Validar tipos
         run: pnpm typecheck
 
       - name: Executar testes
         run: pnpm test
+
+      - name: Restaurar cache do runtime de voz
+        uses: actions/cache@v4
+        with:
+          path: runtime/whisper
+          key: whisper-win-v1.9.2-large-v3-turbo-q8-317eb69c11673c9de1e1f0d459b253999804ec71ac4c23c17ecf5fbe24e259a1-vad-v6.2
+
+      - name: Preparar runtime de voz verificado
+        run: pnpm setup:whisper
 
       - name: Gerar e verificar pacote de produção
         run: pnpm package:dir

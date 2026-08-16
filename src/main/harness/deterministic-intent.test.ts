@@ -72,7 +72,9 @@ describe('resolveDeterministicIntent', () => {
   })
 
   it.each([
-    ['pause a música', { action: 'play_pause' }],
+    ['pause a música', { action: 'pause' }],
+    ['dê play na música', { action: 'play' }],
+    ['continue a reprodução no Spotify', { action: 'play' }],
     ['próxima música', { action: 'next' }],
     ['volte a faixa', { action: 'previous' }],
     ['aumente o volume do Spotify', { action: 'volume_up' }],

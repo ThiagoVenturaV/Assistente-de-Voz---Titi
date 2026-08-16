@@ -6,6 +6,7 @@ export const DEFAULT_SETTINGS: TitiSettings = {
   mascotName: 'Titi',
   launchAtStartup: false,
   showFloatingMascot: true,
+  computerControlEnabled: false,
   keepHistory: true,
   confirmSensitiveActions: true,
   provider: {
@@ -19,5 +20,9 @@ export const DEFAULT_SETTINGS: TitiSettings = {
     liveMode: false,
     speechRate: 1,
     inputDeviceId: ''
+  },
+  games: {
+    standbyEnabled: true,
+    executables: []
   }
 }
