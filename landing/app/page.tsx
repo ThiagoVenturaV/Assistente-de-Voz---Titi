@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-const DOWNLOAD_URL = "https://github.com/ThiagoVenturaV/Assistente-de-Voz---Titi/releases/download/v0.2.0-beta.2/Titi-Setup-0.2.0-beta.2.exe";
+const DOWNLOAD_URL = "https://github.com/ThiagoVenturaV/Assistente-de-Voz---Titi/releases/download/v0.2.0-beta.3/Titi-Setup-0.2.0-beta.3.exe";
 
 export const metadata: Metadata = {
   title: "Titi — Seu PC agora escuta você",
@@ -124,7 +124,7 @@ export default function Home() {
         <div className="shell">
           <header className="agent-heading">
             <div><p className="section-index"><span>03</span> AGINDO NO WINDOWS</p><h2>Um agente.<br />Todo o seu PC.</h2></div>
-            <p>O Titi conecta sua voz aos aplicativos, observa controles acessíveis e registra o resultado de cada ação.</p>
+            <p>O Titi conecta sua voz aos aplicativos, entende correções entre mensagens, observa controles acessíveis e registra o resultado de cada ação.</p>
           </header>
           <div className="apps-rail" aria-label="Aplicativos que o Titi pode ajudar a usar"><span><b>◎</b> Seu navegador</span><span><b>♪</b> Aplicativo de música</span><span><b>⌘</b> Editor de código</span><span><b>✣</b> Agente de código</span><span><b>◇</b> Seus jogos</span><span><b>＋</b> Outros aplicativos</span></div>
           <div className="agent-showcase">

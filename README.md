@@ -2,7 +2,7 @@
 
 Titi é um assistente local para Windows com interface gráfica, conversa por texto e voz, mascote 2D animado e ferramentas controladas para agir no computador. O objetivo é permitir que a pessoa use seus aplicativos por voz sem entregar um terminal irrestrito ao modelo.
 
-> **Estado atual:** a pré-release `0.2.0-beta.2` substitui a beta.1, sem a rota interna de QA do pacote anterior e com cancelamento, concorrência, fidelidade dos efeitos externos, standby, CI, controle local de interfaces acessíveis, fallback visual local para Play/Pause no Spotify, transcrição incremental e voz neural local. Durante a beta, comandos permitidos executam direto; somente abrir ou controlar o Antigravity pede confirmação. O instalador ainda não possui assinatura pública e deve ser tratado como uma prévia para testadores; consulte a matriz pendente em `QA_PLAN.md`.
+> **Estado atual:** a pré-release `0.2.0-beta.3` substitui a beta.2 e acrescenta referências naturais entre turnos, bloqueio de tool calls indevidas em perguntas conceituais, distinção estável entre abrir navegador/página e abrir/tocar no Spotify, além de resultados úteis da observação de interface. Permanecem cancelamento, fidelidade dos efeitos externos, standby, controle local de interfaces acessíveis, fallback visual local para Play/Pause, transcrição incremental e voz neural local. Durante a beta, comandos permitidos executam direto; somente abrir ou controlar o Antigravity pede confirmação. O instalador ainda não possui assinatura pública e deve ser tratado como uma prévia para testadores; consulte `QA_PLAN.md`.
 
 ## O que está implementado no código atual
 
@@ -33,7 +33,7 @@ Titi é um assistente local para Windows com interface gráfica, conversa por te
 - standby conservador durante jogos conhecidos ou executáveis adicionados pelo usuário; ele cancela tarefas, pausa voz, oculta o mascote e verifica a descarga do modelo pela API local;
 - gravações de conversas e configurações são serializadas para não perder atualizações concorrentes.
 
-O código passa por `pnpm typecheck` e por **303 testes em 30 arquivos**. `pnpm package:dir` também verifica o ASAR, os workers, os módulos nativos, o runtime de automação, o Parakeet e o Supertonic, além de rejeitar rotas de QA proibidas em produção. Essa evidência ainda não substitui a validação do instalador em uma máquina limpa.
+O código passa por `pnpm typecheck` e por **306 testes em 30 arquivos**. `pnpm package:dir` também verifica o ASAR, os workers, os módulos nativos, o runtime de automação, o Parakeet e o Supertonic, além de rejeitar rotas de QA proibidas em produção. Essa evidência ainda não substitui a validação do instalador em uma máquina limpa.
 
 ## Limites desta versão
 

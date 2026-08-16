@@ -107,7 +107,7 @@ describe('OllamaProvider tool calling', () => {
     const secondBody = JSON.parse(String(fetchMock.mock.calls[1][1]?.body)) as {
       messages: Array<{ role: string; tool_name?: string; content?: string }>
     }
-    expect(firstBody.tools).toHaveLength(4)
+    expect(firstBody.tools).toHaveLength(6)
     expect(secondBody.messages).toContainEqual(expect.objectContaining({
       role: 'tool',
       tool_name: 'current_datetime',
@@ -284,6 +284,27 @@ describe('OllamaProvider tool calling', () => {
     expect(execute).not.toHaveBeenCalled()
   })
 
+  it('returns an obviously conversational answer without a classifier round', async () => {
+    const conceptualMessages: ChatMessage[] = [{
+      id: 'clear-conversation',
+      role: 'user',
+      content: 'Me explica o que é o Spotify.',
+      createdAt: new Date(0).toISOString()
+    }]
+    const execute = vi.fn()
+    const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse({
+      message: { role: 'assistant', content: 'O Spotify é um serviço de música e podcasts.' }
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const provider = new OllamaProvider(fakeTools(execute))
+    await expect(provider.complete(conceptualMessages, DEFAULT_SETTINGS)).resolves.toBe(
+      'O Spotify é um serviço de música e podcasts.'
+    )
+    expect(fetchMock).toHaveBeenCalledOnce()
+    expect(execute).not.toHaveBeenCalled()
+  })
+
   it('blocks an unnecessary tool call when the semantic classifier identifies conversation', async () => {
     const conceptualMessages: ChatMessage[] = [{
       id: 'conceptual-question',
@@ -316,6 +337,121 @@ describe('OllamaProvider tool calling', () => {
       'O Spotify é um serviço de streaming de música.'
     )
     expect(execute).not.toHaveBeenCalled()
+  })
+
+  it('retries as conversation when an empty false-positive tool call is blocked', async () => {
+    const conceptualMessages: ChatMessage[] = [{
+      id: 'empty-false-positive',
+      role: 'user',
+      content: 'Qual a diferença entre Brave e Chrome?',
+      createdAt: new Date(0).toISOString()
+    }]
+    const execute = vi.fn()
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({
+        message: {
+          role: 'assistant',
+          content: '',
+          tool_calls: [{
+            type: 'function',
+            function: { name: 'open_web', arguments: { query: 'Brave versus Chrome' } }
+          }]
+        }
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        message: {
+          role: 'assistant',
+          content: JSON.stringify({ decision: 'respond', confidence: 0.98, reason: 'Comparação conceitual.' })
+        }
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        message: {
+          role: 'assistant',
+          content: '[SEM_FERRAMENTA] Brave bloqueia mais rastreadores por padrão; Chrome prioriza integração com o ecossistema Google.'
+        }
+      }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const provider = new OllamaProvider(fakeTools(execute))
+    await expect(provider.complete(conceptualMessages, DEFAULT_SETTINGS)).resolves.toBe(
+      'Brave bloqueia mais rastreadores por padrão; Chrome prioriza integração com o ecossistema Google.'
+    )
+    expect(execute).not.toHaveBeenCalled()
+    const conversationBody = JSON.parse(String(fetchMock.mock.calls[2][1]?.body)) as {
+      tools?: unknown[]
+      messages: Array<{ content?: string }>
+    }
+    expect(conversationBody.tools).toBeUndefined()
+    expect(conversationBody.messages.at(-1)?.content).toContain('sem ferramentas')
+  })
+
+  it('renders observed controls and keeps the same chain for a following UI action', async () => {
+    const uiMessages: ChatMessage[] = [{
+      id: 'observe-and-act',
+      role: 'user',
+      content: 'No Spotify, observe os controles e clique em Sua Biblioteca.',
+      createdAt: new Date(0).toISOString()
+    }]
+    const execute = vi.fn(async (name: string, _arguments: unknown, _context?: unknown) => name === 'computer_observe'
+      ? {
+          ok: true,
+          status: 'confirmed' as const,
+          message: 'Controles observados.',
+          details: {
+            windowTitle: 'Spotify Premium',
+            controls: [
+              { name: 'Sua Biblioteca', controlType: 'Button', enabled: true },
+              { name: 'Play', controlType: 'Button', enabled: true }
+            ]
+          }
+        }
+      : {
+          ok: false,
+          status: 'dispatched' as const,
+          message: 'O controle “Sua Biblioteca” foi acionado.'
+        })
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({
+        message: {
+          role: 'assistant',
+          tool_calls: [{
+            type: 'function',
+            function: { name: 'computer_observe', arguments: { application: 'Spotify' } }
+          }]
+        }
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        message: {
+          role: 'assistant',
+          tool_calls: [{
+            type: 'function',
+            function: {
+              name: 'computer_action',
+              arguments: {
+                action: 'click',
+                application: 'Spotify',
+                target: 'Sua Biblioteca',
+                controlType: 'Button'
+              }
+            }
+          }]
+        }
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        message: { role: 'assistant', content: 'A biblioteca foi aberta.' }
+      }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const provider = new OllamaProvider(fakeTools(execute))
+    const answer = await provider.complete(uiMessages, DEFAULT_SETTINGS, undefined, 'ui-request')
+
+    expect(answer).toContain('Controles visíveis em Spotify Premium')
+    expect(answer).toContain('Sua Biblioteca (botão)')
+    expect(answer).toContain('Play (botão)')
+    expect(answer).toContain('O controle “Sua Biblioteca” foi acionado.')
+    expect(execute).toHaveBeenCalledTimes(2)
+    expect(execute.mock.calls[0][2]).toMatchObject({ chainId: 'ui-request', round: 1 })
+    expect(execute.mock.calls[1][2]).toMatchObject({ chainId: 'ui-request', round: 2 })
   })
 
   it('never preserves a success promise when required tool calling still returns no call', async () => {
@@ -595,6 +731,35 @@ function fakeTools(execute: ToolExecutor['execute']): ToolExecutor {
             properties: {
               query: { type: 'string' },
               browser: { type: 'string', enum: ['default', 'chrome'] }
+            }
+          }
+        }
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'computer_observe',
+          description: 'Observa controles de um aplicativo.',
+          parameters: {
+            type: 'object',
+            required: ['application'],
+            properties: { application: { type: 'string' } }
+          }
+        }
+      },
+      {
+        type: 'function',
+        function: {
+          name: 'computer_action',
+          description: 'Aciona um controle observado.',
+          parameters: {
+            type: 'object',
+            required: ['action', 'application', 'target'],
+            properties: {
+              action: { type: 'string', enum: ['click'] },
+              application: { type: 'string' },
+              target: { type: 'string' },
+              controlType: { type: 'string', enum: ['Button'] }
             }
           }
         }

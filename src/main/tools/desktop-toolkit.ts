@@ -100,7 +100,8 @@ export class DesktopToolkit implements ToolExecutor {
           properties: {
             action: {
               type: 'string',
-              enum: ['open', 'search', 'play', 'pause', 'play_pause', 'next', 'previous', 'volume_up', 'volume_down', 'mute']
+              enum: ['open', 'search', 'play', 'pause', 'play_pause', 'next', 'previous', 'volume_up', 'volume_down', 'mute'],
+              description: 'Use open somente para abrir sem reproduzir. Use play quando o pedido disser tocar, reproduzir ou dar play; play já abre o Spotify quando necessário. Use search somente com query.'
             },
             query: { type: 'string', description: 'Busca usada somente com action=search.' }
           }

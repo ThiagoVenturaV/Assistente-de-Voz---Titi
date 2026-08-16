@@ -1,10 +1,10 @@
-# Gate de QA — Titi `0.2.0-beta.2`
+# Gate de QA — Titi `0.2.0-beta.3`
 
 Auditoria atualizada em 16/08/2026. Este documento define o que precisa estar comprovado antes de orientar o usuário a instalar a nova versão ou publicar o download como beta público.
 
 ## Veredito atual
 
-**A PRÉ-RELEASE PÚBLICA `0.2.0-beta.1` PRECISA SER SUBSTITUÍDA; A `0.2.0-beta.2` É O CANDIDATO NÃO ASSINADO.** A fonte da beta.2 remove a rota interna de QA da versão pública antiga e acrescenta cancelamento, timeout, estados honestos, serialização, standby, correções do CI, controle opt-in de interfaces acessíveis, fallback visual local de Play/Pause no Spotify, recuperação semântica de tool calling, Parakeet incremental e Supertonic neural local. Por decisão explícita para a beta, ferramentas permitidas executam direto; somente o Antigravity pede confirmação. Typecheck, 303 testes, matriz local 11/11, NSIS, verificação estrutural e os dois workers executados do pacote passam. O instalador ainda precisa ser testado sobre a instalação atual antes da publicação. Como o candidato continua `NotSigned`, pode acionar o aviso de reputação do Windows e só deve ser tratado como pré-release para testadores.
+**A PRÉ-RELEASE PÚBLICA `0.2.0-beta.2` PRECISA SER SUBSTITUÍDA; A `0.2.0-beta.3` É O CANDIDATO NÃO ASSINADO.** A beta.3 corrige tool calls indevidas em perguntas conceituais, torna estável a distinção navegador/página e Spotify open/play, preserva contexto entre turnos e expõe os controles observados de forma útil. Permanecem cancelamento, estados honestos, standby, controle opt-in de interfaces, fallback visual local, Parakeet incremental e Supertonic neural local. Por decisão explícita para a beta, ferramentas permitidas executam direto; somente o Antigravity pede confirmação. Typecheck, 306 testes, matriz local 19/19, NSIS, verificação estrutural, instalação preservando o perfil e os dois workers executados do pacote passam. Como o candidato continua `NotSigned`, pode acionar o aviso de reputação do Windows e só deve ser tratado como pré-release para testadores.
 
 Antes do teste, o usuário havia desinstalado a versão anterior: a pasta de instalação foi removida, enquanto configurações e conversas permaneceram em `%APPDATA%\titi-desktop`. A beta.2 foi instalada sobre esse perfil e reabriu os dados existentes.
 
@@ -12,25 +12,25 @@ Antes do teste, o usuário havia desinstalado a versão anterior: a pasta de ins
 
 | Verificação | Estado | Evidência em 16/08/2026 |
 |---|---|---|
-| Versão declarada na fonte | Aprovado | `package.json` declara `0.2.0-beta.2` |
+| Versão declarada na fonte | Aprovado | `package.json` declara `0.2.0-beta.3` |
 | Typecheck | Aprovado | `pnpm typecheck`, código 0 |
-| Testes automatizados | Aprovado na branch | `pnpm test`: 30 arquivos e 303 testes aprovados |
+| Testes automatizados | Aprovado na branch | `pnpm test`: 30 arquivos e 306 testes aprovados |
 | Build de produção | Aprovado | `pnpm build`: main, preload e renderer compilados |
-| Linguagem natural e seleção de ferramentas | Aprovado no nível de contrato | `pnpm qa:ollama-tools`: 11/11 para ações simples, a frase real “Abre o Spotify e dá play.”, correções, pedido composto Spotify+Play, pesquisa, hora, Antigravity e duas perguntas sem efeito; o script não executa as ferramentas retornadas |
+| Linguagem natural e seleção de ferramentas | Aprovado no nível de contrato | `pnpm qa:ollama-tools`: 19/19 no Qwen 3.5 9B local, cobrindo as seis ferramentas, aplicativo genérico, pedidos compostos, correções, referências entre turnos, conversa sem efeito e observar → agir; o script não executa efeitos externos |
 | Dados da versão anterior | Preservados após o NSIS | A instalação reabriu o nome, as configurações e a conversa anterior; `settings.json` e `conversations.json` continuam presentes em `%APPDATA%\titi-desktop` |
-| Instalador publicado | Reprovado para recomendação | `Titi-Setup-0.2.0-beta.1.exe`, SHA-256 `A4E833…21471`, ainda contém a rota interna de QA |
-| Pacote corretivo de diretório | Aprovado | `pnpm package:dir` regenerou `win-unpacked`; `verify:package` confirmou beta.2, workers, módulos nativos, Parakeet, Supertonic e marcadores funcionais |
+| Instalador publicado | Substituição pendente | a beta.2 pública continua disponível até a beta.3 ser ligada ao commit final e seus três ativos serem verificados |
+| Pacote corretivo de diretório | Aprovado | `pnpm package:win` regenerou `win-unpacked`; `verify:package` confirmou beta.3, workers, módulos nativos, Parakeet, Supertonic e marcadores funcionais |
 | Runtime local de voz empacotado | Aprovado | `ggml-parakeet-tdt-0.6b-v3-q8_0.bin` com 668.757.119 bytes e runtime mínimo de 9.104.960 bytes em `win-unpacked/resources/runtime/whisper`; executáveis de teste e modelos Whisper/VAD não entram no pacote |
 | Ensaio local de transcrição pt-BR | Aprovado sem microfone real | voz Microsoft Maria curta transcrita exatamente em 1,21 s; áudio controlado de 55,4 s transcrito por inteiro em 7,81 s, enquanto o Whisper anterior cortou o meio e repetiu o final três vezes; microfone do usuário continua no smoke manual |
-| Transcrição incremental | Aprovado com áudio real controlado | 10 revisões em 15 s; primeira parcial em 205 ms, revisão contextual de “Tite” para “Titi” e frase final correta; 303 testes continuam verdes |
-| Voz neural empacotada | Aprovado | worker Supertonic executado de dentro do `app.asar` com Electron: 4,9 s de áudio gerados em 0,88 s, WAV de 431.888 bytes; emojis são removidos antes da síntese |
+| Transcrição incremental | Aprovado com áudio real controlado | 10 revisões em 15 s; primeira parcial em 165 ms, revisão contextual de “Tite” para “Titi” e frase final correta; 306 testes continuam verdes |
+| Voz neural empacotada | Aprovado | worker Supertonic executado de dentro do `app.asar` com Electron: 4,9 s de áudio gerados em 0,95 s, WAV de 431.888 bytes; emojis são removidos antes da síntese |
 | Automação de interface empacotada | Aprovado estruturalmente | `windows-ui-automation.ps1` com 9.242 bytes em `win-unpacked/resources/runtime`, incluindo UI Automation, captura em memória, recorte ampliado e clique relativo; o verificador exige o recurso e `focusImageBase64` no ASAR |
-| Manifesto de release | Aprovado localmente | `latest.yml` declara beta.2, 878.332.232 bytes e SHA-512 correspondente ao NSIS final |
-| Assinatura do instalador | Risco explícito | `Get-AuthenticodeSignature` retorna `NotSigned` para o instalador beta.2 e `win-unpacked/Titi.exe` |
+| Manifesto de release | Aprovado localmente | `latest.yml` declara beta.3, 878.333.160 bytes e SHA-512 correspondente ao NSIS final |
+| Assinatura do instalador | Risco explícito | `Get-AuthenticodeSignature` retorna `NotSigned` para o instalador beta.3 e `win-unpacked/Titi.exe` |
 | Ensaio visual real do Spotify | Aprovado na fonte | com árvore acessível vazia, o Ollama local identificou Play com 95%, o clique relativo iniciou a reprodução e a inspeção independente mostrou Pause; o recorte ampliado corrigiu a classificação pós-clique para `playing` com 95% |
 | Política de confirmação beta | Aprovado automaticamente | web, Spotify, aplicativos e UI permitida executam direto; somente abrir/controlar Antigravity é sensível; alvos protegidos continuam bloqueados |
 | Catálogo real do Windows | Aprovado para as fontes requeridas | `Get-StartApps` retornou Brave (`Brave`), Spotify (`SpotifyAB.SpotifyMusic_zpdnekdrzrea0!Spotify`), ChatGPT/Codex (`OpenAI.Codex_2p2nqsd0c76g0!App`), Antigravity e Antigravity IDE |
-| Instalação do NSIS atual | Aprovado estrutural e visualmente | o NSIS de 878.332.232 bytes retornou código 0, o pacote instalado declara beta.2, `verify:package` confirmou Parakeet/Supertonic/módulos nativos, os hashes do perfil não mudaram e a janela abriu com “Local conectado”; microfone e reprodução audível continuam no smoke manual |
+| Instalação do NSIS atual | Aprovado estruturalmente | o NSIS final beta.3 retornou código 0, o pacote instalado declara beta.3, seu ASAR tem o mesmo SHA-256 `E5FC35…F0314E` do `win-unpacked` e os hashes de `settings.json` e `conversations.json` não mudaram |
 
 ## Bloqueadores do candidato
 
@@ -39,34 +39,34 @@ Antes do teste, o usuário havia desinstalado a versão anterior: a pasta de ins
 - [x] remover `TITI_CAPTURE_DIR`, `captureQaScreens` e cliques automáticos do processo principal;
 - [x] fazer o verificador falhar se qualquer marcador reaparecer no ASAR;
 - [x] gerar e verificar um novo `win-unpacked` sem esses marcadores;
-- [x] gerar o NSIS corretivo a partir da fonte final; tag própria ainda pendente;
+- [x] gerar o NSIS beta.3 a partir da fonte final; tag própria ainda pendente;
 - [ ] instalar, executar a matriz crítica e só então trocar o download público.
 
 ### RC-01 — gerar o artefato correto
 
 - [x] Executar `pnpm package:win` em Windows com a árvore de trabalho final.
-- [x] Existir `release/Titi-Setup-0.2.0-beta.2.exe` e seu `.blockmap`.
-- [x] `release/win-unpacked/resources/app.asar` conter `titi-desktop` versão `0.2.0-beta.2`.
-- [x] `pnpm verify:package` terminar com código 0 após o empacotamento beta.2.
+- [x] Existir `release/Titi-Setup-0.2.0-beta.3.exe` e seu `.blockmap`.
+- [x] `release/win-unpacked/resources/app.asar` conter `titi-desktop` versão `0.2.0-beta.3`.
+- [x] `pnpm verify:package` terminar com código 0 após o empacotamento beta.3.
 - [ ] Conferir que nenhum arquivo `0.1.x` será enviado por engano ao release novo.
 
-Os instaladores `0.1.0` e `0.1.1` continuam no diretório local `release/`; o upload deve selecionar explicitamente somente o candidato e seu `.blockmap`.
+Instaladores anteriores continuam no diretório local `release/`; o upload deve selecionar explicitamente somente o EXE beta.3, seu `.blockmap` e `latest.yml`.
 
 ### RC-02 — alinhar instalador, manifesto e publicação
 
-- [x] `release/latest.yml` declarar `0.2.0-beta.2`, o nome e o tamanho do instalador candidato.
-- [x] Calcular e registrar o SHA-256 do NSIS final: `2DEF6B24BC38A17AB9ACF79EAB83087B5FA996E46295063E4D1D1E5A348AEF76`.
+- [x] `release/latest.yml` declarar `0.2.0-beta.3`, o nome e o tamanho do instalador candidato.
+- [x] Calcular e registrar o SHA-256 do NSIS final: `42458B01E7144B7C03D2CEB0CA355EF8E436D988107E306B9DBCE750B1E32BA1`.
 - [ ] Recalcular e publicar o SHA-256 se o arquivo for assinado, pois a assinatura altera os bytes.
-- [x] `RELEASE_NOTES.md`, README e a fonte da landing page identificarem `0.2.0-beta.2`; a landing só deve ser publicada depois do release existir.
+- [x] `RELEASE_NOTES.md`, README e a fonte da landing page identificarem `0.2.0-beta.3`; a landing só deve ser publicada depois do release existir.
 - [ ] Título, tag, ativo e link do GitHub Release publicado apontarem para essa mesma versão e arquivo.
 - [x] Não anunciar atualização automática: o aplicativo ainda usa atualização manual.
 
 ### RC-03 — confiança do executável
 
 - [ ] `Get-AuthenticodeSignature` retornar `Valid` e o editor esperado para o instalador e o executável principal.
-- [x] Identificar o candidato beta.2: 878.332.232 bytes (837,64 MiB) e SHA-256 `2DEF6B…EF76`.
+- [x] Identificar o candidato beta.3: 878.333.160 bytes (837,64 MiB) e SHA-256 `42458B…32BA1`.
 - [ ] O hash publicado corresponder byte a byte ao arquivo baixado do release.
-- [ ] O Microsoft Defender com proteção em tempo real ativa examinar o instalador beta.2 final sem registrar detecção correspondente.
+- [ ] O Microsoft Defender com proteção em tempo real ativa examinar o instalador beta.3 final sem registrar detecção correspondente.
 - [ ] Nenhum segredo, conversa, arquivo de perfil ou caminho pessoal da máquina de build estar dentro do ASAR ou dos recursos.
 
 Para uma versão estável e recomendada amplamente, assinatura válida continua sendo gate. Esta pré-release pode ser publicada para testadores porque o estado `NotSigned` será informado de forma explícita; o aviso do Windows não deve ser contornado nem descrito como garantia de segurança.
@@ -75,9 +75,9 @@ Para uma versão estável e recomendada amplamente, assinatura válida continua 
 
 - [x] Instalar o candidato reconstruído como usuário comum sem terminal, PowerShell ou CMD visível.
 - [ ] Abrir o `win-unpacked` atual em perfil isolado e confirmar onboarding, home, mascote e a nova configuração de controle sem janela branca.
-- [x] Confirmar `0.2.0-beta.2` no ASAR e Parakeet completo em `resources`.
-- [x] Instalar o candidato reconstruído e confirmar `0.2.0-beta.2` no pacote instalado.
-- [x] Confirmar visualmente que interface, mascote e sprites carregam no `win-unpacked`; a janela abriu com o perfil preservado e estado “Local conectado”.
+- [x] Confirmar `0.2.0-beta.3` no ASAR e Parakeet completo em `resources`.
+- [x] Instalar o candidato reconstruído e confirmar `0.2.0-beta.3` no pacote instalado.
+- [ ] Confirmar visualmente na beta.3 que interface, mascote, histórico e estado local carregam sem janela branca.
 - [ ] Testar entrada do Parakeet, microfone e saída de voz na instalação final.
 - [ ] Fechar e abrir o candidato atual três vezes sem crash, janela branca ou duplicação da janela principal.
 - [ ] Executar um smoke contínuo de 30 minutos sem crescimento anormal de CPU, RAM, handles ou processos.
@@ -86,7 +86,7 @@ Para uma versão estável e recomendada amplamente, assinatura válida continua 
 
 O teste do modelo em JSON é necessário, mas não basta. O caminho completo precisa passar pelo `AssistantHarness`, política beta de confirmação, auditoria, catálogo do Windows, UI Automation e aplicativo real.
 
-- [x] O modelo e a recuperação semântica passaram em 10/10 cenários naturais; a frase “Spotify não está rodando; abre ele e dá play” resultou em `spotify({ action: "play" })`, e perguntas conceituais não produziram efeito.
+- [x] O modelo e a recuperação semântica passaram em 19/19 cenários; as seis ferramentas, correções e referências entre turnos foram selecionadas corretamente, “Spotify não está rodando; abre ele e dá play” resultou em `spotify({ action: "play" })`, e perguntas conceituais não produziram efeito.
 - [x] O Windows registrou fontes reais para Brave, Spotify, ChatGPT/Codex, Antigravity e Antigravity IDE.
 - [ ] No pacote atual, “Abra o Spotify”, “Abra o Brave” e “Abra o Codex” executam direto e registram o resultado honesto.
 - [ ] “Abra o Antigravity” continua mostrando confirmação; negar impede o efeito e aprovar usa o AppID registrado.
@@ -128,7 +128,7 @@ O teste do modelo em JSON é necessário, mas não basta. O caminho completo pre
 
 ### RC-08 — histórico privado e memória local
 
-- [x] Com histórico ligado, nome, configurações e conversas preservados da `0.1.x` aparecem após instalar a `0.2.0-beta.2`.
+- [x] Com histórico ligado, configurações e conversas preservadas mantiveram exatamente seus hashes após instalar a `0.2.0-beta.3`.
 - [ ] “Lembre que...” cria uma memória explícita, aparece na área de memória e influencia uma resposta posterior.
 - [ ] Remover uma memória e limpar todas impedem uso posterior.
 - [ ] Com `keepHistory=false`, a conversa continua em RAM durante a sessão, mas reiniciar não grava novas mensagens.
@@ -149,7 +149,7 @@ O teste do modelo em JSON é necessário, mas não basta. O caminho completo pre
 Como a versão antiga já foi desinstalada e os dados ficaram preservados, executar nesta ordem:
 
 1. Antes da instalação, registrar apenas tamanho, timestamp e hash dos JSONs em `%APPDATA%\titi-desktop`, sem copiar o conteúdo para o release.
-2. Instalar `Titi-Setup-0.2.0-beta.2.exe` como usuário comum e observar se algum console aparece.
+2. Instalar `Titi-Setup-0.2.0-beta.3.exe` como usuário comum e observar se algum console aparece.
 3. Confirmar que o onboarding não reinicia indevidamente, o nome do mascote e as configurações continuam, e as conversas antigas podem ser abertas.
 4. Confirmar que novos arquivos `actions.json`, `memory.json` e `app-skills.json` só surgem quando a respectiva função é usada e a privacidade permite.
 5. Rodar a matriz real de Spotify, Brave, Codex/ChatGPT e Antigravity.
@@ -158,7 +158,7 @@ Como a versão antiga já foi desinstalada e os dados ficaram preservados, execu
 8. Reiniciar o Windows, abrir novamente e repetir uma ferramenta e um turno de voz.
 9. Recalcular os hashes dos dados e verificar que apenas arquivos esperados mudaram.
 
-Resultado do smoke final em 16/08/2026: o NSIS retornou código 0 e instalou `0.2.0-beta.2`. Antes e depois, `settings.json` manteve 568 bytes e SHA-256 `2AEB68B48B7505AC29E71D3017E80B139309DBA359E802A329CA1D069E621074`; `conversations.json` manteve 43.581 bytes e SHA-256 `8D30ECB31652C6F896D02F0D04763640837136526B5817206E99B82419DDFE9B`. A janela principal exibiu o histórico preservado e “Local conectado”.
+Resultado estrutural da instalação beta.3 em 16/08/2026: o NSIS retornou código 0 e o `app.asar` instalado declara `0.2.0-beta.3`. Antes e depois, `settings.json` manteve 568 bytes e SHA-256 `2AEB68B48B7505AC29E71D3017E80B139309DBA359E802A329CA1D069E621074`; `conversations.json` manteve 43.581 bytes e SHA-256 `8D30ECB31652C6F896D02F0D04763640837136526B5817206E99B82419DDFE9B`.
 
 ## Gates automatizados finais
 
@@ -186,8 +186,8 @@ Além do código 0:
 
 Só orientar o usuário a instalar quando **todos** estes itens forem verdadeiros:
 
-1. existe um instalador final `Titi-Setup-0.2.0-beta.2.exe`, assinado e com hash publicado;
-2. a versão interna, `latest.yml`, tag, notas e link de download são `0.2.0-beta.2`;
+1. existe um instalador final `Titi-Setup-0.2.0-beta.3.exe`, com estado de assinatura e hash publicados;
+2. a versão interna, `latest.yml`, tag, notas e link de download são `0.2.0-beta.3`;
 3. typecheck, 181+ testes, build, QA do modelo, empacotamento e verificação do pacote passam no mesmo candidato;
 4. a instalação real sobre os dados preservados passa sem perda de nome, configurações ou conversas;
 5. Spotify, Brave e Codex/ChatGPT abrem direto; Antigravity pede confirmação; a UI do Spotify passa no ciclo observar → agir → verificar;
@@ -197,14 +197,14 @@ Só orientar o usuário a instalar quando **todos** estes itens forem verdadeiro
 9. standby de jogo passa sem retomar microfone/modelo indevidamente;
 10. não há P0 aberto nem P1 que contradiga uma função anunciada na landing page.
 
-Se a assinatura ainda não estiver disponível, a mensagem permitida é somente “build privado de teste não assinado”, acompanhada do hash e do aviso de SmartScreen. Isso não atende ao gate de beta público.
+Sem assinatura, a mensagem permitida é “pré-release de teste não assinada”, acompanhada do hash e do aviso de SmartScreen. Isso pode atender ao beta público para testadores, mas nunca ao gate de versão estável recomendada.
 
 ### Estado contra esse critério
 
-- **Artefato e integridade beta.2:** aprovado localmente para o hash atual; candidato não assinado.
-- **Execução isolada do `win-unpacked` beta.2 atual:** aprovada visualmente com perfil preservado, interface e conexão local; workers Parakeet e Supertonic aprovados de dentro do pacote.
-- **Instalação NSIS atual sobre dados preservados:** aprovada para integridade, versão, preservação do perfil e abertura visual; microfone/áudio audível e matriz completa de ferramentas permanecem manuais.
+- **Artefato e integridade beta.3:** aprovado localmente para o hash atual; candidato não assinado.
+- **Execução isolada do `win-unpacked` beta.3 atual:** workers Parakeet e Supertonic aprovados de dentro do pacote; inspeção visual final pendente.
+- **Instalação NSIS beta.3 sobre dados preservados:** aprovada para integridade, versão e preservação exata do perfil; microfone/áudio audível e matriz completa de ferramentas permanecem manuais.
 - **Smoke funcional real de voz, abertura aprovada dos quatro aplicativos, memória e jogo:** pendente.
 - **Assinatura e verificação do download publicado:** pendente.
 
-Portanto, o candidato pode seguir para teste privado de instalação, com hash e aviso explícito de que não é assinado. Ainda não deve substituir o download público nem ser apresentado como versão finalizada.
+Portanto, o candidato pode seguir para a publicação beta após commit/tag/CI e conferência dos três ativos, sempre com hash e aviso explícito de que não é assinado. Ainda não deve ser apresentado como versão estável.

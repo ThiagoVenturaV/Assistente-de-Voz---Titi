@@ -169,7 +169,11 @@ export class OllamaProvider implements AssistantProvider {
         ? message.content.trim()
         : ''
 
-      if (toolCalls.length && !toolRuns.length && messageContent) {
+      if (
+        toolCalls.length
+        && !toolRuns.length
+        && (messageContent || looksConversationalRequest(latestUserRequest))
+      ) {
         let decision: ToolNeedDecision
         try {
           decision = await requestToolNeedDecision(
@@ -188,7 +192,13 @@ export class OllamaProvider implements AssistantProvider {
           return 'O pedido ficou ambíguo entre conversa e ação no computador. Nenhuma ação foi executada; reformule dizendo o resultado que você deseja.'
         }
         if (decision.decision === 'respond') {
-          return stripNoToolNeededPrefix(messageContent) ?? messageContent
+          const directResponse = stripNoToolNeededPrefix(messageContent) ?? messageContent
+          return directResponse || await requestConversationChat(
+            endpoint,
+            settings,
+            agentMessages,
+            signal
+          )
         }
       }
 
@@ -199,6 +209,7 @@ export class OllamaProvider implements AssistantProvider {
         if (content) {
           const conversationalResponse = stripNoToolNeededPrefix(content)
           if (conversationalResponse !== null) return conversationalResponse
+          if (looksConversationalRequest(latestUserRequest)) return content
         }
 
         if (forcedToolRound || toolRecoveryAttempted) {
@@ -231,7 +242,8 @@ export class OllamaProvider implements AssistantProvider {
               'AUDITORIA INTERNA: o pedido atual exige uma ou mais ferramentas reais.',
               'A resposta anterior não executou nada e foi descartada.',
               'Planeje pela linguagem natural do usuário e chame agora todas as ferramentas necessárias, na ordem lógica.',
-              'Para abrir e dar Play no Spotify, chame somente spotify com action=play, pois essa ação já abre o aplicativo quando necessário.',
+              'No Spotify, action=open apenas abre sem reproduzir; se o pedido disser tocar, reproduzir ou dar Play, use action=play, que já abre o aplicativo quando necessário.',
+              'Para apenas abrir um navegador sem página nem busca, use open_application; open_web exige url ou query.',
               'Não prometa, não narre e não afirme sucesso sem resultados de ferramenta.'
             ].join(' ')
           })
@@ -481,15 +493,19 @@ function renderToolLedger(
   runs: ToolRunLedgerEntry[],
   note?: string
 ): string {
-  const outcomes = runs.map(({ result }) => renderToolOutcome(result))
+  const outcomes = runs.map(({ tool, result }) => renderToolOutcome(tool, result))
   const lines = outcomes.length <= 1
     ? outcomes
-    : ['Resultados confirmados:', ...outcomes.map((outcome) => `- ${outcome}`)]
+    : ['Resultados das ações:', ...outcomes.map((outcome) => `- ${outcome}`)]
   if (note?.trim()) lines.push('', note.trim())
   return lines.filter((line, index) => line || index > 0).join('\n')
 }
 
-function renderToolOutcome(result: ToolExecutionResult): string {
+function renderToolOutcome(tool: string, result: ToolExecutionResult): string {
+  if (tool === 'computer_observe' && result.status === 'confirmed') {
+    const observation = renderComputerObservation(result)
+    if (observation) return observation
+  }
   const message = result.message.trim()
   switch (result.status) {
     case 'dispatched':
@@ -503,6 +519,51 @@ function renderToolOutcome(result: ToolExecutionResult): string {
     default:
       return result.ok ? message : `Não consegui executar essa ação. ${message}`
   }
+}
+
+function renderComputerObservation(result: ToolExecutionResult): string | null {
+  const details = isRecord(result.details) ? result.details : null
+  const controls = details && Array.isArray(details.controls)
+    ? details.controls
+    : []
+  const labels = [...new Set(controls.flatMap((value) => {
+    if (!isRecord(value) || value.enabled === false || typeof value.name !== 'string') return []
+    const name = safeObservedLabel(value.name)
+    if (!name) return []
+    const type = typeof value.controlType === 'string'
+      ? observedControlType(value.controlType)
+      : null
+    return [type ? `${name} (${type})` : name]
+  }))].slice(0, 12)
+  if (!labels.length) return null
+  const title = typeof details?.windowTitle === 'string'
+    ? safeObservedLabel(details.windowTitle)
+    : ''
+  const remaining = controls.length - labels.length
+  return [
+    `Controles visíveis${title ? ` em ${title}` : ''}: ${labels.join(', ')}.`,
+    ...(remaining > 0 ? [`Há mais ${remaining} controle${remaining === 1 ? '' : 's'} ${remaining === 1 ? 'acessível' : 'acessíveis'}.`] : [])
+  ].join(' ')
+}
+
+function observedControlType(value: string): string | null {
+  return ({
+    Button: 'botão',
+    CheckBox: 'caixa de seleção',
+    Hyperlink: 'link',
+    ListItem: 'item de lista',
+    MenuItem: 'item de menu',
+    RadioButton: 'opção',
+    TabItem: 'aba'
+  } as Record<string, string>)[value] ?? null
+}
+
+function safeObservedLabel(value: string): string {
+  const clean = value
+    .replace(/[\u0000-\u001f\u007f\u202a-\u202e\u2066-\u2069]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  return clean.length > 80 ? `${clean.slice(0, 79)}…` : clean
 }
 
 function hasExecutedToolRun(runs: ToolRunLedgerEntry[]): boolean {
@@ -527,7 +588,8 @@ function systemPrompt(mascotName: string): string {
     'Interprete o pedido pela linguagem natural e pelo contexto da conversa, incluindo referências, correções e pedidos compostos.',
     'Sempre chame uma ou mais ferramentas adequadas quando o usuário pedir uma ação ou observação do computador; não responda apenas com uma promessa.',
     'Em pedidos compostos, chame todas as ferramentas necessárias. As chamadas recebidas na mesma rodada serão executadas na ordem em que você as fornecer.',
-    'Para qualquer pedido de abrir ou controlar o Spotify, use diretamente a ferramenta spotify; spotify com action=play já abre o aplicativo quando necessário, portanto não chame open_application para o mesmo Spotify.',
+    'Para qualquer pedido de abrir ou controlar o Spotify, use diretamente a ferramenta spotify. action=open apenas abre sem reproduzir; se o pedido disser tocar, reproduzir ou dar Play, use action=play, que já abre o aplicativo quando necessário. Não chame open_application para o mesmo Spotify.',
+    'Para apenas abrir um navegador sem página nem busca, use open_application. Use open_web somente quando houver url ou query; nunca chame open_web apenas com browser.',
     `Somente quando nenhuma ferramenta for necessária, comece a resposta exatamente com ${NO_TOOL_NEEDED_PREFIX}. Esse marcador nunca pode acompanhar uma promessa de ação e será removido antes de exibir a resposta.`,
     'Considere o resultado da ferramenta como a única fonte de verdade e nunca afirme que executou algo se ela falhar.',
     'Um resultado com status "dispatched" confirma somente que o pedido foi enviado ao sistema; nunca diga que o efeito aconteceu sem status "confirmed".',
@@ -540,6 +602,16 @@ function systemPrompt(mascotName: string): string {
     'Durante a beta, as ferramentas permitidas executam pedidos diretos sem confirmação; abrir ou controlar o Antigravity é a única exceção e a própria ferramenta solicitará permissão.',
     'Ações destrutivas, compras, mensagens e operações fora das ferramentas disponíveis não devem ser improvisadas.'
   ].join(' ')
+}
+
+function looksConversationalRequest(value: string): boolean {
+  const request = value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase('pt-BR')
+    .replace(/\s+/g, ' ')
+    .trim()
+  return /^(?:(?:oi|ei) titi[,!:; -]*)?(?:me (?:explique|explica)|explique|explica|fale sobre|o que (?:e|sao)|qual (?:e|seria|a diferenca|o significado)|quais (?:sao|as diferencas)|como funciona|por que|porque|voce acha|o que voce acha)\b/u.test(request)
 }
 
 async function requestChat(
@@ -613,6 +685,47 @@ async function requestRequiredToolChat(
   const message = payload.choices?.[0]?.message
   if (!message) throw new Error('O modo obrigatório de ferramentas não retornou uma mensagem.')
   return { message }
+}
+
+async function requestConversationChat(
+  endpoint: string,
+  settings: TitiSettings,
+  messages: OllamaMessage[],
+  signal?: AbortSignal
+): Promise<string> {
+  const { response, payload } = await fetchJsonWithTimeout<OllamaChatResponse>(
+    `${endpoint}/api/chat`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: settings.provider.model,
+        stream: false,
+        think: false,
+        keep_alive: '5m',
+        messages: [
+          ...messages,
+          {
+            role: 'system',
+            content: 'O pedido atual é conversa ou explicação. Responda diretamente, sem ferramentas, sem prometer ações e sem inventar estado atual do computador.'
+          }
+        ],
+        options: {
+          temperature: 0,
+          num_ctx: 8192
+        }
+      })
+    },
+    120_000,
+    signal
+  )
+
+  if (!response.ok || payload.error) {
+    throw new Error(payload.error ?? `Falha local: HTTP ${response.status}`)
+  }
+  const content = payload.message?.content?.trim()
+  if (!content) throw new Error('O modelo local retornou uma resposta de conversa vazia.')
+  return stripNoToolNeededPrefix(content) ?? content
 }
 
 async function requestToolNeedDecision(

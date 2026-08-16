@@ -1,9 +1,15 @@
-# Titi Beta 0.2.0-beta.2
+# Titi Beta 0.2.0-beta.3
 
-Esta pré-release corretiva substitui a `0.2.0-beta.1`, que não deve mais ser recomendada. É uma prévia pública para testadores no Windows e continua sem assinatura Authenticode pública.
+Esta pré-release corretiva substitui a `0.2.0-beta.2`. É uma prévia pública para testadores no Windows e continua sem assinatura Authenticode pública.
 
 ## O que mudou
 
+- Perguntas conceituais que recebam uma tool call vazia ou indevida do modelo agora são bloqueadas antes de qualquer efeito e refeitas como conversa normal.
+- Perguntas claramente conversacionais deixam de pagar uma segunda rodada de classificação, reduzindo a latência sem enfraquecer a recuperação de pedidos de ação esquecidos.
+- O schema e o prompt agora distinguem “abrir o navegador” de “abrir uma página” e `spotify.open` de `spotify.play`; dar Play usa uma única ferramenta que já abre o aplicativo quando necessário.
+- Correções e referências entre mensagens entram no gate do modelo real, incluindo “na verdade abre o Brave”, “pesquisa isso no Brave” e “agora pausa ela”.
+- O encadeamento `computer_observe` → `computer_action` preserva a mesma cadeia e só age sobre o nome exato observado; os controles encontrados também aparecem de forma legível na resposta.
+- A matriz local agora cobre as seis ferramentas, aplicativos genéricos, pedidos compostos, conversa sem efeito lateral e múltiplos turnos.
 - Removida do pacote a instrumentação interna de QA que tornou a beta.1 imprópria para distribuição.
 - Todas as ferramentas agora passam por um controlador único, com identidade de cadeia e execução, timeout próprio e cancelamento propagado ao executor real.
 - Cancelar uma interação também fecha somente a confirmação ligada àquela execução; aprovar e cancelar ao mesmo tempo não deixa a ação avançar.
@@ -18,10 +24,10 @@ Esta pré-release corretiva substitui a `0.2.0-beta.1`, que não deve mais ser r
 - Conversas e configurações serializam mutações concorrentes para evitar perda silenciosa de mensagens ou patches.
 - O motor de transcrição espera o processo encerrar após cancelamento antes de limpar os arquivos temporários.
 - A transcrição trocou o Whisper pelo NVIDIA Parakeet TDT 0.6B v3 Q8 de 668.757.119 bytes, executado localmente em CPU. O modelo suporta português, pontuação e ditado longo sem depender de prompt textual.
-- O Parakeet agora permanece carregado em um worker dedicado. O Titi envia blocos de áudio durante a fala e revisa a frase na interface; no ensaio de 15 segundos, a primeira parcial apareceu em 205 ms e o próprio modelo corrigiu “Tite” para “Titi” ao receber mais contexto.
+- O Parakeet agora permanece carregado em um worker dedicado. O Titi envia blocos de áudio durante a fala e revisa a frase na interface; no ensaio final de 15 segundos, a primeira parcial apareceu em 165 ms e o próprio modelo corrigiu “Tite” para “Titi” ao receber mais contexto.
 - CPU continua como padrão por evidência: no áudio longo de QA, Parakeet Q8 levou 9,9 s na CPU e 40,2 s com CUDA 12.4 na RTX 2060 Super. A GPU fica livre para o modelo de conversa.
 - O modo ao vivo pode ser encerrado por frases naturais como “pare a conversa” e “encerre o modo ao vivo”, sem enviar esse comando ao modelo.
-- A voz instalada no Windows foi substituída pelo Supertonic 3 INT8, uma voz neural em português, totalmente local e isolada em worker. O smoke do pacote gerou 4,9 s de áudio em 0,88 s.
+- A voz instalada no Windows foi substituída pelo Supertonic 3 INT8, uma voz neural em português, totalmente local e isolada em worker. O smoke do pacote final gerou 4,9 s de áudio em 0,95 s.
 - Markdown, URLs e emojis permanecem no chat, mas são removidos do texto enviado à voz para que símbolos não sejam narrados.
 - A captura do microfone agora exige fala sustentada em vez de um pico isolado, aplica filtros passa-altas e passa-baixas e reduz 48 kHz para 16 kHz com o resampler de áudio do sistema, mantendo um fallback determinístico.
 - A revisão contextual não reescreve mais a frase. Aliases observados no histórico são determinísticos; nomes novos passam por um schema de substituições e são aceitos somente se o trecho existir literalmente, o destino pertencer ao catálogo, a confiança for alta e a semelhança fonética for plausível. Verbos, ações, negações e números são imutáveis nessa etapa.
@@ -38,10 +44,12 @@ Também permanecem as melhorias anteriores: comandos diretos com Ollama offline,
 ## Evidência automatizada
 
 - `pnpm typecheck`: aprovado.
-- `pnpm test`: 30 arquivos e 303 testes aprovados.
-- `pnpm qa:ollama-tools`: 11/11 cenários naturais aprovados, incluindo “Abre o Spotify e dá play.”, a frase composta que originou este corretivo e dois casos sem efeito lateral.
+- `pnpm test`: 30 arquivos e 306 testes aprovados.
+- `pnpm qa:ollama-tools`: 19/19 cenários aprovados no Qwen 3.5 9B local, cobrindo as seis ferramentas, referências entre turnos, correções e observação seguida de ação.
 - `pnpm build`: main, preload e renderer aprovados.
-- `pnpm package:win` e `pnpm verify:package`: aprovados para o artefato beta.2 local.
+- `pnpm package:win` e `pnpm verify:package`: aprovados para o artefato beta.3 final.
+- Workers empacotados: Parakeet com 10 parciais e frase final correta; Supertonic com 4,9 s de áudio gerados em 0,95 s.
+- Instalação silenciosa sobre a beta.2: código 0, versão interna beta.3 e hashes de configurações/conversas preservados exatamente.
 
 ## Instalação e dados
 
@@ -49,11 +57,11 @@ O candidato deve ser instalado sobre o perfil preservado em `%APPDATA%\titi-desk
 
 ## Integridade do instalador
 
-SHA-256 do candidato local `Titi-Setup-0.2.0-beta.2.exe` (878.332.232 bytes; 837,64 MiB):
+SHA-256 de `Titi-Setup-0.2.0-beta.3.exe` (878.333.160 bytes; 837,64 MiB):
 
-`2DEF6B24BC38A17AB9ACF79EAB83087B5FA996E46295063E4D1D1E5A348AEF76`
+`42458B01E7144B7C03D2CEB0CA355EF8E436D988107E306B9DBCE750B1E32BA1`
 
-O arquivo continua sem assinatura Authenticode. O hash deve ser recalculado se o instalador for assinado ou reconstruído; o hash da beta.1 nunca deve ser reutilizado.
+O arquivo continua sem assinatura Authenticode. O hash deve ser recalculado se o instalador for assinado ou reconstruído; hashes das betas anteriores nunca devem ser reutilizados.
 
 ## Limites conhecidos
 

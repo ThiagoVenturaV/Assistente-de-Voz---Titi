@@ -19,6 +19,13 @@ const actionCases = [
     plans: [[{ name: 'open_application', arguments: { application: 'brave' } }]]
   },
   {
+    prompt: 'Abra o aplicativo Calculadora.',
+    plans: [
+      [{ name: 'open_application', arguments: { application: 'Calculadora' } }],
+      [{ name: 'open_application', arguments: { application: 'calculadora' } }]
+    ]
+  },
+  {
     prompt: 'Titi, o Spotify não está rodando; abre ele e dá play na minha playlist.',
     plans: [[{ name: 'spotify', arguments: { action: 'play' } }]]
   },
@@ -39,8 +46,20 @@ const actionCases = [
     plans: [[{ name: 'open_web', arguments: { browser: 'brave' } }]]
   },
   {
+    prompt: 'Abra https://openai.com no Chrome.',
+    plans: [[{ name: 'open_web', arguments: { url: 'https://openai.com', browser: 'chrome' } }]]
+  },
+  {
+    prompt: 'Procura a playlist This Is Daft Punk no Spotify.',
+    plans: [[{ name: 'spotify', arguments: { action: 'search' } }]]
+  },
+  {
     prompt: 'Dá uma olhada que horas são agora.',
     plans: [[{ name: 'current_datetime', arguments: {} }]]
+  },
+  {
+    prompt: 'Quais controles estão visíveis no Spotify que já está aberto?',
+    plans: [[{ name: 'computer_observe', arguments: { application: 'spotify' } }]]
   },
   {
     prompt: 'Quero trabalhar no meu agente de código; abre o Antigravity.',
@@ -51,21 +70,49 @@ const conversationCases = [
   'Me explica o que é o Spotify.',
   'Qual a diferença entre Brave e Chrome?'
 ]
+const contextualCases = [
+  {
+    label: 'mantém o assunto e aplica a escolha de navegador no turno seguinte',
+    messages: [
+      { role: 'user', content: 'Quero consultar a documentação do TypeScript.' },
+      { role: 'assistant', content: 'Posso pesquisar a documentação para você.' },
+      { role: 'user', content: 'Então pesquisa isso no Brave.' }
+    ],
+    plans: [[{ name: 'open_web', arguments: { browser: 'brave' } }]]
+  },
+  {
+    label: 'entende uma correção natural sem repetir a ação anterior',
+    messages: [
+      { role: 'user', content: 'Abra o Chrome.' },
+      { role: 'assistant', content: 'Chrome aberto.' },
+      { role: 'user', content: 'Na verdade, abre o Brave.' }
+    ],
+    plans: [[{ name: 'open_application', arguments: { application: 'brave' } }]]
+  },
+  {
+    label: 'resolve uma referência curta ao estado de reprodução',
+    messages: [
+      { role: 'user', content: 'Coloca uma música para tocar no Spotify.' },
+      { role: 'assistant', content: 'A música começou a tocar no Spotify.' },
+      { role: 'user', content: 'Agora pausa ela um instante.' }
+    ],
+    plans: [[{ name: 'spotify', arguments: { action: 'pause' } }]]
+  }
+]
 
 const tools = [
   {
     type: 'function',
     function: {
       name: 'open_application',
-      description: 'Abre um aplicativo conhecido no Windows. Use para Chrome, Brave, Codex ou Antigravity; para abrir ou controlar o Spotify use a ferramenta spotify.',
+      description: 'Descobre e abre pelo nome um aplicativo instalado no Windows. Para abrir ou controlar o Spotify use a ferramenta spotify.',
       parameters: {
         type: 'object',
         required: ['application'],
         properties: {
           application: {
             type: 'string',
-            enum: ['chrome', 'brave', 'spotify', 'codex', 'antigravity'],
-            description: 'Aplicativo que será aberto.'
+            description: 'Nome comum do aplicativo, sem caminho, executável, argumentos ou comando.'
           }
         }
       }
@@ -108,9 +155,44 @@ const tools = [
               'volume_up',
               'volume_down',
               'mute'
-            ]
+            ],
+            description: 'Use open somente para abrir sem reproduzir. Use play quando o pedido disser tocar, reproduzir ou dar play; play já abre o Spotify quando necessário. Use search somente com query.'
           },
           query: { type: 'string' }
+        }
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'computer_observe',
+      description: 'Observa somente os controles visíveis e acessíveis de um aplicativo aberto no Windows. Use antes de computer_action.',
+      parameters: {
+        type: 'object',
+        required: ['application'],
+        properties: {
+          application: { type: 'string', description: 'Nome comum do aplicativo aberto.' }
+        }
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'computer_action',
+      description: 'Aciona por acessibilidade um controle visível que foi observado no aplicativo Windows.',
+      parameters: {
+        type: 'object',
+        required: ['action', 'application', 'target'],
+        properties: {
+          action: { type: 'string', enum: ['click'] },
+          application: { type: 'string' },
+          target: { type: 'string' },
+          controlType: {
+            type: 'string',
+            enum: ['Button', 'CheckBox', 'Hyperlink', 'ListItem', 'MenuItem', 'RadioButton', 'TabItem']
+          }
         }
       }
     }
@@ -162,10 +244,7 @@ for (const prompt of conversationCases) {
     const calls = toolCallsFromNative(response)
     const content = response?.message?.content?.trim() ?? ''
     const followsNoToolProtocol = !calls.length && content.startsWith(NO_TOOL_NEEDED_PREFIX)
-    const canClassifySafely = (calls.length > 0 && Boolean(content)) || calls.length === 0
-    const decision = followsNoToolProtocol || !canClassifySafely
-      ? null
-      : await classifyToolNeed(prompt)
+    const decision = followsNoToolProtocol ? null : await classifyToolNeed(prompt)
     const handledAsConversation = followsNoToolProtocol
       || (decision?.decision === 'respond' && Number(decision.confidence) >= 0.55)
     if (!handledAsConversation) {
@@ -184,14 +263,57 @@ for (const prompt of conversationCases) {
   }
 }
 
+for (const testCase of contextualCases) {
+  const { label, messages, plans } = testCase
+  const prompt = messages.at(-1)?.content ?? ''
+  try {
+    let response = await askModelMessages(messages)
+    let calls = toolCallsFromNative(response)
+    let mode = 'auto contextual'
+    if (!matchesAnyPlan(calls, plans)) {
+      response = await askModelWithRequiredToolsMessages(messages)
+      calls = toolCallsFromOpenAI(response)
+      mode = 'recuperação contextual obrigatória'
+    }
+
+    if (!matchesAnyPlan(calls, plans)) {
+      failures += 1
+      console.error(`FALHOU  ${label}`)
+      console.error(`  Esperado: ${JSON.stringify(plans)}`)
+      console.error(`  Recebido: ${JSON.stringify(calls)}`)
+    } else {
+      console.log(`OK      ${label} → ${summarizeCalls(calls)} [${mode}]`)
+    }
+  } catch (error) {
+    failures += 1
+    console.error(`ERRO    ${label}`)
+    console.error(`  Pedido atual: ${prompt}`)
+    console.error(`  ${error instanceof Error ? error.message : String(error)}`)
+  }
+}
+
+try {
+  const workflow = await validateObserveThenActWorkflow()
+  console.log(`OK      observa e age usando o controle retornado → ${workflow} [fluxo em duas rodadas]`)
+} catch (error) {
+  failures += 1
+  console.error('FALHOU  observa e age usando o controle retornado')
+  console.error(`  ${error instanceof Error ? error.message : String(error)}`)
+}
+
+const totalChecks = actionCases.length + conversationCases.length + contextualCases.length + 1
 if (failures) {
-  console.error(`\n${failures} de ${actionCases.length + conversationCases.length} verificações falharam.`)
+  console.error(`\n${failures} de ${totalChecks} verificações falharam.`)
   process.exitCode = 1
 } else {
-  console.log(`\n${actionCases.length + conversationCases.length} de ${actionCases.length + conversationCases.length} verificações passaram.`)
+  console.log(`\n${totalChecks} de ${totalChecks} verificações passaram.`)
 }
 
 async function askModel(prompt) {
+  return askModelMessages([{ role: 'user', content: prompt }])
+}
+
+async function askModelMessages(messages) {
   const response = await fetch(`${endpoint}/api/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -203,9 +325,9 @@ async function askModel(prompt) {
       messages: [
         {
           role: 'system',
-          content: `Você é um assistente local do Windows. Interprete linguagem natural, correções, referências e pedidos compostos. Quando o usuário pedir uma ação ou observação no computador, chame uma ou mais ferramentas reais e nunca apenas prometa. Para abrir ou controlar o Spotify, use diretamente spotify; action=play já abre o aplicativo, então não combine com open_application. Somente quando nenhuma ferramenta for necessária, comece a resposta exatamente com ${NO_TOOL_NEEDED_PREFIX}.`
+          content: `Você é um assistente local do Windows. Interprete linguagem natural, correções, referências e pedidos compostos. Quando o usuário pedir uma ação ou observação no computador, chame uma ou mais ferramentas reais e nunca apenas prometa. Para o Spotify, action=open apenas abre sem reproduzir; se o pedido disser tocar, reproduzir ou dar play, use action=play, que já abre o aplicativo. Nunca combine spotify com open_application para o mesmo pedido. Para apenas abrir um navegador sem página nem busca, use open_application; open_web exige url ou query. Para operar uma interface sem ferramenta específica, use computer_observe primeiro e computer_action somente com um nome de controle exato que foi observado. Somente quando nenhuma ferramenta for necessária, comece a resposta exatamente com ${NO_TOOL_NEEDED_PREFIX}.`
         },
-        { role: 'user', content: prompt }
+        ...messages
       ],
       tools,
       options: { temperature: 0, num_ctx: 4096 }
@@ -223,6 +345,10 @@ async function askModel(prompt) {
 }
 
 async function askModelWithRequiredTools(prompt) {
+  return askModelWithRequiredToolsMessages([{ role: 'user', content: prompt }])
+}
+
+async function askModelWithRequiredToolsMessages(messages) {
   const response = await fetch(`${endpoint}/v1/chat/completions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -232,9 +358,9 @@ async function askModelWithRequiredTools(prompt) {
       messages: [
         {
           role: 'system',
-          content: 'Interprete o pedido pela linguagem natural e chame todas as ferramentas necessárias. Não narre nem prometa; uma ou mais chamadas são obrigatórias. Para abrir e dar Play no Spotify, chame somente spotify com action=play, pois ela já abre o aplicativo.'
+          content: 'Interprete o pedido pela linguagem natural e pelo contexto anterior e chame todas as ferramentas necessárias. Não narre nem prometa; uma ou mais chamadas são obrigatórias. No Spotify, action=open apenas abre sem reproduzir; se o pedido disser tocar, reproduzir ou dar Play, use action=play, que já abre o aplicativo. Nunca combine spotify com open_application para o mesmo pedido. Para apenas abrir um navegador sem página nem busca, use open_application; open_web exige url ou query. Para operar uma interface sem ferramenta específica, use computer_observe antes de computer_action.'
         },
-        { role: 'user', content: prompt }
+        ...messages
       ],
       tools,
       tool_choice: 'required',
@@ -249,6 +375,80 @@ async function askModelWithRequiredTools(prompt) {
     throw new Error(`Ollama compatível respondeu com HTTP ${response.status}${detail ? `: ${detail}` : ''}`)
   }
   return payload
+}
+
+async function validateObserveThenActWorkflow() {
+  const messages = [{
+    role: 'user',
+    content: 'No Spotify que já está aberto, observe os controles e clique no botão Sua Biblioteca.'
+  }]
+  let response = await askModelMessages(messages)
+  let calls = toolCallsFromNative(response)
+  if (!calls.some((call) => call?.function?.name === 'computer_observe')) {
+    response = await askModelWithRequiredToolsMessages(messages)
+    calls = toolCallsFromOpenAI(response)
+  }
+
+  const observeIndex = calls.findIndex((call) => call?.function?.name === 'computer_observe')
+  if (observeIndex < 0) {
+    throw new Error(`computer_observe não foi chamado: ${JSON.stringify(calls)}`)
+  }
+  const actionInFirstRound = calls.findIndex((call) => {
+    if (call?.function?.name !== 'computer_action') return false
+    const args = parseArguments(call.function.arguments)
+    return args?.action === 'click'
+      && fold(args.application) === 'spotify'
+      && fold(args.target) === 'sua biblioteca'
+  })
+  if (actionInFirstRound > observeIndex) return summarizeCalls(calls)
+
+  const observeCall = calls[observeIndex]
+  messages.push({
+    role: 'assistant',
+    content: '',
+    tool_calls: [observeCall]
+  })
+  messages.push({
+    role: 'tool',
+    tool_name: 'computer_observe',
+    content: JSON.stringify({
+      ok: true,
+      status: 'confirmed',
+      message: 'Controles visíveis observados no Spotify.',
+      details: {
+        windowTitle: 'Spotify Premium',
+        controls: [
+          { name: 'Sua Biblioteca', controlType: 'Button', enabled: true },
+          { name: 'Play', controlType: 'Button', enabled: true }
+        ]
+      }
+    })
+  })
+
+  response = await askModelMessages(messages)
+  calls = toolCallsFromNative(response)
+  if (!calls.some(isExpectedLibraryClick)) {
+    response = await askModelWithRequiredToolsMessages(messages)
+    calls = toolCallsFromOpenAI(response)
+  }
+  if (!calls.some(isExpectedLibraryClick)) {
+    throw new Error(`computer_action não usou o controle observado: ${JSON.stringify(calls)}`)
+  }
+  return `computer_observe({"application":"spotify"}) → ${summarizeCalls(calls)}`
+}
+
+function isExpectedLibraryClick(call) {
+  if (call?.function?.name !== 'computer_action') return false
+  const args = parseArguments(call.function.arguments)
+  return args?.action === 'click'
+    && fold(args.application) === 'spotify'
+    && fold(args.target) === 'sua biblioteca'
+}
+
+function fold(value) {
+  return typeof value === 'string'
+    ? value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
+    : ''
 }
 
 async function classifyToolNeed(prompt) {
@@ -309,8 +509,18 @@ function matchesAnyPlan(calls, plans) {
   return plans.some((plan) => plan.every((expected) => calls.some((call) => {
     if (call?.function?.name !== expected.name) return false
     const actual = parseArguments(call.function.arguments)
-    return actual && Object.entries(expected.arguments).every(([key, value]) => actual[key] === value)
+    return actual && Object.entries(expected.arguments).every(([key, value]) => (
+      equivalentArgument(key, actual[key], value)
+    ))
   })))
+}
+
+function equivalentArgument(key, actual, expected) {
+  if (typeof actual !== 'string' || typeof expected !== 'string') return actual === expected
+  if (key === 'url') {
+    return actual.replace(/\/$/u, '') === expected.replace(/\/$/u, '')
+  }
+  return fold(actual) === fold(expected)
 }
 
 function summarizeCalls(calls) {
