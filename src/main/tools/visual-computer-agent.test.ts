@@ -164,6 +164,34 @@ describe('OllamaVisualComputerAgent', () => {
     expect(controller.capture).not.toHaveBeenCalled()
     expect(fetcher).not.toHaveBeenCalled()
   })
+
+  it('analisa todos os monitores localmente e não devolve as imagens no resultado', async () => {
+    const controller = makeController()
+    controller.captureDesktop = vi.fn(async () => ({
+      screenCount: 2,
+      screens: [
+        { index: 0, primary: true, left: 0, top: 0, width: 1920, height: 1080, imageWidth: 1920, imageHeight: 1080, imageBase64: 'monitor-1' },
+        { index: 1, primary: false, left: -2560, top: 0, width: 2560, height: 1440, imageWidth: 1920, imageHeight: 1080, imageBase64: 'monitor-2' }
+      ]
+    }))
+    const fetcher = visionFetch([
+      { state: 'confirmed', confidence: 0.94, summary: 'YouTube está aberto no Brave no segundo monitor.' }
+    ])
+    const agent = new OllamaVisualComputerAgent(controller, async () => DEFAULT_SETTINGS, fetcher)
+
+    const result = await agent.observeDesktop('Confirmar que o YouTube abriu no Brave')
+
+    expect(result).toMatchObject({
+      ok: true,
+      status: 'confirmed',
+      details: { method: 'local_multi_monitor_vision', screenCount: 2 }
+    })
+    expect(JSON.stringify(result)).not.toContain('monitor-1')
+    const request = JSON.parse(String(fetcher.mock.calls[0][1]?.body)) as {
+      messages: Array<{ images?: string[] }>
+    }
+    expect(request.messages[1].images).toEqual(['monitor-1', 'monitor-2'])
+  })
 })
 
 function makeController(): ComputerController & {

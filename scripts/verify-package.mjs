@@ -23,7 +23,15 @@ const packagedSupertonicWorker = asar.extractFile(
   archivePath,
   join('out', 'main', 'supertonic-worker.js')
 ).toString('utf8')
+const packagedRendererIndex = asar.extractFile(
+  archivePath,
+  join('out', 'renderer', 'index.html')
+).toString('utf8')
 const packagedRuntimeCode = `${packagedMain}\n${packagedSupertonicWorker}`
+
+if (!packagedRendererIndex.includes("media-src 'self' blob:")) {
+  throw new Error('O pacote não permite a reprodução segura do áudio local em blob: na CSP.')
+}
 
 if (packagedPackage.name !== sourcePackage.name) {
   throw new Error(
@@ -43,6 +51,8 @@ for (const marker of [
   '[SEM_FERRAMENTA]',
   'open_application',
   'computer_observe',
+  'computer_look',
+  'capture-desktop',
   'windows-ui-automation.ps1',
   'focusImageBase64',
   'app-skills.json',

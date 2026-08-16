@@ -18,6 +18,7 @@ import type {
   UiControlSnapshot
 } from './windows-ui-automation'
 import type { VisualComputerAgent } from './visual-computer-agent'
+import { knownWebsiteUrl } from './website-destination'
 
 type KnownApplication = 'chrome' | 'brave' | 'spotify' | 'codex' | 'antigravity'
 type BrowserChoice = 'default' | 'chrome' | 'brave'
@@ -128,6 +129,24 @@ export class DesktopToolkit implements ToolExecutor {
     },
     {
       type: 'function',
+      execution: { timeoutMs: 45_000, sideEffect: 'none' },
+      function: {
+        name: 'computer_look',
+        description: 'Captura todos os monitores inteiros e usa somente o modelo visual local para verificar um objetivo. As imagens não são gravadas no histórico nem enviadas à nuvem. Use para conferir um resultado que pode ter aparecido em outra tela.',
+        parameters: {
+          type: 'object',
+          required: ['goal'],
+          properties: {
+            goal: {
+              type: 'string',
+              description: 'Resultado visual concreto que deve ser confirmado em qualquer monitor.'
+            }
+          }
+        }
+      }
+    },
+    {
+      type: 'function',
       execution: { timeoutMs: 10_000, sideEffect: 'external' },
       function: {
         name: 'computer_action',
@@ -179,6 +198,8 @@ export class DesktopToolkit implements ToolExecutor {
           return await this.controlSpotify(args, context?.signal)
         case 'computer_observe':
           return await this.observeComputer(args, context)
+        case 'computer_look':
+          return await this.lookAtComputer(args, context)
         case 'computer_action':
           return await this.actOnComputer(args, context)
         case 'current_datetime':
@@ -200,9 +221,10 @@ export class DesktopToolkit implements ToolExecutor {
     application: string,
     signal?: AbortSignal
   ): Promise<ToolExecutionResult> {
-    return signal
+    const result = signal
       ? await this.appCatalog.open(application, signal)
       : await this.appCatalog.open(application)
+    return await this.confirmDispatchedWindow(application, result, signal)
   }
 
   private async openWeb(
@@ -216,9 +238,13 @@ export class DesktopToolkit implements ToolExecutor {
       return { ok: false, status: 'failed', message: 'Informe um endereço ou termo de pesquisa.' }
     }
 
-    const url = query
-      ? `https://www.google.com/search?q=${encodeURIComponent(query)}`
-      : normalizeHttpUrl(requestedUrl ?? '')
+    const knownUrl = !requestedUrl && query ? knownWebsiteUrl(query) : null
+    const isSearch = Boolean(query && !knownUrl && !requestedUrl)
+    const url = requestedUrl
+      ? normalizeHttpUrl(requestedUrl)
+      : knownUrl
+        ? normalizeHttpUrl(knownUrl)
+        : `https://www.google.com/search?q=${encodeURIComponent(query ?? '')}`
 
     throwIfAborted(signal)
     if (browser === 'default') {
@@ -232,12 +258,67 @@ export class DesktopToolkit implements ToolExecutor {
     }
     throwIfAborted(signal)
 
+    const observation = browser === 'default'
+      ? null
+      : await this.observeWindowWithRetry(browser, signal).catch(() => null)
+    const browserName = browser === 'default' ? 'navegador padrão' : displayName(browser)
+
     return {
-      ok: false,
-      status: 'dispatched',
-      message: query ? `Pesquisa aberta: ${query}.` : `Página aberta: ${url}.`,
-      details: { browser, url, effectState: 'dispatched_unverified' }
+      ok: Boolean(observation),
+      status: observation ? 'confirmed' : 'dispatched',
+      message: observation
+        ? `${isSearch ? 'Pesquisa enviada' : 'Página enviada diretamente'} e janela do ${browserName} confirmada em um dos monitores.`
+        : isSearch
+          ? `Pesquisa aberta: ${query}.`
+          : `Página aberta diretamente: ${knownUrl ? query : url}.`,
+      details: {
+        browser,
+        url,
+        navigation: isSearch ? 'search' : 'direct',
+        effectState: observation ? 'confirmed' : 'dispatched_unverified',
+        ...(observation ? { observation: windowEvidence(observation) } : {})
+      }
     }
+  }
+
+  private async confirmDispatchedWindow(
+    application: string,
+    result: ToolExecutionResult,
+    signal?: AbortSignal
+  ): Promise<ToolExecutionResult> {
+    if (result.status !== 'dispatched') return result
+    const observation = await this.observeWindowWithRetry(application, signal).catch(() => null)
+    if (!observation) return result
+    return {
+      ok: true,
+      status: 'confirmed',
+      message: `${observation.windowTitle || application} aberto; janela confirmada em um dos monitores.`,
+      details: {
+        ...result.details,
+        effectState: 'confirmed',
+        verification: 'window_observed_after_launch',
+        observation: windowEvidence(observation)
+      }
+    }
+  }
+
+  private async observeWindowWithRetry(
+    application: string,
+    signal?: AbortSignal
+  ): Promise<ComputerObservation> {
+    if (!this.computerController || !await this.isComputerControlEnabled().catch(() => false)) {
+      throw new Error('A observação da interface está desativada.')
+    }
+    let lastError: unknown
+    for (const delay of [250, 500, 900]) {
+      await abortableDelay(delay, signal)
+      try {
+        return await this.computerController.observe(application, signal)
+      } catch (error) {
+        lastError = error
+      }
+    }
+    throw lastError instanceof Error ? lastError : new Error('A janela não apareceu a tempo.')
   }
 
   private async controlSpotify(
@@ -324,6 +405,25 @@ export class DesktopToolkit implements ToolExecutor {
       message: `Controles visíveis observados em ${observation.windowTitle || application}.`,
       details: { ...observation }
     }
+  }
+
+  private async lookAtComputer(
+    args: Record<string, unknown>,
+    context?: ToolExecutionContext
+  ): Promise<ToolExecutionResult> {
+    const disabled = await this.computerControlUnavailable()
+    if (disabled) return disabled
+    if (!this.visualComputerAgent) {
+      return {
+        ok: false,
+        status: 'failed',
+        message: 'A visão local de todos os monitores não está disponível nesta instalação.'
+      }
+    }
+    return await this.visualComputerAgent.observeDesktop(
+      requiredString(args.goal, 'goal'),
+      context?.signal
+    )
   }
 
   private async actOnComputer(
@@ -505,6 +605,14 @@ export class DesktopToolkit implements ToolExecutor {
     if (controlType) return observation.controls.has(uiControlKey(target, controlType))
     const targetPrefix = `${normalizeUiLabel(target)}|`
     return [...observation.controls].some((control) => control.startsWith(targetPrefix))
+  }
+}
+
+function windowEvidence(observation: ComputerObservation): Omit<ComputerObservation, 'controls'> {
+  return {
+    application: observation.application,
+    windowTitle: observation.windowTitle,
+    processName: observation.processName
   }
 }
 

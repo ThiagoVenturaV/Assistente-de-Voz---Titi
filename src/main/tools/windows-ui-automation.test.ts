@@ -137,4 +137,27 @@ describe('WindowsUiAutomationController', () => {
     await expect(controller.click('Spotify', 1.5, 10)).rejects.toThrow('coordenadas')
     expect(runner).not.toHaveBeenCalled()
   })
+
+  it('captura todos os monitores, incluindo coordenadas virtuais negativas', async () => {
+    const runner = vi.fn<UiAutomationProcessRunner>(async () => ({
+      exitCode: 0,
+      stdout: JSON.stringify({
+        screenCount: 2,
+        screens: [
+          { index: 0, primary: true, left: 0, top: 0, width: 1920, height: 1080, imageWidth: 1920, imageHeight: 1080, imageBase64: '/9j/2Q==' },
+          { index: 1, primary: false, left: -2560, top: -120, width: 2560, height: 1440, imageWidth: 1920, imageHeight: 1080, imageBase64: '/9j/4A==' }
+        ]
+      }),
+      stderr: ''
+    }))
+    const controller = new WindowsUiAutomationController('ui.ps1', runner)
+
+    await expect(controller.captureDesktop()).resolves.toMatchObject({
+      screenCount: 2,
+      screens: [{ primary: true }, { left: -2560, top: -120 }]
+    })
+    expect(runner.mock.calls[0][0]).toEqual(expect.arrayContaining([
+      '-Operation', 'capture-desktop', '-Application', 'Desktop'
+    ]))
+  })
 })

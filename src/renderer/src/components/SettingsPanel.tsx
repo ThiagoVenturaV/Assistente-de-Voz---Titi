@@ -158,7 +158,7 @@ export function SettingsPanel({
                   />
                   <Toggle
                     label="Permitir controle da interface"
-                    description="Permite operar controles acessíveis e usar visão local no Play/Pause do Spotify. Na beta, só o Antigravity pede confirmação."
+                    description="Permite operar controles e analisar todos os monitores com visão totalmente local. Capturas não são salvas. Na beta, só o Antigravity pede confirmação."
                     checked={draft.computerControlEnabled}
                     onChange={(computerControlEnabled) => setDraft({ ...draft, computerControlEnabled })}
                   />
@@ -464,6 +464,7 @@ function toolLabel(tool: string): string {
     open_web: 'Abrir página ou pesquisa',
     spotify: 'Controlar música',
     computer_observe: 'Observar interface',
+    computer_look: 'Observar todos os monitores',
     computer_action: 'Acionar controle da interface',
     current_datetime: 'Consultar data e hora'
   } as Record<string, string>)[tool] ?? tool.replaceAll('_', ' ')
