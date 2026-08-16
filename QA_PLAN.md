@@ -4,7 +4,7 @@ Auditoria atualizada em 16/08/2026. Este documento define o que precisa estar co
 
 ## Veredito atual
 
-**O CANDIDATO LOCAL `0.2.0-beta.5` ESTÁ APROVADO PARA PUBLICAÇÃO COMO PRÉ-RELEASE NÃO ASSINADA.** Passaram 328 testes, typecheck, build, NSIS, verificação do pacote, 19/19 cenários de tool calling, Parakeet empacotado, Supertonic DirectML, instalação preservando o perfil e visão local real de 2 monitores. A publicação da tag, dos três assets e da landing é o último gate externo. Como o instalador continua `NotSigned`, pode acionar o SmartScreen e não deve ser tratado como versão estável.
+**A PRÉ-RELEASE PÚBLICA ATUAL É `0.2.0-beta.5`, NÃO ASSINADA.** Passaram 328 testes, typecheck, build, NSIS, verificação do pacote, 19/19 cenários de tool calling, Parakeet empacotado, Supertonic DirectML, instalação preservando o perfil e visão local real de 2 monitores. A tag aponta para o commit integrado; EXE, blockmap e `latest.yml` estão públicos, com tamanhos e digests conferidos, e o download anônimo retorna HTTP 200. Como o instalador continua `NotSigned`, pode acionar o SmartScreen e não deve ser tratado como versão estável.
 
 Antes do teste, o usuário havia desinstalado a versão anterior: a pasta de instalação foi removida, enquanto configurações e conversas permaneceram em `%APPDATA%\titi-desktop`. A beta.2 foi instalada sobre esse perfil e reabriu os dados existentes.
 
@@ -19,7 +19,7 @@ Antes do teste, o usuário havia desinstalado a versão anterior: a pasta de ins
 | Linguagem natural e seleção de ferramentas | Aprovado no nível de contrato | `pnpm qa:ollama-tools`: 19/19 no Qwen 3.5 9B local, cobrindo as seis ferramentas, aplicativo genérico, pedidos compostos, correções, referências entre turnos, conversa sem efeito e observar → agir; o script não executa efeitos externos |
 | Conversa real do provider | Aprovado sem efeitos externos | `pnpm exec vitest run scripts/check-ollama-conversation.test.ts`: 4/4 fluxos sequenciais no `OllamaProvider` real com Qwen 3.5 9B, definições reais das seis ferramentas e executor gravador; comprovou conversa conceitual sem efeito, Spotify composto, correção contextual, web, hora e observar → agir na mesma cadeia |
 | Dados da versão anterior | Preservados após o NSIS | A instalação reabriu o nome, as configurações e a conversa anterior; `settings.json` e `conversations.json` continuam presentes em `%APPDATA%\titi-desktop` |
-| Instalador beta.5 publicado | Pendente | publicar tag `v0.2.0-beta.5`, EXE, blockmap e `latest.yml`, conferir download anônimo e só então publicar a landing |
+| Instalador beta.5 publicado | Aprovado como pré-release | tag `v0.2.0-beta.5` em `cc8feddd`; EXE, blockmap e `latest.yml` públicos com tamanho e SHA-256 conferidos; download anônimo HTTP 200 |
 | Pacote beta.5 | Aprovado | `pnpm package:win` e `verify:package` confirmaram beta.5, ferramentas, CSP de mídia local, workers, Parakeet, Supertonic, DirectML e hashes |
 | Runtime local de voz empacotado | Aprovado | `ggml-parakeet-tdt-0.6b-v3-q8_0.bin` com 668.757.119 bytes e runtime mínimo de 9.104.960 bytes em `win-unpacked/resources/runtime/whisper`; executáveis de teste e modelos Whisper/VAD não entram no pacote |
 | Ensaio local de transcrição pt-BR | Aprovado sem microfone real | voz Microsoft Maria curta transcrita exatamente em 1,21 s; áudio controlado de 55,4 s transcrito por inteiro em 7,81 s, enquanto o Whisper anterior cortou o meio e repetiu o final três vezes; microfone do usuário continua no smoke manual |
@@ -46,7 +46,7 @@ Antes do teste, o usuário havia desinstalado a versão anterior: a pasta de ins
 - [x] Instalar beta.5 sobre `%APPDATA%\titi-desktop` e provar que configurações, conversas e ações mantiveram seus hashes.
 - [x] Provar visão local de 2 monitores e abertura direta do YouTube no Brave.
 - [x] Executar novamente o smoke DirectML no pacote final e na instalação.
-- [ ] Publicar tag e release beta.5, validar download anônimo e só então trocar a landing page pública.
+- [x] Publicar tag e release beta.5, validar download anônimo e só então trocar a landing page pública.
 
 ## Histórico do gate beta.3 e pendências manuais herdadas
 
@@ -221,10 +221,10 @@ Sem assinatura, a mensagem permitida é “pré-release de teste não assinada�
 
 ### Estado contra esse critério
 
-- **Artefato e integridade beta.5:** aprovado localmente; pré-release não assinada, com publicação no GitHub pendente.
+- **Artefato e integridade beta.5:** aprovado localmente e no GitHub; pré-release pública não assinada.
 - **Execução isolada do `win-unpacked` beta.5:** Parakeet, Supertonic DirectML, visão de 2 monitores e navegação direta aprovados no pacote.
 - **Instalação NSIS beta.5 sobre dados preservados:** aprovada para integridade, versão, igualdade do ASAR e preservação exata do perfil; áudio audível e matriz manual completa permanecem pendentes.
 - **Smoke funcional real de voz, abertura aprovada dos quatro aplicativos, memória e jogo:** pendente.
-- **Verificação do download publicado:** pendente até criar a tag, subir os três assets e confirmar acesso anônimo; assinatura continuará ausente.
+- **Verificação do download publicado:** aprovada para tag, commit, três assets, tamanhos, digests e acesso anônimo; assinatura continua ausente.
 
 Portanto, a beta.5 pode ser publicada para testadores com hash e aviso explícito de que não é assinada. Os smokes manuais restantes continuam impedindo tratá-la como versão estável.
