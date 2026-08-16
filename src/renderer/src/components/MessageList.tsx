@@ -1,18 +1,29 @@
+import { useEffect, useState } from 'react'
 import type { ChatMessage, MascotState } from '../../../shared/contracts'
+import { formatActivityElapsed } from '../conversation-ui'
 
 interface MessageListProps {
   messages: ChatMessage[]
   mascotName: string
   mascotState: MascotState
-  sending: boolean
+  activityStartedAt: number | null
 }
 
 export function MessageList({
   messages,
   mascotName,
   mascotState,
-  sending
+  activityStartedAt
 }: MessageListProps): React.JSX.Element {
+  const [now, setNow] = useState(() => Date.now())
+
+  useEffect(() => {
+    if (activityStartedAt === null) return
+    setNow(Date.now())
+    const timer = window.setInterval(() => setNow(Date.now()), 1000)
+    return () => window.clearInterval(timer)
+  }, [activityStartedAt])
+
   return (
     <div className="messages" aria-live="polite">
       {messages.map((message) => (
@@ -28,10 +39,13 @@ export function MessageList({
           </div>
         </article>
       ))}
-      {sending && (
+      {activityStartedAt !== null && (
         <article className="message message--assistant">
           <div className={`message-avatar message-avatar--${mascotState}`}><img src="./titi-icon.png" alt="" width={30} height={30} /></div>
-          <div className="message-content typing-indicator"><i /><i /><i /></div>
+          <div className="message-content activity-indicator" aria-live="off">
+            <span className="typing-dots" aria-hidden="true"><i /><i /><i /></span>
+            <small>Pensando e agindo há {formatActivityElapsed(activityStartedAt, now)}</small>
+          </div>
         </article>
       )}
     </div>
