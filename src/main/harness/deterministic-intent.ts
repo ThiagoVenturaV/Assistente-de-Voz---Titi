@@ -1,3 +1,5 @@
+import { knownWebsiteUrl } from '../tools/website-destination'
+
 export type DeterministicToolCall =
   | {
     name: 'open_application'
@@ -20,14 +22,25 @@ export type DeterministicToolCall =
       query?: string
     }
   }
+  | {
+    name: 'computer_look'
+    arguments: {
+      goal: string
+    }
+  }
 
 type BrowserChoice = 'default' | 'chrome' | 'brave'
 type KnownApplication = 'chrome' | 'brave' | 'spotify' | 'codex' | 'antigravity'
 
 const OPEN_COMMAND = /^(?:abra|abre|abrir|inicie|inicia|iniciar|execute|executa|executar|rode|roda|rodar)\s+(.+)$/iu
-const WEB_OPEN_COMMAND = /^(?:abra|abre|abrir|acesse|acessa|acessar|entre\s+em|navegue\s+(?:para|at[eé])|v[aá]\s+para)\s+(.+)$/iu
+const WEB_OPEN_COMMAND = /^(?:abra|abre|abrir|acesse|acessa|acessar|entre\s+(?:em|no|na)|navegue\s+(?:para|at[eé])|v[aá]\s+para)\s+(.+)$/iu
+const BROWSER_DESTINATION_COMMAND = /^(?:abra|abre|abrir|inicie|inicia|iniciar)\s+(?:(?:o|um)\s+)?(?:(?:navegador)\s+)?(google chrome|chrome|brave browser|brave)\s+(?:e|,)\s+(?:abra|abre|acesse|acessa|entre|entra|navegue|vai|v[aá])(?:\s+(?:em|no|na|para|at[eé]))?\s+(.+)$/iu
 const SEARCH_COMMAND = /^(?:pesquise|pesquisa|pesquisar|procure|procura|procurar|busque|busca|buscar)\s+(.+)$/iu
 const SPOTIFY_SEARCH_COMMAND = /^(?:pesquise|pesquisa|pesquisar|procure|procura|procurar|busque|busca|buscar|toque|tocar)\s+(.+?)\s+(?:no|na|pelo|pela)\s+(?:app(?:licativo)?\s+(?:do\s+)?)?spotify$/iu
+const DESKTOP_LOOK_COMMANDS = [
+  /^(?:olhe|olha|veja|v[eê]|observe)\s+(?:em\s+|nas?\s+)?(?:(?:tod[oa]s?\s+(?:[oa]s\s+)?(?:minhas?\s+)?)|(?:minhas?\s+))?(?:telas?|monitores?)\s+(?:e\s+|,\s*)?(?:confirme|diga|veja|confira|verifique)\s+se\s+(.+)$/iu,
+  /^(?:confira|verifique|veja)\s+(?:em\s+|nas?\s+)(?:(?:tod[oa]s?\s+(?:[oa]s\s+)?(?:minhas?\s+)?)|(?:minhas?\s+))?(?:telas?|monitores?)\s+se\s+(.+)$/iu
+]
 
 const APPLICATION_ALIASES: Record<string, KnownApplication> = {
   chrome: 'chrome',
@@ -69,7 +82,14 @@ const BLOCKED_GENERIC_APPLICATIONS = new Set([
  */
 export function resolveDeterministicIntent(input: string): DeterministicToolCall | null {
   const request = stripRequestFraming(input)
-  if (!request || hasCompoundAction(request)) return null
+  if (!request) return null
+
+  const browserDestination = resolveBrowserDestination(request)
+  if (browserDestination) return browserDestination
+
+  const desktopLook = resolveDesktopLook(request)
+  if (desktopLook) return desktopLook
+  if (hasCompoundAction(request)) return null
 
   const media = resolveMediaControl(request)
   if (media) return media
@@ -84,6 +104,42 @@ export function resolveDeterministicIntent(input: string): DeterministicToolCall
   if (webOpen) return webOpen
 
   return resolveWebSearch(request)
+}
+
+function resolveDesktopLook(request: string): DeterministicToolCall | null {
+  for (const command of DESKTOP_LOOK_COMMANDS) {
+    const match = request.match(command)
+    if (!match) continue
+
+    const subject = stripTrailingCourtesy(match[1])
+      .replace(/[.!?]+$/u, '')
+      .trim()
+    if (subject.length < 2 || subject.length > 240 || hasCompoundAction(subject)) return null
+
+    return {
+      name: 'computer_look',
+      arguments: { goal: `Verifique em todos os monitores se ${subject}` }
+    }
+  }
+  return null
+}
+
+function resolveBrowserDestination(request: string): DeterministicToolCall | null {
+  const match = request.match(BROWSER_DESTINATION_COMMAND)
+  if (!match) return null
+
+  const browserName = fold(match[1])
+  const browser: BrowserChoice = browserName.includes('brave') ? 'brave' : 'chrome'
+  const destination = stripTrailingCourtesy(match[2])
+    .replace(/^(?:o|a)\s+(?:site|endere[cç]o|url)(?:\s+(?:do|da|de))?\s+/iu, '')
+    .replace(/^(?:o|a)\s+/iu, '')
+  const url = exactWebDestination(destination) ?? knownWebsiteUrl(destination)
+  if (!url) return null
+
+  return {
+    name: 'open_web',
+    arguments: { url, browser }
+  }
 }
 
 function resolveApplicationOpen(request: string): DeterministicToolCall | null {
@@ -137,11 +193,11 @@ function resolveWebOpen(request: string): DeterministicToolCall | null {
   if (!match) return null
 
   let destination = stripTrailingCourtesy(match[1])
-    .replace(/^(?:o|a)\s+(?:site|endere[cç]o|url)\s+/iu, '')
+    .replace(/^(?:o|a)\s+(?:site|endere[cç]o|url)(?:\s+(?:do|da|de))?\s+/iu, '')
   const selected = extractBrowser(destination)
   destination = selected.content
 
-  const url = exactWebDestination(destination)
+  const url = exactWebDestination(destination) ?? knownWebsiteUrl(destination)
   if (!url) return null
   return {
     name: 'open_web',

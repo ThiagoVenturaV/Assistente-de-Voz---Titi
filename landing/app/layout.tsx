@@ -18,8 +18,8 @@ export async function generateMetadata(): Promise<Metadata> {
   const host = incoming.get("x-forwarded-host") ?? incoming.get("host") ?? "localhost:3000";
   const protocol = incoming.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
   const base = new URL(`${protocol}://${host}`);
-  const title = "Titi — Seu PC agora escuta você";
-  const description = "Um assistente para Windows que conversa por texto e voz, ajuda nas tarefas e mantém você no controle.";
+  const title = "Titi — Fale do seu jeito. O PC entende e faz.";
+  const description = "IA local para Windows que entende linguagem natural, acompanha o contexto e transforma sua voz em ações no computador.";
   return {
     metadataBase: base,
     title,
@@ -29,15 +29,15 @@ export async function generateMetadata(): Promise<Metadata> {
       description,
       type: "website",
       locale: "pt_BR",
-      images: [{ url: "/og-v2.png", width: 1731, height: 909, alt: "Titi — Seu PC agora escuta você" }],
+      images: [{ url: "/og-v5.png", width: 1732, height: 909, alt: "Titi — Fale do seu jeito. O PC entende e faz." }],
     },
-    twitter: { card: "summary_large_image", title, description, images: ["/og-v2.png"] },
+    twitter: { card: "summary_large_image", title, description, images: ["/og-v5.png"] },
     icons: { icon: "/titi-icon.png", shortcut: "/titi-icon.png" },
   };
 }
 
 export const viewport: Viewport = {
-  themeColor: "#f1efe8",
+  themeColor: "#f3f0e8",
   colorScheme: "light dark",
 };
 

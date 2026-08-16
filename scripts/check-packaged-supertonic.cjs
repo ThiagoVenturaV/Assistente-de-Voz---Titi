@@ -56,6 +56,25 @@ worker.on('message', (message) => {
     finish(new Error('O áudio empacotado não contém o cabeçalho RIFF.'))
     return
   }
+  const wav = new DataView(message.wavAudio)
+  const format = wav.getUint16(20, true)
+  const channels = wav.getUint16(22, true)
+  const sampleRate = wav.getUint32(24, true)
+  const bitsPerSample = wav.getUint16(34, true)
+  const declaredRiffBytes = wav.getUint32(4, true) + 8
+  const declaredDataBytes = wav.getUint32(40, true)
+  if (
+    format !== 1
+    || channels !== 1
+    || sampleRate < 8_000
+    || sampleRate > 192_000
+    || bitsPerSample !== 16
+    || declaredRiffBytes !== message.wavAudio.byteLength
+    || declaredDataBytes !== message.wavAudio.byteLength - 44
+  ) {
+    finish(new Error('O worker empacotado retornou metadados WAV incompatíveis.'))
+    return
+  }
   if (message.requestId === requestId) {
     coldGenerationMs = message.processingTimeMs
     worker.postMessage({
@@ -75,7 +94,13 @@ worker.on('message', (message) => {
     audioSeconds: Number((message.audioDurationMs / 1000).toFixed(2)),
     coldGenerationSeconds: Number((coldGenerationMs / 1000).toFixed(2)),
     warmGenerationSeconds: Number((message.processingTimeMs / 1000).toFixed(2)),
-    wavBytes: message.wavAudio.byteLength
+    wavBytes: message.wavAudio.byteLength,
+    format,
+    channels,
+    sampleRate,
+    bitsPerSample,
+    declaredRiffBytes,
+    declaredDataBytes
   }))
   finish()
 })

@@ -1,192 +1,120 @@
-import type { Metadata } from "next";
+import { CommandDeck, MotionRuntime } from "./motion-runtime";
+import Image from "next/image";
 
-const DOWNLOAD_URL = "https://github.com/ThiagoVenturaV/Assistente-de-Voz---Titi/releases/download/v0.2.0-beta.4/Titi-Setup-0.2.0-beta.4.exe";
-
-export const metadata: Metadata = {
-  title: "Titi — Seu PC agora escuta você",
-  description: "Um assistente para Windows que conversa por texto e voz, ajuda nas tarefas e mantém você no controle.",
-};
+const DOWNLOAD_URL = "https://github.com/ThiagoVenturaV/Assistente-de-Voz---Titi/releases/download/v0.2.0-beta.5/Titi-Setup-0.2.0-beta.5.exe";
 
 export default function Home() {
   return (
-    <main className="site-frame">
+    <main className="site-frame" id="inicio">
+      <MotionRuntime />
+      <div className="scroll-progress" aria-hidden="true" />
+
       <nav className="masthead shell" aria-label="Navegação principal">
         <a className="wordmark" href="#inicio" aria-label="Titi — início">
-          <span className="wordmark-pet"><img src="/titi-icon.png" alt="" /></span>
+          <span className="wordmark-pet"><Image src="/titi-icon.png" alt="" width={32} height={35} /></span>
           <span>Titi</span>
         </a>
         <div className="masthead-links">
-          <a href="#recursos">O que ele faz</a>
+          <a href="#como-funciona">Como funciona</a>
           <a href="#privacidade">Privacidade</a>
           <a href="#perguntas">Perguntas</a>
         </div>
         <a className="masthead-cta" href={DOWNLOAD_URL}>Baixar beta <span>↘</span></a>
       </nav>
 
-      <section className="hero-new shell" id="inicio">
-        <div className="hero-status"><span>Beta 0.2</span><i /> Feito para o seu computador</div>
-        <h1><span>O seu PC.</span><br />Agora ele <em>escuta.</em></h1>
-        <div className="hero-intro">
-          <p>O Titi acompanha sua fala enquanto você conversa, responde com voz neural local, abre aplicativos e opera controles acessíveis no Windows.</p>
-          <div className="hero-actions-new">
-            <a className="download-button" href={DOWNLOAD_URL}>
-              <span className="windows-glyph">⊞</span>
-              <span><strong>Baixar para Windows</strong><small>Grátis durante o beta</small></span>
-              <b>↓</b>
-            </a>
-            <a className="text-link" href="#experiencia">Ver como funciona <span>→</span></a>
+      <section className="hero shell" aria-labelledby="hero-title">
+        <div className="hero-copy" data-reveal>
+          <p className="eyebrow"><span>BETA 0.2</span><i /> IA local para Windows</p>
+          <h1 id="hero-title">Fale do<br />seu jeito.<br /><em>O PC faz.</em></h1>
+          <p className="hero-lead">O Titi entende pedidos em linguagem natural, acompanha o contexto da conversa e transforma sua voz em ações — no seu computador.</p>
+          <div className="hero-actions">
+            <a className="primary-button" href={DOWNLOAD_URL}><span className="windows-glyph">⊞</span><span><strong>Baixar para Windows</strong><small>Grátis durante o beta</small></span><b>↓</b></a>
+            <a className="round-link" href="#como-funciona" aria-label="Ver como o Titi funciona"><span>↓</span> Ver em ação</a>
+          </div>
+          <div className="hero-facts" aria-label="Principais benefícios">
+            <span><i /> Fala e voz locais</span><span><i /> Contexto entre mensagens</span><span><i /> Ações no Windows</span>
           </div>
         </div>
 
-        <div className="product-stage" id="experiencia" aria-label="Conceito da experiência do aplicativo Titi">
-          <div className="stage-grid" />
-          <div className="stage-label stage-label--top"><span>●</span> EXPERIÊNCIA DO PRODUTO</div>
-          <div className="stage-label stage-label--bottom">SIMPLES / PRIVADO / SEU</div>
-          <div className="titi-sprite hero-pet" role="img" aria-label="Mascote Titi acenando" />
-          <div className="app-window">
-            <div className="app-topbar"><span /><span /><span /><strong>Titi</strong><i>Tudo pronto</i></div>
-            <div className="app-body">
-              <aside><b>＋ Nova conversa</b><small>Hoje</small><p>Planejar meu dia</p><p>Ideias para o projeto</p></aside>
-              <div className="mini-chat">
-                <div className="live-pill"><i /> AO VIVO</div>
-                <p className="user-bubble">Titi, abre meu aplicativo de música.</p>
-                <div className="titi-message"><img src="/titi-icon.png" alt="" /><p><b>Deixa comigo.</b><br />Abrindo seu aplicativo de música.</p></div>
-                <div className="action-chip"><span>♪</span><div><small>APLICATIVO DE MÚSICA</small><strong>Aplicativo aberto</strong></div><i>Pronto</i></div>
-                <div className="composer">Converse com o Titi… <span>⌁ · ➤</span></div>
+        <div className="hero-visual" data-parallax="0.08" aria-label="Demonstração visual do Titi">
+          <div className="hero-backword" aria-hidden="true">ENTENDE</div>
+          <div className="hero-orbit hero-orbit--one" /><div className="hero-orbit hero-orbit--two" />
+          <div className="hero-panel">
+            <div className="panel-top"><span><i /><i /><i /></span><strong>Titi</strong><small><i /> local conectado</small></div>
+            <div className="panel-body">
+              <aside><span>＋</span><small>CONVERSAS</small><i /><i /><i /></aside>
+              <div className="panel-chat">
+                <p className="panel-status"><i /> AO VIVO · ENTENDENDO ENQUANTO VOCÊ FALA</p>
+                <p className="panel-user">Titi, abre meu aplicativo de música e coloca alguma coisa calma.</p>
+                <div className="panel-answer"><Image src="/titi-icon.png" alt="" width={26} height={29} /><p><small>ENTENDI</small>Abrindo seu aplicativo de música e iniciando uma seleção tranquila.</p></div>
+                <div className="panel-action"><span>♪</span><p><small>AÇÃO CONCLUÍDA</small><b>Aplicativo aberto · tocando</b></p><i>Pronto</i></div>
+                <div className="panel-composer">Converse com o Titi… <span>⌁</span></div>
               </div>
             </div>
           </div>
-          <div className="voice-orb"><span className="orb-core">⌁</span><i /><i /><i /><i /><i /></div>
-        </div>
-
-        <div className="hero-proof" aria-label="Destaques do Titi">
-          <p><b>01</b><span><strong>Fale naturalmente</strong>Texto, aperte para falar ou conversa ao vivo.</span></p>
-          <p><b>02</b><span><strong>Seus dados ficam com você</strong>Conversa e voz podem ficar no seu PC.</span></p>
-          <p><b>03</b><span><strong>Feito para agir</strong>Uma central para seus aplicativos.</span></p>
+          <div className="titi-sprite hero-titi" role="img" aria-label="Mascote Titi" />
+          <div className="voice-badge" data-parallax="0.16"><span>⌁</span><p><small>OUVINDO</small>Sua fala aparece ao vivo</p></div>
+          <span className="visual-note visual-note--a">01 / LINGUAGEM NATURAL</span><span className="visual-note visual-note--b">LOCAL · PRIVADO · SEU</span>
         </div>
       </section>
 
-      <div className="signal-line" aria-hidden="true">
-        <div className="signal-track">
-          <div className="signal-group"><span>TEXTO</span><i>✦</i><span>VOZ</span><i>✦</i><span>SEUS DADOS</span><i>✦</i><span>MASCOTE VIVO</span><i>✦</i><span>WINDOWS</span><i>✦</i><span>PRIVACIDADE</span></div>
-          <div className="signal-group"><span>TEXTO</span><i>✦</i><span>VOZ</span><i>✦</i><span>SEUS DADOS</span><i>✦</i><span>MASCOTE VIVO</span><i>✦</i><span>WINDOWS</span><i>✦</i><span>PRIVACIDADE</span></div>
-        </div>
-      </div>
+      <div className="signal-line" aria-hidden="true"><div className="signal-track">{[0, 1].map((group) => <div className="signal-group" key={group}><span>VOCÊ FALA</span><i>✦</i><span>ELE ENTENDE</span><i>✦</i><span>O PC RESPONDE</span><i>✦</i><span>TUDO LOCAL</span><i>✦</i></div>)}</div></div>
 
-      <section className="story-section shell" id="recursos">
-        <header className="editorial-heading">
-          <p><span>01</span> A EXPERIÊNCIA</p>
-          <div>
-            <h2>Não parece um comando.<br /><em>Parece uma conversa.</em></h2>
-            <p>O Titi foi desenhado para tirar a interface do caminho. Você fala, acompanha o que ele entendeu e continua no controle.</p>
-          </div>
-        </header>
+      <section className="manifesto shell" data-reveal>
+        <p className="section-index"><span>01</span> A IDEIA</p>
+        <div className="manifesto-copy"><h2>Você não deveria<br />aprender a falar<br /><em>com a máquina.</em></h2><div><p>É a máquina que precisa entender você.</p><p>Por isso o Titi acompanha correções, referências e intenção. Você pode hesitar, mudar de ideia e continuar a frase — como em qualquer conversa.</p></div></div>
+      </section>
 
-        <div className="experience-grid">
-          <article className="voice-lab">
-            <div className="card-topline"><span>CONVERSA AO VIVO</span><i>EM TESTE</i></div>
-            <div className="voice-display">
-              <div className="voice-rings"><span>⌁</span><i /><i /><i /></div>
-              <div className="voice-wave" aria-hidden="true">
-                {Array.from({ length: 29 }).map((_, index) => <i key={index} />)}
-              </div>
-              <p>“Titi, o que eu tenho para fazer hoje?”</p>
-            </div>
-            <footer><span><i /> OUVINDO</span><p>Diga “parar” ou pressione Esc</p></footer>
-          </article>
-
-          <div className="mode-list">
-            <article><span className="mode-number">01</span><div><h3>Aperte para falar</h3><p>Um botão rápido quando você quer dar um pedido e voltar ao que estava fazendo.</p></div><b>↗</b></article>
-            <article><span className="mode-number">02</span><div><h3>Conversa ao vivo</h3><p>Uma experiência contínua, como falar com alguém que está ao seu lado.</p></div><b>↗</b></article>
-            <article><span className="mode-number">03</span><div><h3>Texto quando quiser</h3><p>A mesma conversa continua no teclado, com o histórico guardado no seu computador.</p></div><b>↗</b></article>
+      <section className="journey-section" id="como-funciona">
+        <div className="journey-glow" aria-hidden="true" />
+        <div className="shell journey-shell">
+          <header className="journey-heading" data-reveal><p className="section-index section-index--dark"><span>02</span> DO PEDIDO À AÇÃO</p><h2>Três passos.<br /><em>Nenhum ritual.</em></h2><p>Sem decorar palavras mágicas. Sem abrir cinco menus antes de começar.</p></header>
+          <div className="journey-stack">
+            <article className="journey-card journey-card--voice" data-reveal>
+              <div className="journey-number">01 <span>VOCÊ FALA</span></div><div className="journey-content"><h3>Do jeito que vier.</h3><p>A transcrição incremental aparece enquanto você fala. O Titi ouve o pedido sem esperar você terminar um discurso perfeito.</p></div>
+              <div className="transcript-visual"><span><i /> OUVINDO AGORA</span><p>“Abre meu aplicativo de música e coloca…</p><p><b>não, espera,</b> primeiro abaixa o volume.”</p><div className="micro-wave" aria-hidden="true">{Array.from({ length: 31 }).map((_, index) => <i key={index} />)}</div></div>
+            </article>
+            <article className="journey-card journey-card--context" data-reveal>
+              <div className="journey-number">02 <span>ELE ENTENDE</span></div><div className="journey-content"><h3>Inclusive quando você muda de ideia.</h3><p>Correções e referências continuam ligadas à conversa. O Titi entende o que “ele”, “aquilo” e “na verdade” querem dizer no contexto.</p></div>
+              <div className="context-map" aria-label="Exemplo de contexto entre mensagens"><p>abre o editor <span>pedido</span></p><i /><p>na verdade, o outro <span>correção</span></p><i /><p><b>Antigravity</b> <span>alvo entendido</span></p></div>
+            </article>
+            <article className="journey-card journey-card--action" data-reveal>
+              <div className="journey-number">03 <span>O PC RESPONDE</span></div><div className="journey-content"><h3>O resultado aparece.</h3><p>O Titi abre aplicativos compatíveis, pesquisa, aciona controles acessíveis e mostra o que aconteceu. Você não fica tentando adivinhar.</p></div>
+              <div className="action-receipt"><div><span>◎</span><p><small>NAVEGADOR</small><b>Pesquisa preparada</b></p><i>FEITO</i></div><div><span>♪</span><p><small>MÚSICA</small><b>Reprodução iniciada</b></p><i>FEITO</i></div><div><span>⌘</span><p><small>EDITOR</small><b>Projeto localizado</b></p><i>FEITO</i></div></div>
+            </article>
           </div>
         </div>
       </section>
 
-      <section className="mascot-section shell" aria-label="Mascote Titi">
-        <div className="mascot-copy">
-          <p className="section-index"><span>02</span> PERSONALIDADE</p>
-          <h2>Um assistente com<br /><em>cara de companhia.</em></h2>
-          <p>O mascote reage enquanto escuta, pensa e fala. É um sinal visual simples: você sempre sabe o que o assistente está fazendo.</p>
-          <div className="state-legend"><span><i className="dot-listening" /> Escutando</span><span><i className="dot-thinking" /> Pensando</span><span><i className="dot-speaking" /> Falando</span></div>
-        </div>
-        <div className="mascot-canvas">
-          <div className="pixel-grid" />
-          <span className="mascot-note mascot-note--a">ESTADO / FALANDO</span>
-          <span className="mascot-note mascot-note--b">MASCOTE · PIXEL ART</span>
-          <div className="mascot-halo" />
-          <div className="titi-sprite titi-sprite--large" role="img" aria-label="Titi falando" />
-          <div className="speech-card"><i /><p>Seu navegador está aberto.<br /><b>O que você quer pesquisar?</b></p></div>
+      <section className="demo-section shell" id="recursos">
+        <header className="demo-heading" data-reveal><p className="section-index"><span>03</span> EXPERIMENTE A LÓGICA</p><div><h2>Um pedido.<br /><em>Várias camadas<br />de entendimento.</em></h2><p>Troque o exemplo e veja como o Titi separa linguagem, intenção e ação.</p></div></header>
+        <CommandDeck />
+      </section>
+
+      <section className="local-section" id="privacidade">
+        <div className="shell local-grid">
+          <div className="local-copy" data-reveal><p className="section-index section-index--dark"><span>04</span> INTELIGÊNCIA QUE MORA AÍ</p><h2>Sua voz não precisa<br />viajar para ser<br /><em>compreendida.</em></h2><p>A transcrição, a conversa e a voz neural podem rodar no seu próprio computador. Quando sua placa de vídeo está disponível, o Titi usa a GPU para responder com mais fluidez.</p><div className="local-points"><span><i>01</i> Fala processada localmente</span><span><i>02</i> Histórico guardado com você</span><span><i>03</i> Voz neural acelerada pela GPU</span></div></div>
+          <div className="local-core" data-parallax="0.08" data-reveal><div className="core-grid" /><span className="core-ring core-ring--one" /><span className="core-ring core-ring--two" /><span className="core-ring core-ring--three" /><div className="core-center"><span>⌁</span><small>PROCESSANDO</small><b>NO SEU PC</b></div><p className="core-note core-note--one"><i /> VOZ LOCAL</p><p className="core-note core-note--two"><i /> GPU ATIVA</p><p className="core-note core-note--three"><i /> DADOS COM VOCÊ</p></div>
         </div>
       </section>
 
-      <section className="agent-section" id="aplicativos">
-        <div className="shell">
-          <header className="agent-heading">
-            <div><p className="section-index"><span>03</span> AGINDO NO WINDOWS</p><h2>Um agente.<br />Todo o seu PC.</h2></div>
-            <p>O Titi conecta sua voz aos aplicativos, entende correções entre mensagens, observa controles acessíveis e registra o resultado de cada ação.</p>
-          </header>
-          <div className="apps-rail" aria-label="Aplicativos que o Titi pode ajudar a usar"><span><b>◎</b> Seu navegador</span><span><b>♪</b> Aplicativo de música</span><span><b>⌘</b> Editor de código</span><span><b>✣</b> Agente de código</span><span><b>◇</b> Seus jogos</span><span><b>＋</b> Outros aplicativos</span></div>
-          <div className="agent-showcase">
-            <div className="command-flow">
-              <div className="command-query"><span className="mini-pet"><img src="/titi-icon.png" alt="" /></span><p><small>VOCÊ DISSE</small>“Abre o projeto do Titi no meu editor de código.”</p><b>⌁</b></div>
-              <div className="flow-line"><i /><span>Entendendo seu pedido</span><i /></div>
-              <div className="permission-card"><span>⌘</span><div><small>CONFIRMAÇÃO ESPECIAL</small><strong>Abrir Antigravity</strong><p>Exceção mantida durante a fase beta</p></div><button type="button">Permitir</button></div>
-            </div>
-            <div className="agent-points">
-              <article><b>01</b><h3>Entende o pedido</h3><p>Você fala do seu jeito. O Titi entende o que você quis fazer e prepara o próximo passo.</p></article>
-              <article><b>02</b><h3>Mostra o que fará</h3><p>Nada acontece escondido. A interface informa aplicativo, alvo e resultado esperado.</p></article>
-              <article><b>03</b><h3>Confirma a exceção</h3><p>Na fase beta, os comandos executam direto; o Antigravity continua pedindo sua permissão.</p></article>
-            </div>
-          </div>
-          <p className="roadmap-disclaimer">Abrir aplicativos, navegar e acionar controles acessíveis já funciona; Play/Pause no aplicativo de música também usa visão local quando necessário. Visão genérica e digitação livre chegam depois.</p>
-        </div>
-      </section>
-
-      <section className="privacy-new" id="privacidade">
-        <div className="shell privacy-new-grid">
-          <div className="privacy-copy">
-            <p className="section-index section-index--dark"><span>04</span> SOB SEU CONTROLE</p>
-            <h2>Privacidade não é<br />um detalhe.<br /><em>É o começo.</em></h2>
-            <p>O Titi foi pensado para manter suas conversas, sua voz e seu histórico no seu computador sempre que possível.</p>
-            <a href="#perguntas">Entenda como seus dados funcionam <span>→</span></a>
-          </div>
-          <div className="privacy-terminal">
-            <div className="terminal-top"><span>SEUS DADOS</span><i>PROTEGIDOS</i></div>
-            <div className="terminal-body"><p><span>01</span><b>Conversas</b><i>No seu computador</i></p><p><span>02</span><b>Sua voz</b><i>Processada no seu computador</i></p><p><span>03</span><b>Histórico</b><i>Guardado com você</i></p><p><span>04</span><b>Internet</b><i>Usada em downloads e ações pedidas</i></p></div>
-            <footer><span><i /> TUDO PRONTO</span><b>Você continua no controle</b></footer>
-          </div>
-        </div>
+      <section className="companion-section shell" data-reveal>
+        <div className="companion-canvas"><div className="companion-grid" /><span className="companion-label companion-label--one">ESTADO / FALANDO</span><span className="companion-label companion-label--two">MASCOTE VIVO · PIXEL ART</span><div className="companion-halo" /><div className="titi-sprite companion-titi" role="img" aria-label="Titi falando" /><div className="companion-message"><i /><p>Pronto. Seu navegador está aberto.<br /><b>O que você quer pesquisar?</b></p></div></div>
+        <div className="companion-copy"><p className="section-index"><span>05</span> PRESENÇA, NÃO BARULHO</p><h2>Você sempre sabe<br /><em>o que ele está fazendo.</em></h2><p>O mascote reage quando escuta, pensa e fala. É personalidade com função: um sinal visual simples para deixar a tecnologia legível.</p><div className="state-legend"><span><i className="state-listening" /> Escutando</span><span><i className="state-thinking" /> Pensando</span><span><i className="state-speaking" /> Falando</span></div></div>
       </section>
 
       <section className="download-section shell" id="download">
-        <div className="download-poster">
-          <div className="download-poster-copy">
-            <p><span>BETA PÚBLICO</span> V0.2</p>
-            <h2>Dê voz ao<br />seu computador.</h2>
-            <p className="poster-lead">Converse por texto ou voz, acompanhe a transcrição ao vivo e ouça respostas neurais sem enviar sua fala para a nuvem.</p>
-            <a className="download-button download-button--light" href={DOWNLOAD_URL}><span className="windows-glyph">⊞</span><span><strong>Baixar Titi Beta</strong><small>Windows 10 ou 11 · aproximadamente 850 MB</small></span><b>↓</b></a>
-          </div>
-          <div className="download-visual"><div className="poster-orbit poster-orbit--one" /><div className="poster-orbit poster-orbit--two" /><div className="titi-sprite titi-sprite--poster" role="img" aria-label="Mascote Titi" /><span>HELLO,<br />HUMAN.</span></div>
-        </div>
-        <div className="requirements-row"><article><span>01</span><p><b>Windows 10 ou 11</b>Em um computador recente</p></article><article><span>02</span><p><b>Boa memória</b>16 GB recomendados</p></article><article><span>03</span><p><b>Espaço disponível</b>Cerca de 8 GB</p></article><article><span>04</span><p><b>Placa de vídeo</b>Recomendada para mais velocidade</p></article></div>
-        <p className="setup-note">Na primeira configuração, o Titi orienta você antes de baixar o modelo adicional de aproximadamente 6,6 GB.</p>
+        <div className="download-poster" data-reveal><div className="download-copy"><p><span>BETA PÚBLICO</span> V0.2.0 BETA.5</p><h2>Seu PC<br />já pode<br /><em>entender.</em></h2><p className="download-lead">Instale o Titi, fale naturalmente e descubra uma maneira mais humana de usar o Windows.</p><a className="primary-button primary-button--mint" href={DOWNLOAD_URL}><span className="windows-glyph">⊞</span><span><strong>Baixar Titi Beta</strong><small>Windows 10 ou 11 · aproximadamente 850 MB</small></span><b>↓</b></a></div><div className="download-art" data-parallax="0.06"><span className="download-orbit download-orbit--one" /><span className="download-orbit download-orbit--two" /><div className="titi-sprite download-titi" role="img" aria-label="Mascote Titi" /><p>OLÁ,<br />HUMANO.</p></div></div>
+        <div className="requirements"><article><span>01</span><p><b>Windows 10 ou 11</b>Em um computador recente</p></article><article><span>02</span><p><b>16 GB de memória</b>Recomendados para conversar bem</p></article><article><span>03</span><p><b>Cerca de 8 GB livres</b>Para o aplicativo e o modelo local</p></article><article><span>04</span><p><b>GPU recomendada</b>Para voz e respostas mais rápidas</p></article></div>
+        <p className="setup-note">Na primeira configuração, o Titi explica tudo antes de baixar o modelo adicional de aproximadamente 6,6 GB.</p>
       </section>
 
-      <section className="faq-new shell" id="perguntas">
-        <header><p className="section-index"><span>05</span> PERGUNTAS FREQUENTES</p><h2>Antes de<br /><em>começar.</em></h2></header>
-        <div className="faq-list-new">
-          <details><summary><span>01</span>Preciso instalar algo antes?<i /></summary><p>Não precisa preparar nada manualmente. Na primeira vez, o Titi explica cada etapa e só instala ou baixa o que faltar depois da sua confirmação.</p></details>
-          <details><summary><span>02</span>Tudo já vem no instalador?<i /></summary><p>A interface, o mascote, a transcrição incremental e a voz neural local já vêm. O modelo de conversa, com aproximadamente 6,6 GB, é baixado depois apenas com a sua confirmação.</p></details>
-          <details><summary><span>03</span>Que tipos de aplicativo o Titi pode abrir?<i /></summary><p>O beta abre alguns aplicativos compatíveis, como navegador, música, editor e agente de código. A compatibilidade com outros programas cresce a cada atualização.</p></details>
-          <details><summary><span>04</span>Meus dados saem do computador?<i /></summary><p>Suas conversas, sua voz e seu histórico podem ficar no seu computador. Se algum recurso precisar de internet, o Titi informa antes.</p></details>
-        </div>
+      <section className="faq-section shell" id="perguntas">
+        <header data-reveal><p className="section-index"><span>06</span> PERGUNTAS FREQUENTES</p><h2>Antes de<br /><em>começar.</em></h2></header>
+        <div className="faq-list" data-reveal><details><summary><span>01</span>Preciso configurar modelos manualmente?<i /></summary><p>Não. Na primeira vez, o Titi orienta a configuração e só baixa o modelo adicional depois da sua confirmação.</p></details><details><summary><span>02</span>Tudo já vem no instalador?<i /></summary><p>A interface, o mascote, a transcrição incremental e a voz neural local já vêm. O modelo de conversa, com aproximadamente 6,6 GB, é baixado depois.</p></details><details><summary><span>03</span>O que o Titi já consegue fazer no Windows?<i /></summary><p>O beta abre aplicativos compatíveis, usa seu navegador, pesquisa, controla Play/Pause no aplicativo de música e aciona controles acessíveis. A cobertura cresce a cada versão.</p></details><details><summary><span>04</span>Ele pede permissão antes de cada comando?<i /></summary><p>Durante o beta, os comandos compatíveis executam direto. O Antigravity permanece como uma confirmação especial antes da ação.</p></details><details><summary><span>05</span>Como interrompo uma conversa ao vivo?<i /></summary><p>Diga “parar” ou pressione Esc. O Titi encerra a escuta e devolve o controle imediatamente.</p></details><details><summary><span>06</span>Meus dados saem do computador?<i /></summary><p>Sua voz, suas conversas e seu histórico podem ficar no seu computador. Se uma ação pedida precisar de internet, como uma pesquisa, o Titi usa a conexão para essa ação.</p></details></div>
       </section>
 
-      <footer className="footer-new">
-        <div className="shell footer-main"><a className="wordmark wordmark--footer" href="#inicio"><span className="wordmark-pet"><img src="/titi-icon.png" alt="" /></span><span>Titi</span></a><p>Um assistente feito para tornar<br />o computador um pouco mais humano.</p><div><a href="#privacidade">Privacidade ↑</a><a href="#perguntas">Perguntas ↑</a><a href="#download">Download ↓</a></div></div>
-        <div className="shell footer-bottom"><span>© 2026 Titi</span><span>Feito no Brasil · Beta 0.2</span><a href="#inicio">Voltar ao topo ↑</a></div>
-      </footer>
+      <footer className="footer"><div className="shell footer-main"><a className="wordmark wordmark--footer" href="#inicio"><span className="wordmark-pet"><Image src="/titi-icon.png" alt="" width={32} height={35} /></span><span>Titi</span></a><p>Uma conversa mais natural<br />entre você e o seu computador.</p><div><a href="#como-funciona">Como funciona ↑</a><a href="#privacidade">Privacidade ↑</a><a href="#download">Download ↓</a></div></div><div className="shell footer-bottom"><span>© 2026 Titi</span><span>Feito no Brasil · Beta público</span><a href="#inicio">Voltar ao topo ↑</a></div></footer>
     </main>
   );
 }

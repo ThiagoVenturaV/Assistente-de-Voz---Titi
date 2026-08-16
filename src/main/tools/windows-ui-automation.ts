@@ -41,6 +41,23 @@ export interface ComputerVisualClick {
   y: number
 }
 
+export interface DesktopScreenCapture {
+  index: number
+  primary: boolean
+  left: number
+  top: number
+  width: number
+  height: number
+  imageWidth: number
+  imageHeight: number
+  imageBase64: string
+}
+
+export interface ComputerDesktopCapture {
+  screenCount: number
+  screens: DesktopScreenCapture[]
+}
+
 export interface ComputerController {
   observe(application: string, signal?: AbortSignal): Promise<ComputerObservation>
   invoke(
@@ -50,6 +67,7 @@ export interface ComputerController {
     signal?: AbortSignal
   ): Promise<ComputerInvocation>
   capture(application: string, signal?: AbortSignal): Promise<ComputerVisualCapture>
+  captureDesktop?(signal?: AbortSignal): Promise<ComputerDesktopCapture>
   click(application: string, x: number, y: number, signal?: AbortSignal): Promise<ComputerVisualClick>
 }
 
@@ -146,6 +164,22 @@ export class WindowsUiAutomationController implements ComputerController {
       safeApplication
     ], signal)
     return parseCapture(result)
+  }
+
+  async captureDesktop(signal?: AbortSignal): Promise<ComputerDesktopCapture> {
+    const result = await this.runner([
+      '-NoProfile',
+      '-NonInteractive',
+      '-ExecutionPolicy',
+      'Bypass',
+      '-File',
+      this.scriptPath,
+      '-Operation',
+      'capture-desktop',
+      '-Application',
+      'Desktop'
+    ], signal)
+    return parseDesktopCapture(result)
   }
 
   async click(
@@ -259,6 +293,50 @@ function parseClick(result: UiAutomationProcessResult): ComputerVisualClick {
     x,
     y
   }
+}
+
+function parseDesktopCapture(result: UiAutomationProcessResult): ComputerDesktopCapture {
+  const value = parseProcessJson(result)
+  if (
+    !Number.isInteger(value.screenCount)
+    || Number(value.screenCount) < 1
+    || Number(value.screenCount) > 8
+    || !Array.isArray(value.screens)
+    || value.screens.length !== value.screenCount
+  ) throw new Error('A captura dos monitores retornou dados inválidos.')
+
+  const screens = value.screens.map((screen, expectedIndex): DesktopScreenCapture => {
+    if (!isRecord(screen)) throw new Error('A captura retornou um monitor inválido.')
+    const index = nonNegativeInteger(screen.index)
+    const width = positiveInteger(screen.width)
+    const height = positiveInteger(screen.height)
+    const imageWidth = positiveInteger(screen.imageWidth)
+    const imageHeight = positiveInteger(screen.imageHeight)
+    if (
+      index !== expectedIndex
+      || typeof screen.primary !== 'boolean'
+      || !Number.isInteger(screen.left)
+      || !Number.isInteger(screen.top)
+      || !width
+      || !height
+      || !imageWidth
+      || !imageHeight
+    ) throw new Error('A captura retornou a geometria de um monitor inválida.')
+    const imageBase64 = optionalBase64(screen.imageBase64, 8_000_000)
+    if (!imageBase64) throw new Error('A captura retornou a imagem de um monitor inválida.')
+    return {
+      index,
+      primary: screen.primary,
+      left: Number(screen.left),
+      top: Number(screen.top),
+      width,
+      height,
+      imageWidth,
+      imageHeight,
+      imageBase64
+    }
+  })
+  return { screenCount: Number(value.screenCount), screens }
 }
 
 function parseControl(value: unknown): UiControlSnapshot {

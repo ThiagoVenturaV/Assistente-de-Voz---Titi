@@ -193,6 +193,13 @@ export function assessToolRisk(name: string, argumentsValue: unknown): ToolRiskA
       }
       return { kind: 'safe' }
     }
+    case 'computer_look': {
+      const goal = optionalString(args.goal)
+      if (!goal || goal.length > 240) {
+        return blocked('A observação visual foi bloqueada porque o objetivo é inválido.')
+      }
+      return { kind: 'safe' }
+    }
     case 'computer_action': {
       if (args.action !== 'click') {
         return blocked('A ação de interface solicitada não é permitida.')

@@ -639,7 +639,14 @@ async function speakText(content: string, rate: number, signal?: AbortSignal): P
       signal?.addEventListener('abort', abortPlayback, { once: true })
       audio!.onplay = () => void window.titi.mascot.setState('speaking')
       audio!.onended = () => finish()
-      audio!.onerror = () => finish(new Error('Não consegui reproduzir a voz neural local.'))
+      audio!.onerror = () => {
+        const mediaErrorCode = audio?.error?.code
+        finish(new Error(
+          mediaErrorCode
+            ? `Não consegui reproduzir a voz neural local (código ${mediaErrorCode}).`
+            : 'Não consegui reproduzir a voz neural local.'
+        ))
+      }
       if (signal?.aborted) {
         finish()
         return

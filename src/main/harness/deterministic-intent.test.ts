@@ -47,8 +47,36 @@ describe('resolveDeterministicIntent', () => {
     [
       'abra no Chrome www.github.com',
       { url: 'www.github.com', browser: 'chrome' }
+    ],
+    [
+      'entre no YouTube pelo Brave',
+      { url: 'https://www.youtube.com/', browser: 'brave' }
+    ],
+    [
+      'abra o site do GitHub',
+      { url: 'https://github.com/', browser: 'default' }
     ]
   ])('abre um destino web inequívoco: %s', (content, argumentsValue) => {
+    expect(resolveDeterministicIntent(content)).toEqual({
+      name: 'open_web',
+      arguments: argumentsValue
+    })
+  })
+
+  it.each([
+    [
+      'Abre o Brave e entra no YouTube.',
+      { url: 'https://www.youtube.com/', browser: 'brave' }
+    ],
+    [
+      'abra o navegador Google Chrome e acesse o GitHub',
+      { url: 'https://github.com/', browser: 'chrome' }
+    ],
+    [
+      'abre o Brave e vai para youtube.com',
+      { url: 'youtube.com', browser: 'brave' }
+    ]
+  ])('reduz navegador mais destino a uma única navegação: %s', (content, argumentsValue) => {
     expect(resolveDeterministicIntent(content)).toEqual({
       name: 'open_web',
       arguments: argumentsValue
@@ -86,6 +114,24 @@ describe('resolveDeterministicIntent', () => {
       name: 'spotify',
       arguments: argumentsValue
     })
+  })
+
+  it.each([
+    'Olhe todas as minhas telas e confirme se o YouTube está aberto em algum monitor.',
+    'Veja todos os monitores e diga se o Spotify está aberto.',
+    'Confira em todas as telas se o Brave está visível.'
+  ])('roteia a observação explícita de todos os monitores: %s', (content) => {
+    const result = resolveDeterministicIntent(content)
+    expect(result?.name).toBe('computer_look')
+    expect(result?.arguments).toHaveProperty('goal')
+  })
+
+  it.each([
+    'olhe a tela',
+    'confira se o YouTube está aberto',
+    'olhe todos os monitores e abra o Spotify'
+  ])('não promove observação ambígua ou com ação: %s', (content) => {
+    expect(resolveDeterministicIntent(content)).toBeNull()
   })
 
   it.each([

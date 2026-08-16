@@ -114,6 +114,11 @@ describe('DesktopToolkit security boundaries', () => {
         status: 'confirmed' as const,
         message: 'A reprodução foi verificada visualmente.',
         details: { method: 'local_visual_model' }
+      })),
+      observeDesktop: vi.fn(async () => ({
+        ok: true,
+        status: 'confirmed' as const,
+        message: 'Monitores observados.'
       }))
     }
     const toolkit = new DesktopToolkit(

@@ -1,6 +1,6 @@
 param(
   [Parameter(Mandatory = $true)]
-  [ValidateSet('observe', 'invoke', 'capture', 'click')]
+  [ValidateSet('observe', 'invoke', 'capture', 'capture-desktop', 'click')]
   [string]$Operation,
 
   [Parameter(Mandatory = $true)]
@@ -23,6 +23,7 @@ $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName UIAutomationTypes
 Add-Type -AssemblyName System.Drawing
+Add-Type -AssemblyName System.Windows.Forms
 Add-Type -TypeDefinition @'
 using System;
 using System.Runtime.InteropServices;
@@ -53,6 +54,24 @@ function Safe-Text([string]$Value, [int]$Limit) {
   return $cleaned
 }
 
+function Get-UsableRectangle($Element) {
+  $rectangle = $Element.Current.BoundingRectangle
+  $values = @(
+    [double]$rectangle.Left,
+    [double]$rectangle.Top,
+    [double]$rectangle.Width,
+    [double]$rectangle.Height
+  )
+  foreach ($value in $values) {
+    if ([double]::IsNaN($value) -or [double]::IsInfinity($value)) { return $null }
+  }
+  if (
+    $rectangle.Width -lt 100 -or $rectangle.Height -lt 100 -or
+    $rectangle.Width -gt 10000 -or $rectangle.Height -gt 10000
+  ) { return $null }
+  return $rectangle
+}
+
 function Get-Window {
   $wanted = Normalize-Label $Application
   $windows = [Windows.Automation.AutomationElement]::RootElement.FindAll(
@@ -68,11 +87,13 @@ function Get-Window {
       $windowName = Normalize-Label $window.Current.Name
       $allowsPartialMatch = $wanted.Length -ge 4
       if ($processName -eq $wanted -or $windowName -eq $wanted -or ($allowsPartialMatch -and ($processName.StartsWith($wanted) -or $windowName.Contains($wanted)))) {
+        $rectangle = Get-UsableRectangle $window
+        if ($null -eq $rectangle) { continue }
         $score = 0
         if ($processName -eq $wanted) { $score += 20 }
         if ($windowName -eq $wanted) { $score += 10 }
         if ($window.Current.IsEnabled) { $score += 2 }
-        $matches += [pscustomobject]@{ Element = $window; Process = $process; Score = $score }
+        $matches += [pscustomobject]@{ Element = $window; Process = $process; Bounds = $rectangle; Score = $score }
       }
     } catch {
       continue
@@ -115,6 +136,59 @@ function Get-InteractiveControls($Window) {
   return $result
 }
 
+if ($Operation -eq 'capture-desktop') {
+  $screens = @([Windows.Forms.Screen]::AllScreens)
+  if ($screens.Count -eq 0 -or $screens.Count -gt 8) {
+    throw 'O Windows retornou uma quantidade inválida de monitores.'
+  }
+  $captures = [Collections.Generic.List[object]]::new()
+  for ($index = 0; $index -lt $screens.Count; $index += 1) {
+    $screen = $screens[$index]
+    $bounds = $screen.Bounds
+    if ($bounds.Width -lt 100 -or $bounds.Height -lt 100 -or $bounds.Width -gt 10000 -or $bounds.Height -gt 10000) {
+      throw "O monitor $($index + 1) retornou dimensões inválidas."
+    }
+    $sourceBitmap = [Drawing.Bitmap]::new($bounds.Width, $bounds.Height, [Drawing.Imaging.PixelFormat]::Format24bppRgb)
+    $sourceGraphics = [Drawing.Graphics]::FromImage($sourceBitmap)
+    $previewBitmap = $null
+    $previewGraphics = $null
+    $stream = [IO.MemoryStream]::new()
+    try {
+      $sourceGraphics.CopyFromScreen($bounds.Left, $bounds.Top, 0, 0, $bounds.Size)
+      $scale = [Math]::Min(1.0, 1920.0 / $bounds.Width)
+      $previewWidth = [Math]::Max(1, [int][Math]::Round($bounds.Width * $scale))
+      $previewHeight = [Math]::Max(1, [int][Math]::Round($bounds.Height * $scale))
+      $previewBitmap = [Drawing.Bitmap]::new($previewWidth, $previewHeight, [Drawing.Imaging.PixelFormat]::Format24bppRgb)
+      $previewGraphics = [Drawing.Graphics]::FromImage($previewBitmap)
+      $previewGraphics.InterpolationMode = [Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+      $previewGraphics.DrawImage($sourceBitmap, 0, 0, $previewWidth, $previewHeight)
+      $previewBitmap.Save($stream, [Drawing.Imaging.ImageFormat]::Jpeg)
+      $captures.Add([ordered]@{
+        index = $index
+        primary = [bool]$screen.Primary
+        left = $bounds.Left
+        top = $bounds.Top
+        width = $bounds.Width
+        height = $bounds.Height
+        imageWidth = $previewWidth
+        imageHeight = $previewHeight
+        imageBase64 = [Convert]::ToBase64String($stream.ToArray())
+      })
+    } finally {
+      $stream.Dispose()
+      if ($null -ne $previewGraphics) { $previewGraphics.Dispose() }
+      if ($null -ne $previewBitmap) { $previewBitmap.Dispose() }
+      $sourceGraphics.Dispose()
+      $sourceBitmap.Dispose()
+    }
+  }
+  [pscustomobject]@{
+    screenCount = $captures.Count
+    screens = @($captures)
+  } | ConvertTo-Json -Depth 5 -Compress
+  exit 0
+}
+
 $selectedWindow = Get-Window
 $base = [ordered]@{
   application = Safe-Text $Application 80
@@ -122,7 +196,7 @@ $base = [ordered]@{
   processName = Safe-Text $selectedWindow.Process.ProcessName 100
 }
 
-$rectangle = $selectedWindow.Element.Current.BoundingRectangle
+$rectangle = $selectedWindow.Bounds
 $left = [int][Math]::Round($rectangle.Left)
 $top = [int][Math]::Round($rectangle.Top)
 $width = [int][Math]::Round($rectangle.Width)

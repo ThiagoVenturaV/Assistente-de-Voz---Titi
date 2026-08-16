@@ -2,7 +2,7 @@
 
 Titi é um assistente local para Windows com interface gráfica, conversa por texto e voz, mascote 2D animado e ferramentas controladas para agir no computador. O objetivo é permitir que a pessoa use seus aplicativos por voz sem entregar um terminal irrestrito ao modelo.
 
-> **Estado atual:** a pré-release pública `0.2.0-beta.4` mantém as correções de linguagem natural e ferramentas da beta.3 e passa a executar a voz Supertonic na GPU pelo DirectML, com fallback automático para CPU. A transcrição Parakeet continua incremental na CPU porque foi mais rápida assim no hardware medido. Durante a beta, comandos permitidos executam direto; somente abrir ou controlar o Antigravity pede confirmação. O instalador ainda não possui assinatura pública e deve ser tratado como uma prévia para testadores; consulte `QA_PLAN.md`.
+> **Estado atual:** a pré-release pública `0.2.0-beta.5` entende destinos conhecidos sem pesquisar, confirma janelas em qualquer monitor e pode observar todos os monitores com visão local quando a pessoa pede explicitamente. A voz Supertonic usa DirectML com fallback para CPU, e a transcrição Parakeet continua incremental na CPU porque foi mais rápida assim no hardware medido. Durante a beta, comandos permitidos executam direto; somente abrir ou controlar o Antigravity pede confirmação. O instalador não possui assinatura pública e deve ser tratado como uma prévia para testadores; consulte `QA_PLAN.md`.
 
 ## O que está implementado no código atual
 
@@ -23,6 +23,9 @@ Titi é um assistente local para Windows com interface gráfica, conversa por te
 - catálogo local que procura aplicativos no Menu Iniciar, nos aplicativos registrados pelo Windows e em pastas de instalação confiáveis;
 - aprendizado de uma receita estruturada somente depois que um processo correspondente é confirmado; quando isso não é possível, o Titi informa apenas que enviou o pedido ao Windows;
 - abertura de páginas HTTP/HTTPS, pesquisa na web, pesquisa no aplicativo de música e teclas de mídia;
+- destinos conhecidos como YouTube, GitHub e Gmail abrem pela URL direta; termos incertos continuam usando pesquisa em vez de inventar um endereço;
+- confirmação de abertura procura a janela em todos os monitores e aceita coordenadas virtuais negativas, portanto mover a janela entre telas não invalida a observação;
+- a ferramenta `computer_look` captura até oito monitores, analisa as imagens somente no Ollama local, devolve um resumo estruturado e não persiste nem envia as capturas para a nuvem;
 - controle opt-in de aplicativos visíveis pela acessibilidade do Windows: o Titi observa controles, exige que o alvo tenha sido visto na mesma interação e bloqueia nomes ambíguos;
 - `play` e `pause` são ações distintas: no Spotify, o Titi tenta o botão acessível e, quando o aplicativo não expõe controles, captura a região visível da janela, envia somente um recorte ampliado do player ao Ollama local, clica dentro da própria janela e verifica visualmente o novo estado;
 - durante a beta, ferramentas permitidas, navegação e aplicativos executam direto; somente abrir ou controlar o Antigravity pede confirmação;
@@ -33,13 +36,13 @@ Titi é um assistente local para Windows com interface gráfica, conversa por te
 - standby conservador durante jogos conhecidos ou executáveis adicionados pelo usuário; ele cancela tarefas, pausa voz, oculta o mascote e verifica a descarga do modelo pela API local;
 - gravações de conversas e configurações são serializadas para não perder atualizações concorrentes.
 
-O código passa por `pnpm typecheck` e por **308 testes em 31 arquivos**. `pnpm package:dir` também verifica o ASAR, os workers, os módulos nativos, o runtime de automação, o Parakeet e os binários DirectML do Supertonic por SHA-256, além de rejeitar rotas de QA proibidas em produção. Essa evidência ainda não substitui a validação do instalador em uma máquina limpa.
+O código passa por `pnpm typecheck` e por **328 testes em 32 arquivos**. `pnpm package:dir` também verifica o ASAR, os workers, os módulos nativos, o runtime de automação, o CSP necessário para reproduzir a voz, o Parakeet e os binários DirectML do Supertonic por SHA-256, além de rejeitar rotas de QA proibidas em produção. Essa evidência ainda não substitui a validação do instalador em uma máquina limpa.
 
 ## Limites desta versão
 
 - o catálogo aumenta a cobertura, mas ainda não garante abrir literalmente qualquer aplicativo; ambiguidades ainda não têm uma tela de escolha;
 - abrir Codex, ChatGPT ou Antigravity não significa delegar uma tarefa: envio, acompanhamento e retorno de trabalhos continuam no backlog;
-- a automação genérica desta etapa usa controles expostos pela acessibilidade do Windows; a única exceção visual é Play/Pause do Spotify, limitada a um clique preso à barra inferior e sem digitação. Visão genérica, digitação livre, arrastar e menus de contexto ainda não estão cobertos;
+- a observação visual genérica cobre todos os monitores, mas ainda é somente leitura; a automação genérica continua usando controles expostos pela acessibilidade do Windows, e a única exceção visual de clique é Play/Pause do Spotify, limitada à própria janela. Digitação livre, arrastar e menus de contexto ainda não estão cobertos;
 - o standby inclui uma lista segura editável, mas ainda precisa ser testado com jogos reais, tela cheia, múltiplos monitores, downloads e tarefas em andamento;
 - somente Ollama está implementado; API e OAuth ainda não fazem parte do produto;
 - seleção e interrupção estão implementadas, mas ainda faltam microfone real, vinte turnos ao vivo e cancelamento exercitado em todas as fases do aplicativo instalado;
@@ -90,7 +93,8 @@ Dependências oficiais:
 | Área | Estado na branch | O que falta para considerar entregue |
 | --- | --- | --- |
 | Interface, chat e mascote | Base pronta | Smoke test do novo pacote |
-| Ferramentas e resultado real | Pronto no código | QA no instalador e efeitos reais |
+| Ferramentas e resultado real | Pronto no código | Expandir a matriz de aplicativos reais |
+| Visão local multimonitor | Pronto e testado em 2 monitores | Otimizar a latência e ampliar cenários |
 | Descoberta e aprendizado de apps | Parcial | UI para ambiguidades e cobertura real de mais aplicativos |
 | Política beta e auditoria | Parcial | E2E da execução direta e do modal exclusivo do Antigravity |
 | Histórico privado e memória | Pronto no código | Migração e teste no pacote |
