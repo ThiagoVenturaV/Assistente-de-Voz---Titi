@@ -1,6 +1,6 @@
 {
   "name": "titi-desktop",
-  "version": "0.2.0-beta.3",
+  "version": "0.2.0-beta.4",
   "packageManager": "pnpm@10.22.0",
   "description": "Assistente local para Windows com chat, voz, ferramentas e o mascote Titi.",
   "main": "./out/main/index.js",
@@ -73,6 +73,32 @@
           "unicode_indexer.bin",
           "voice.bin",
           "LICENSE"
+        ]
+      },
+      {
+        "from": "runtime/supertonic/directml",
+        "to": "runtime/supertonic/directml",
+        "filter": [
+          "licenses/*.txt",
+          "NOTICE.md"
+        ]
+      },
+      {
+        "from": "runtime/supertonic/directml/node_modules/sherpa-onnx-node",
+        "to": "runtime/supertonic/directml/node_modules/sherpa-onnx-node",
+        "filter": [
+          "*.js",
+          "package.json"
+        ]
+      },
+      {
+        "from": "runtime/supertonic/directml/node_modules/sherpa-onnx-win-x64",
+        "to": "runtime/supertonic/directml/node_modules/sherpa-onnx-win-x64",
+        "filter": [
+          "*.dll",
+          "*.node",
+          "index.js",
+          "package.json"
         ]
       }
     ],
