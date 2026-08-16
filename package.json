@@ -12,7 +12,12 @@
     "test": "vitest run src",
     "setup:electron": "node node_modules/electron/install.js",
     "setup:whisper": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/setup-whisper.ps1",
+    "setup:tts": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/setup-supertonic.ps1",
     "qa:ollama-tools": "node scripts/check-ollama-tool-calling.mjs",
+    "qa:transcription-refiners": "node scripts/benchmark-transcription-refiners.mjs",
+    "qa:streaming-transcription": "node scripts/check-parakeet-streaming-worker.mjs",
+    "qa:packaged-transcription": "cmd.exe /d /c \"set ELECTRON_RUN_AS_NODE=1&& node_modules\\electron\\dist\\electron.exe scripts\\check-parakeet-streaming-worker.mjs %TEMP%\\titi-voice-long-qa.wav 15 release\\win-unpacked\\resources\"",
+    "qa:packaged-tts": "cmd.exe /d /c \"set ELECTRON_RUN_AS_NODE=1&& node_modules\\electron\\dist\\electron.exe scripts\\check-packaged-supertonic.cjs release\\win-unpacked\\resources\"",
     "build": "pnpm typecheck && electron-vite build",
     "verify:package": "node scripts/verify-package.mjs",
     "package:dir": "pnpm build && electron-builder --dir --win && pnpm verify:package",
@@ -29,14 +34,24 @@
       "out/**/*",
       "package.json"
     ],
+    "asarUnpack": [
+      "out/main/**/*",
+      "node_modules/koffi/**/*",
+      "node_modules/@koromix/koffi-win32-x64/**/*",
+      "node_modules/sherpa-onnx-node/**/*",
+      "node_modules/sherpa-onnx-win-x64/**/*"
+    ],
     "extraResources": [
       {
         "from": "runtime/whisper",
         "to": "runtime/whisper",
         "filter": [
-          "bin/**/*",
-          "models/ggml-large-v3-turbo-q8_0.bin",
-          "models/ggml-silero-v6.2.0.bin"
+          "bin/Release/parakeet-cli.exe",
+          "bin/Release/parakeet.dll",
+          "bin/Release/ggml.dll",
+          "bin/Release/ggml-base.dll",
+          "bin/Release/ggml-cpu-*.dll",
+          "models/ggml-parakeet-tdt-0.6b-v3-q8_0.bin"
         ]
       },
       {
@@ -44,6 +59,20 @@
         "to": "runtime/windows-ui-automation",
         "filter": [
           "windows-ui-automation.ps1"
+        ]
+      },
+      {
+        "from": "runtime/supertonic/model-extracted/sherpa-onnx-supertonic-3-tts-int8-2026-05-11",
+        "to": "runtime/supertonic/model-extracted/sherpa-onnx-supertonic-3-tts-int8-2026-05-11",
+        "filter": [
+          "duration_predictor.int8.onnx",
+          "text_encoder.int8.onnx",
+          "vector_estimator.int8.onnx",
+          "vocoder.int8.onnx",
+          "tts.json",
+          "unicode_indexer.bin",
+          "voice.bin",
+          "LICENSE"
         ]
       }
     ],
@@ -67,8 +96,12 @@
     }
   },
   "dependencies": {
+    "@koromix/koffi-win32-x64": "3.1.5",
+    "koffi": "3.1.5",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react-dom": "^19.2.8",
+    "sherpa-onnx-node": "1.13.5",
+    "sherpa-onnx-win-x64": "1.13.5"
   },
   "devDependencies": {
     "@electron/asar": "3.4.1",

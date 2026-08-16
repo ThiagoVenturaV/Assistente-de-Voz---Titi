@@ -28,6 +28,8 @@ test("server-renders the Titi landing page", async () => {
   assert.match(html, /Seu navegador/);
   assert.match(html, /Aplicativo de música/);
   assert.match(html, /Antigravity/);
+  assert.match(html, /aproximadamente 840 MB/);
+  assert.match(html, /Diga “parar” ou pressione Esc/);
   assert.doesNotMatch(html, /SHA-256|Ollama|Whisper|Spotify|Chrome|Brave|Codex/);
   assert.doesNotMatch(html, />\s*GitHub\b|Ver o código no GitHub|issues\/new\/choose/i);
   assert.doesNotMatch(html, /codex-preview|react-loading-skeleton/);

@@ -49,18 +49,15 @@ $projectRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
 $runtimeRoot = Join-Path $projectRoot 'runtime\whisper'
 $binRoot = Join-Path $runtimeRoot 'bin'
 $modelRoot = Join-Path $runtimeRoot 'models'
-$executablePath = Join-Path $binRoot 'Release\whisper-cli.exe'
-$modelPath = Join-Path $modelRoot 'ggml-large-v3-turbo-q8_0.bin'
-$vadModelPath = Join-Path $modelRoot 'ggml-silero-v6.2.0.bin'
+$executablePath = Join-Path $binRoot 'Release\parakeet-cli.exe'
+$modelPath = Join-Path $modelRoot 'ggml-parakeet-tdt-0.6b-v3-q8_0.bin'
 $temporaryRoot = Join-Path ([IO.Path]::GetTempPath()) 'titi-whisper-setup'
 $archivePath = Join-Path $temporaryRoot 'whisper-bin-x64.zip'
 
 $archiveUrl = 'https://github.com/ggml-org/whisper.cpp/releases/download/v1.9.2/whisper-bin-x64.zip'
 $archiveSha256 = '49dcc16de826f20bd53d44f947a1ae49dfa81f86cad67a64d80820cb192d674a'
-$modelUrl = 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q8_0.bin'
-$modelSha256 = '317eb69c11673c9de1e1f0d459b253999804ec71ac4c23c17ecf5fbe24e259a1'
-$vadModelUrl = 'https://huggingface.co/ggml-org/whisper-vad/resolve/main/ggml-silero-v6.2.0.bin'
-$vadModelSha256 = '2aa269b785eeb53a82983a20501ddf7c1d9c48e33ab63a41391ac6c9f7fb6987'
+$modelUrl = 'https://huggingface.co/ggml-org/parakeet-GGUF/resolve/main/ggml-parakeet-tdt-0.6b-v3-q8_0.bin'
+$modelSha256 = '4d64e9e96c2792186d072fde0034df0ad670cf680a2f53069052ead827fd600e'
 
 New-Item -ItemType Directory -Force -Path $temporaryRoot, $modelRoot | Out-Null
 
@@ -82,15 +79,9 @@ if ($Force -or -not (Test-Path -LiteralPath $executablePath)) {
 }
 
 if ($Force -or -not (Test-Path -LiteralPath $modelPath)) {
-    Write-Host 'Baixando Whisper Large v3 Turbo Q8 multilíngue...'
+    Write-Host 'Baixando Parakeet TDT 0.6B v3 Q8 multilíngue...'
     Invoke-WebRequest -UseBasicParsing -Uri $modelUrl -OutFile $modelPath
 }
 Assert-Hash -Path $modelPath -Algorithm SHA256 -Expected $modelSha256
-
-if ($Force -or -not (Test-Path -LiteralPath $vadModelPath)) {
-    Write-Host 'Baixando Silero VAD para detectar voz humana...'
-    Invoke-WebRequest -UseBasicParsing -Uri $vadModelUrl -OutFile $vadModelPath
-}
-Assert-Hash -Path $vadModelPath -Algorithm SHA256 -Expected $vadModelSha256
 
 Write-Host 'Runtime local de voz pronto.' -ForegroundColor Green

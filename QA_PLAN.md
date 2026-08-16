@@ -4,7 +4,7 @@ Auditoria atualizada em 16/08/2026. Este documento define o que precisa estar co
 
 ## Veredito atual
 
-**A PRÉ-RELEASE PÚBLICA `0.2.0-beta.1` PRECISA SER SUBSTITUÍDA; A `0.2.0-beta.2` É O CANDIDATO NÃO ASSINADO.** A fonte da beta.2 remove a rota interna de QA da versão pública antiga e acrescenta cancelamento, timeout, estados honestos, serialização, standby, correções do CI, controle opt-in de interfaces acessíveis, fallback visual local de Play/Pause no Spotify, recuperação semântica de tool calling e transcrição com Whisper Large v3 Turbo Q8, Silero VAD e revisão contextual local. Por decisão explícita para a beta, ferramentas permitidas executam direto; somente o Antigravity pede confirmação. Typecheck, 289 testes, matriz local 10/10, build, NSIS e verificação estrutural passam. O instalador foi reconstruído depois dos corretivos de linguagem natural e voz, portanto o smoke da versão instalada precisa ser repetido com este hash. Como o candidato está `NotSigned`, pode acionar o aviso de reputação do Windows e só deve ser tratado como pré-release para testadores.
+**A PRÉ-RELEASE PÚBLICA `0.2.0-beta.1` PRECISA SER SUBSTITUÍDA; A `0.2.0-beta.2` É O CANDIDATO NÃO ASSINADO.** A fonte da beta.2 remove a rota interna de QA da versão pública antiga e acrescenta cancelamento, timeout, estados honestos, serialização, standby, correções do CI, controle opt-in de interfaces acessíveis, fallback visual local de Play/Pause no Spotify, recuperação semântica de tool calling, Parakeet incremental e Supertonic neural local. Por decisão explícita para a beta, ferramentas permitidas executam direto; somente o Antigravity pede confirmação. Typecheck, 303 testes, matriz local 11/11, NSIS, verificação estrutural e os dois workers executados do pacote passam. O instalador ainda precisa ser testado sobre a instalação atual antes da publicação. Como o candidato continua `NotSigned`, pode acionar o aviso de reputação do Windows e só deve ser tratado como pré-release para testadores.
 
 Antes do teste, o usuário havia desinstalado a versão anterior: a pasta de instalação foi removida, enquanto configurações e conversas permaneceram em `%APPDATA%\titi-desktop`. A beta.2 foi instalada sobre esse perfil e reabriu os dados existentes.
 
@@ -14,21 +14,23 @@ Antes do teste, o usuário havia desinstalado a versão anterior: a pasta de ins
 |---|---|---|
 | Versão declarada na fonte | Aprovado | `package.json` declara `0.2.0-beta.2` |
 | Typecheck | Aprovado | `pnpm typecheck`, código 0 |
-| Testes automatizados | Aprovado na branch | `pnpm test`: 28 arquivos e 289 testes aprovados |
+| Testes automatizados | Aprovado na branch | `pnpm test`: 30 arquivos e 303 testes aprovados |
 | Build de produção | Aprovado | `pnpm build`: main, preload e renderer compilados |
-| Linguagem natural e seleção de ferramentas | Aprovado no nível de contrato | `pnpm qa:ollama-tools`: 10/10 para ações simples, correções, pedido composto Spotify+Play, pesquisa, hora, Antigravity e duas perguntas sem efeito; o script não executa as ferramentas retornadas |
+| Linguagem natural e seleção de ferramentas | Aprovado no nível de contrato | `pnpm qa:ollama-tools`: 11/11 para ações simples, a frase real “Abre o Spotify e dá play.”, correções, pedido composto Spotify+Play, pesquisa, hora, Antigravity e duas perguntas sem efeito; o script não executa as ferramentas retornadas |
 | Dados da versão anterior | Preservados após o NSIS | A instalação reabriu o nome, as configurações e a conversa anterior; `settings.json` e `conversations.json` continuam presentes em `%APPDATA%\titi-desktop` |
 | Instalador publicado | Reprovado para recomendação | `Titi-Setup-0.2.0-beta.1.exe`, SHA-256 `A4E833…21471`, ainda contém a rota interna de QA |
-| Pacote corretivo de diretório | Aprovado | `pnpm package:win` regenerou `win-unpacked`; `verify:package` confirmou `titi-desktop 0.2.0-beta.2`, voz e marcadores funcionais |
-| Runtime local de voz empacotado | Aprovado | `ggml-large-v3-turbo-q8_0.bin` com 874.188.075 bytes e `ggml-silero-v6.2.0.bin` com 885.098 bytes em `win-unpacked/resources/runtime/whisper`; o pacote não contém o modelo `small` antigo |
-| Ensaio local de transcrição pt-BR | Aprovado sem microfone real | voz Microsoft Maria: “Não, o Spotify não está rodando. Abra o Spotify e dê play.” transcrita exatamente em 9,51 s com Q8, VAD e contexto otimizado; a revisão local corrigiu os quatro erros históricos testados; microfone do usuário continua no smoke manual |
+| Pacote corretivo de diretório | Aprovado | `pnpm package:dir` regenerou `win-unpacked`; `verify:package` confirmou beta.2, workers, módulos nativos, Parakeet, Supertonic e marcadores funcionais |
+| Runtime local de voz empacotado | Aprovado | `ggml-parakeet-tdt-0.6b-v3-q8_0.bin` com 668.757.119 bytes e runtime mínimo de 9.104.960 bytes em `win-unpacked/resources/runtime/whisper`; executáveis de teste e modelos Whisper/VAD não entram no pacote |
+| Ensaio local de transcrição pt-BR | Aprovado sem microfone real | voz Microsoft Maria curta transcrita exatamente em 1,21 s; áudio controlado de 55,4 s transcrito por inteiro em 7,81 s, enquanto o Whisper anterior cortou o meio e repetiu o final três vezes; microfone do usuário continua no smoke manual |
+| Transcrição incremental | Aprovado com áudio real controlado | 10 revisões em 15 s; primeira parcial em 205 ms, revisão contextual de “Tite” para “Titi” e frase final correta; 303 testes continuam verdes |
+| Voz neural empacotada | Aprovado | worker Supertonic executado de dentro do `app.asar` com Electron: 4,9 s de áudio gerados em 0,88 s, WAV de 431.888 bytes; emojis são removidos antes da síntese |
 | Automação de interface empacotada | Aprovado estruturalmente | `windows-ui-automation.ps1` com 9.242 bytes em `win-unpacked/resources/runtime`, incluindo UI Automation, captura em memória, recorte ampliado e clique relativo; o verificador exige o recurso e `focusImageBase64` no ASAR |
-| Manifesto de release | Aprovado localmente | `latest.yml` declara beta.2, nome, tamanho 883.460.000 bytes e SHA-512 correspondentes |
+| Manifesto de release | Aprovado localmente | `latest.yml` declara beta.2, 878.332.232 bytes e SHA-512 correspondente ao NSIS final |
 | Assinatura do instalador | Risco explícito | `Get-AuthenticodeSignature` retorna `NotSigned` para o instalador beta.2 e `win-unpacked/Titi.exe` |
 | Ensaio visual real do Spotify | Aprovado na fonte | com árvore acessível vazia, o Ollama local identificou Play com 95%, o clique relativo iniciou a reprodução e a inspeção independente mostrou Pause; o recorte ampliado corrigiu a classificação pós-clique para `playing` com 95% |
 | Política de confirmação beta | Aprovado automaticamente | web, Spotify, aplicativos e UI permitida executam direto; somente abrir/controlar Antigravity é sensível; alvos protegidos continuam bloqueados |
 | Catálogo real do Windows | Aprovado para as fontes requeridas | `Get-StartApps` retornou Brave (`Brave`), Spotify (`SpotifyAB.SpotifyMusic_zpdnekdrzrea0!Spotify`), ChatGPT/Codex (`OpenAI.Codex_2p2nqsd0c76g0!App`), Antigravity e Antigravity IDE |
-| Instalação do NSIS atual | Aprovado estruturalmente | o instalador final retornou código 0 em `%LOCALAPPDATA%\Programs\Titi`, o ASAR instalado declara `0.2.0-beta.2`, o Q8 confere com o hash oficial, configurações e conversas foram preservadas e o processo abriu; interação visual e microfone continuam no smoke manual |
+| Instalação do NSIS atual | Aprovado estrutural e visualmente | o NSIS de 878.332.232 bytes retornou código 0, o pacote instalado declara beta.2, `verify:package` confirmou Parakeet/Supertonic/módulos nativos, os hashes do perfil não mudaram e a janela abriu com “Local conectado”; microfone e reprodução audível continuam no smoke manual |
 
 ## Bloqueadores do candidato
 
@@ -37,7 +39,7 @@ Antes do teste, o usuário havia desinstalado a versão anterior: a pasta de ins
 - [x] remover `TITI_CAPTURE_DIR`, `captureQaScreens` e cliques automáticos do processo principal;
 - [x] fazer o verificador falhar se qualquer marcador reaparecer no ASAR;
 - [x] gerar e verificar um novo `win-unpacked` sem esses marcadores;
-- [ ] gerar o NSIS corretivo a partir de commit/tag próprios;
+- [x] gerar o NSIS corretivo a partir da fonte final; tag própria ainda pendente;
 - [ ] instalar, executar a matriz crítica e só então trocar o download público.
 
 ### RC-01 — gerar o artefato correto
@@ -53,7 +55,7 @@ Os instaladores `0.1.0` e `0.1.1` continuam no diretório local `release/`; o up
 ### RC-02 — alinhar instalador, manifesto e publicação
 
 - [x] `release/latest.yml` declarar `0.2.0-beta.2`, o nome e o tamanho do instalador candidato.
-- [x] Calcular o SHA-256 do build beta.2 atual: `140244B26508B57A241646762420AB2EAF369FD98E12F107DF702DEE19DA393A`.
+- [x] Calcular e registrar o SHA-256 do NSIS final: `2DEF6B24BC38A17AB9ACF79EAB83087B5FA996E46295063E4D1D1E5A348AEF76`.
 - [ ] Recalcular e publicar o SHA-256 se o arquivo for assinado, pois a assinatura altera os bytes.
 - [x] `RELEASE_NOTES.md`, README e a fonte da landing page identificarem `0.2.0-beta.2`; a landing só deve ser publicada depois do release existir.
 - [ ] Título, tag, ativo e link do GitHub Release publicado apontarem para essa mesma versão e arquivo.
@@ -62,7 +64,7 @@ Os instaladores `0.1.0` e `0.1.1` continuam no diretório local `release/`; o up
 ### RC-03 — confiança do executável
 
 - [ ] `Get-AuthenticodeSignature` retornar `Valid` e o editor esperado para o instalador e o executável principal.
-- [x] O candidato beta.2 local foi identificado por tamanho (883.460.000 bytes; 842,53 MiB) e SHA-256 antes da publicação.
+- [x] Identificar o candidato beta.2: 878.332.232 bytes (837,64 MiB) e SHA-256 `2DEF6B…EF76`.
 - [ ] O hash publicado corresponder byte a byte ao arquivo baixado do release.
 - [ ] O Microsoft Defender com proteção em tempo real ativa examinar o instalador beta.2 final sem registrar detecção correspondente.
 - [ ] Nenhum segredo, conversa, arquivo de perfil ou caminho pessoal da máquina de build estar dentro do ASAR ou dos recursos.
@@ -73,10 +75,10 @@ Para uma versão estável e recomendada amplamente, assinatura válida continua 
 
 - [x] Instalar o candidato reconstruído como usuário comum sem terminal, PowerShell ou CMD visível.
 - [ ] Abrir o `win-unpacked` atual em perfil isolado e confirmar onboarding, home, mascote e a nova configuração de controle sem janela branca.
-- [x] Confirmar `0.2.0-beta.2` no ASAR e Whisper completo em `resources`.
+- [x] Confirmar `0.2.0-beta.2` no ASAR e Parakeet completo em `resources`.
 - [x] Instalar o candidato reconstruído e confirmar `0.2.0-beta.2` no pacote instalado.
-- [ ] Confirmar visualmente que interface, mascote e sprites carregam; Whisper Q8 e o runtime de UI Automation foram confirmados estruturalmente na instalação atual.
-- [ ] Testar entrada do Whisper, microfone e saída de voz na instalação final.
+- [x] Confirmar visualmente que interface, mascote e sprites carregam no `win-unpacked`; a janela abriu com o perfil preservado e estado “Local conectado”.
+- [ ] Testar entrada do Parakeet, microfone e saída de voz na instalação final.
 - [ ] Fechar e abrir o candidato atual três vezes sem crash, janela branca ou duplicação da janela principal.
 - [ ] Executar um smoke contínuo de 30 minutos sem crescimento anormal de CPU, RAM, handles ou processos.
 
@@ -156,7 +158,7 @@ Como a versão antiga já foi desinstalada e os dados ficaram preservados, execu
 8. Reiniciar o Windows, abrir novamente e repetir uma ferramenta e um turno de voz.
 9. Recalcular os hashes dos dados e verificar que apenas arquivos esperados mudaram.
 
-Resultado histórico do smoke de instalação em 15/08/2026: os itens 2 e 3 passaram no candidato anterior à UI Automation. Após a abertura, `settings.json` tinha 533 bytes e SHA-256 `8C73FF7496583D3A85BE5273E6039A282F8D97E17A842EFE4B244184A703269A`; `conversations.json` tinha 20.295 bytes e SHA-256 `90CA931029E10F3CD51D1062EA8F2D616FBE632FC6E1D8CE97F16DC52144FCAA`. Esses hashes são referência histórica; o instalador atual ainda precisa repetir o smoke.
+Resultado do smoke final em 16/08/2026: o NSIS retornou código 0 e instalou `0.2.0-beta.2`. Antes e depois, `settings.json` manteve 568 bytes e SHA-256 `2AEB68B48B7505AC29E71D3017E80B139309DBA359E802A329CA1D069E621074`; `conversations.json` manteve 43.581 bytes e SHA-256 `8D30ECB31652C6F896D02F0D04763640837136526B5817206E99B82419DDFE9B`. A janela principal exibiu o histórico preservado e “Local conectado”.
 
 ## Gates automatizados finais
 
@@ -177,7 +179,7 @@ Além do código 0:
 - nenhum teste ignorado, flaky ou dependente da ordem;
 - CI verde em runner Windows limpo;
 - qualquer alteração depois do empacotamento invalida o candidato e exige repetir build, testes, assinatura e hashes;
-- [x] o script de verificação inspeciona os recursos obrigatórios do Whisper e os marcadores funcionais no ASAR;
+- [x] o script de verificação inspeciona os recursos obrigatórios do Parakeet e os marcadores funcionais no ASAR;
 - anexar ao release o resultado dos testes manuais P0/P1 e o hash final.
 
 ## Critério exato para dizer “pode instalar”
@@ -200,8 +202,8 @@ Se a assinatura ainda não estiver disponível, a mensagem permitida é somente 
 ### Estado contra esse critério
 
 - **Artefato e integridade beta.2:** aprovado localmente para o hash atual; candidato não assinado.
-- **Execução isolada do `win-unpacked` beta.2 atual:** pendente repetir após UI Automation e política beta de confirmação.
-- **Instalação NSIS atual sobre dados preservados:** pendente; o smoke anterior validou um binário agora substituído.
+- **Execução isolada do `win-unpacked` beta.2 atual:** aprovada visualmente com perfil preservado, interface e conexão local; workers Parakeet e Supertonic aprovados de dentro do pacote.
+- **Instalação NSIS atual sobre dados preservados:** aprovada para integridade, versão, preservação do perfil e abertura visual; microfone/áudio audível e matriz completa de ferramentas permanecem manuais.
 - **Smoke funcional real de voz, abertura aprovada dos quatro aplicativos, memória e jogo:** pendente.
 - **Assinatura e verificação do download publicado:** pendente.
 

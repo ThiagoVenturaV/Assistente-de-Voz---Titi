@@ -50,10 +50,19 @@ jobs:
         uses: actions/cache@v4
         with:
           path: runtime/whisper
-          key: whisper-win-v1.9.2-large-v3-turbo-q8-317eb69c11673c9de1e1f0d459b253999804ec71ac4c23c17ecf5fbe24e259a1-vad-v6.2
+          key: whisper-win-v1.9.2-parakeet-tdt-v3-q8-4d64e9e96c2792186d072fde0034df0ad670cf680a2f53069052ead827fd600e
 
       - name: Preparar runtime de voz verificado
         run: pnpm setup:whisper
+
+      - name: Restaurar cache da voz neural
+        uses: actions/cache@v4
+        with:
+          path: runtime/supertonic/model-extracted
+          key: supertonic-3-int8-82fa96f91c4ef8abaa3a14a3f4153facf88bed821d1f7331cec2700f432c427
+
+      - name: Preparar voz neural local verificada
+        run: pnpm setup:tts
 
       - name: Gerar e verificar pacote de produção
         run: pnpm package:dir

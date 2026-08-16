@@ -3,8 +3,10 @@ import { DEFAULT_SETTINGS } from '../../shared/defaults'
 import {
   validatedChatRequest,
   validatedConversationId,
+  validatedPcmAudio,
   validatedRequestId,
   validatedSettingsPatch,
+  validatedVoiceSynthesisRequest,
   validatedWavAudio
 } from './validation'
 
@@ -68,5 +70,23 @@ describe('IPC validation', () => {
   it('enforces WAV transfer size before reaching the transcriber', () => {
     expect(() => validatedWavAudio(new ArrayBuffer(43))).toThrow()
     expect(validatedWavAudio(new ArrayBuffer(44)).byteLength).toBe(44)
+  })
+
+  it('aceita somente blocos Float32 limitados para a transcrição incremental', () => {
+    expect(validatedPcmAudio(new Float32Array(16_000).buffer).byteLength).toBe(64_000)
+    expect(() => validatedPcmAudio(new ArrayBuffer(3))).toThrow('Bloco PCM inválido')
+    expect(() => validatedPcmAudio(new Float32Array(16_000 * 16).buffer)).toThrow('15 segundos')
+  })
+
+  it('valida texto, identificador e velocidade antes da síntese local', () => {
+    const requestId = '5599faba-382a-4b73-849f-47ac40bcca36'
+    expect(validatedVoiceSynthesisRequest(requestId, 'Olá, Tiago.', 1.05)).toEqual({
+      requestId,
+      text: 'Olá, Tiago.',
+      rate: 1.05
+    })
+    expect(() => validatedVoiceSynthesisRequest('../voz', 'olá', 1)).toThrow()
+    expect(() => validatedVoiceSynthesisRequest(requestId, '', 1)).toThrow('Texto de síntese')
+    expect(() => validatedVoiceSynthesisRequest(requestId, 'olá', 2)).toThrow('Velocidade')
   })
 })

@@ -2,19 +2,20 @@
 
 Titi é um assistente local para Windows com interface gráfica, conversa por texto e voz, mascote 2D animado e ferramentas controladas para agir no computador. O objetivo é permitir que a pessoa use seus aplicativos por voz sem entregar um terminal irrestrito ao modelo.
 
-> **Estado atual:** a pré-release `0.2.0-beta.2` substitui a beta.1, sem a rota interna de QA do pacote anterior e com cancelamento, concorrência, fidelidade dos efeitos externos, standby, CI, controle local de interfaces acessíveis, fallback visual local para Play/Pause no Spotify e transcrição contextual aprimorada. Durante a beta, comandos permitidos executam direto; somente abrir ou controlar o Antigravity pede confirmação. O instalador ainda não possui assinatura pública e deve ser tratado como uma prévia para testadores; consulte a matriz pendente em `QA_PLAN.md`.
+> **Estado atual:** a pré-release `0.2.0-beta.2` substitui a beta.1, sem a rota interna de QA do pacote anterior e com cancelamento, concorrência, fidelidade dos efeitos externos, standby, CI, controle local de interfaces acessíveis, fallback visual local para Play/Pause no Spotify, transcrição incremental e voz neural local. Durante a beta, comandos permitidos executam direto; somente abrir ou controlar o Antigravity pede confirmação. O instalador ainda não possui assinatura pública e deve ser tratado como uma prévia para testadores; consulte a matriz pendente em `QA_PLAN.md`.
 
 ## O que está implementado no código atual
 
 - aplicativo Electron/React com onboarding, chat, configurações e mascote flutuante;
 - chat local com Ollama e `qwen3.5:9b`;
-- transcrição local por `whisper.cpp` com Whisper Large v3 Turbo Q8, detecção de voz Silero VAD, filtros de áudio, seleção/teste de microfone, aperte-para-falar, atalho global e modo ao vivo;
-- revisão contextual local pelo mesmo Ollama do chat: compara trechos foneticamente com aplicativos instalados e corrige nomes e comandos prováveis sem enviar áudio ou texto à nuvem; se o modelo estiver indisponível ou incerto, preserva a transcrição bruta;
-- resposta falada com uma voz instalada no Windows;
+- transcrição local com NVIDIA Parakeet TDT 0.6B v3 Q8 mantido em memória por um worker CPU; o texto parcial aparece e é revisado enquanto a pessoa fala, sem recarregar o modelo a cada frase;
+- correção contextual fechada: aliases conhecidos são determinísticos e, para aplicativos novos, o Ollama só pode sugerir a troca de um trecho literal por um nome do catálogo; verbos, negações, números, baixa confiança e nomes distantes são rejeitados pelo código;
+- resposta falada pelo Supertonic 3 INT8, uma voz neural em português executada localmente em CPU; Markdown, links e emojis são removidos somente da fala e continuam visíveis no chat;
+- frases como “pare a conversa” e “encerre o modo ao vivo” desligam a escuta sem enviar o comando ao modelo;
 - botão **Ao vivo** diretamente no mascote;
 - execução de ferramentas com validação de nome, argumentos, repetição, quantidade e número de rodadas;
-- o Ollama interpreta linguagem natural, correções, referências e pedidos compostos; se responder com uma promessa sem ferramenta, o Titi classifica semanticamente o pedido e refaz o plano com uso obrigatório de ferramentas, enquanto perguntas conceituais bloqueiam efeitos desnecessários;
-- botão **Parar** e tecla `Esc` propagam cancelamento por IPC para gravação, Whisper, geração local, ferramentas, confirmação pendente, preparação do Ollama e fala;
+- o Ollama interpreta linguagem natural, correções, referências e pedidos compostos; se responder com uma promessa ou uma mensagem totalmente vazia, o Titi classifica semanticamente o pedido e refaz ações com uso obrigatório de ferramentas, enquanto perguntas conceituais bloqueiam efeitos desnecessários;
+- botão **Parar** e tecla `Esc` propagam cancelamento por IPC para gravação, Parakeet, geração local, ferramentas, confirmação pendente, preparação do Ollama e fala;
 - toda ferramenta recebe identidade de cadeia/execução, prazo próprio e `AbortSignal`; timeout e envio externo sem comprovação nunca são apresentados como sucesso confirmado;
 - ledger de ações preserva o resultado real mesmo se o modelo falhar ou tentar contradizer uma ferramenta;
 - conversas longas usam uma janela de contexto limitada, mantendo memória curada, pedido atual e turnos recentes inteiros;
@@ -32,7 +33,7 @@ Titi é um assistente local para Windows com interface gráfica, conversa por te
 - standby conservador durante jogos conhecidos ou executáveis adicionados pelo usuário; ele cancela tarefas, pausa voz, oculta o mascote e verifica a descarga do modelo pela API local;
 - gravações de conversas e configurações são serializadas para não perder atualizações concorrentes.
 
-O código passa por `pnpm typecheck` e por **289 testes em 28 arquivos**. `pnpm package:dir` também verifica o ASAR, o runtime de automação, os dois modelos de voz e rejeita rotas de QA proibidas em produção. Essa evidência ainda não substitui a validação do instalador em uma máquina limpa.
+O código passa por `pnpm typecheck` e por **303 testes em 30 arquivos**. `pnpm package:dir` também verifica o ASAR, os workers, os módulos nativos, o runtime de automação, o Parakeet e o Supertonic, além de rejeitar rotas de QA proibidas em produção. Essa evidência ainda não substitui a validação do instalador em uma máquina limpa.
 
 ## Limites desta versão
 
@@ -43,7 +44,7 @@ O código passa por `pnpm typecheck` e por **289 testes em 28 arquivos**. `pnpm 
 - somente Ollama está implementado; API e OAuth ainda não fazem parte do produto;
 - seleção e interrupção estão implementadas, mas ainda faltam microfone real, vinte turnos ao vivo e cancelamento exercitado em todas as fases do aplicativo instalado;
 - ainda não há atualização dentro do aplicativo, assinatura do instalador ou rollback automático;
-- a voz neural mais natural permanece como última prioridade.
+- a voz neural já é local, mas o timbre e a expressividade ainda podem evoluir em versões futuras.
 
 Consulte [BACKLOG.md](./BACKLOG.md) para os critérios de aceite e os bloqueios do beta completo.
 
@@ -108,6 +109,7 @@ Requisitos: Node.js, pnpm e Windows 10/11.
 pnpm install
 pnpm setup:electron
 powershell -ExecutionPolicy Bypass -File .\scripts\setup-whisper.ps1
+pnpm setup:tts
 pnpm dev
 ```
 
@@ -118,6 +120,8 @@ pnpm typecheck
 pnpm test
 pnpm build
 pnpm qa:ollama-tools
+pnpm qa:streaming-transcription -- <arquivo.wav> 15
+pnpm qa:packaged-tts
 ```
 
 `qa:ollama-tools` consulta o modelo local em dez cenários de linguagem natural: ações simples, correções, pedidos compostos, controle de música, pesquisa, hora e perguntas que não devem causar efeitos. A avaliação testa também a recuperação com ferramenta obrigatória, sem executar nenhuma ação retornada pelo modelo.
@@ -138,13 +142,14 @@ O pacote é gerado em `release/`. Depois da build, o verificador confere se o `a
 - `src/main/memory`: fatos, preferências e receitas curadas;
 - `src/main/storage`: conversas, configurações, atividade e escrita recuperável;
 - `src/main/tools`: catálogo de ferramentas, confirmação e auditoria;
-- `src/main/voice`: transcrição e atalho global;
+- `src/main/voice`: transcrição incremental, síntese neural e atalho global;
 - `src/preload`: ponte IPC restrita;
 - `src/renderer`: interface, onboarding, configurações, modais e mascote;
 - `src/shared`: contratos compartilhados;
 - `mascotes/titi/package/titi`: animação Codex v2 do Titi;
 - `runtime/whisper`: arquivos locais do reconhecimento de voz.
+- `runtime/supertonic`: modelo local da voz neural.
 
 ## Hardware de desenvolvimento
 
-O perfil atual usa Ryzen 5 5600, 32 GB de RAM e RTX 2060 Super com 8 GB de VRAM. O `qwen3.5:9b` roda pelo Ollama; o Whisper usa a CPU para não disputar a VRAM do modelo de conversa. Essa configuração é o perfil de desenvolvimento, não um requisito mínimo já homologado.
+O perfil atual usa Ryzen 5 5600, 32 GB de RAM e RTX 2060 Super com 8 GB de VRAM. O `qwen3.5:9b` roda pelo Ollama; o Parakeet usa a CPU para não disputar a VRAM do modelo de conversa. Essa configuração é o perfil de desenvolvimento, não um requisito mínimo já homologado.

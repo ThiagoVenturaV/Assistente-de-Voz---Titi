@@ -92,6 +92,17 @@ export interface VoiceTranscription {
   processingTimeMs: number
 }
 
+export interface VoicePartialTranscription extends VoiceTranscription {
+  sessionId: string
+  audioTimeMs: number
+}
+
+export interface VoiceSynthesis {
+  wavAudio: ArrayBuffer
+  processingTimeMs: number
+  audioDurationMs: number
+}
+
 export interface ToolActionLogEntry {
   id: string
   tool: string
@@ -180,6 +191,13 @@ export interface TitiDesktopApi {
   }
   voice: {
     transcribe(wavAudio: ArrayBuffer): Promise<VoiceTranscription>
+    startStream(sessionId: string): Promise<void>
+    pushStreamChunk(sessionId: string, pcmAudio: ArrayBuffer): Promise<void>
+    finishStream(sessionId: string): Promise<VoiceTranscription>
+    cancelStream(sessionId: string): Promise<void>
+    onPartialTranscription(callback: (partial: VoicePartialTranscription) => void): () => void
+    synthesize(requestId: string, text: string, rate: number): Promise<VoiceSynthesis>
+    cancelSynthesis(requestId: string): Promise<void>
     setLiveMode(enabled: boolean): Promise<TitiSettings>
     onLiveModeChanged(callback: (enabled: boolean) => void): () => void
     onPushToTalkRequested(callback: () => void): () => void

@@ -7,6 +7,9 @@ export class PcmRecorder {
   private processor: ScriptProcessorNode | null = null
   private sink: GainNode | null = null
   private chunks: Float32Array[] = []
+  private liveChunks: Float32Array[] = []
+  private liveSampleCount = 0
+  private nextLiveChunkSamples = 0
   private sampleRate = 48_000
   private startedAt = 0
   private lastSpeechAt = 0
@@ -18,7 +21,8 @@ export class PcmRecorder {
 
   constructor(
     private readonly onSilence?: (reason: 'silence' | 'timeout') => void,
-    private readonly inputDeviceId = ''
+    private readonly inputDeviceId = '',
+    private readonly onLiveChunk?: (pcmAudio: ArrayBuffer) => void
   ) {}
 
   async start(): Promise<void> {
@@ -33,6 +37,7 @@ export class PcmRecorder {
     this.startedAt = performance.now()
     this.calibrationEndsAt = this.startedAt + 350
     this.sampleRate = this.context.sampleRate
+    this.nextLiveChunkSamples = this.sampleRate
     this.source = this.context.createMediaStreamSource(this.stream)
     this.highPass = this.context.createBiquadFilter()
     this.highPass.type = 'highpass'
@@ -48,6 +53,11 @@ export class PcmRecorder {
     this.processor.onaudioprocess = (event) => {
       const samples = new Float32Array(event.inputBuffer.getChannelData(0))
       this.chunks.push(samples)
+      if (this.onLiveChunk) {
+        this.liveChunks.push(samples)
+        this.liveSampleCount += samples.length
+        if (this.liveSampleCount >= this.nextLiveChunkSamples) this.emitLiveChunk()
+      }
       if (!this.onSilence || this.autoStopTriggered) return
 
       const now = performance.now()
@@ -68,7 +78,9 @@ export class PcmRecorder {
         this.noiseFloor = smoothNoiseFloor(this.noiseFloor, volume)
       }
       const finishedUtterance = this.heardSpeech && now - this.lastSpeechAt >= 1650
-      const waitedTooLong = now - this.startedAt >= 30_000
+      const waitedWithoutSpeech = !this.heardSpeech && now - this.startedAt >= 20_000
+      const reachedRecordingLimit = this.heardSpeech && now - this.startedAt >= 120_000
+      const waitedTooLong = waitedWithoutSpeech || reachedRecordingLimit
       if (finishedUtterance || waitedTooLong) {
         this.autoStopTriggered = true
         this.onSilence(finishedUtterance ? 'silence' : 'timeout')
@@ -82,6 +94,7 @@ export class PcmRecorder {
   }
 
   async stop(): Promise<ArrayBuffer> {
+    this.emitLiveChunk(true)
     this.processor?.disconnect()
     this.highPass?.disconnect()
     this.lowPass?.disconnect()
@@ -91,7 +104,7 @@ export class PcmRecorder {
     await this.context?.close()
 
     const source = joinChunks(this.chunks)
-    const resampled = await resampleForWhisper(source, this.sampleRate)
+    const resampled = await resampleForSpeechRecognition(source, this.sampleRate)
     this.reset()
     if (resampled.length < 3200) throw new Error('Segure o botão e fale por pelo menos um instante.')
     return encodeWav(resampled, 16_000)
@@ -117,6 +130,9 @@ export class PcmRecorder {
     this.processor = null
     this.sink = null
     this.chunks = []
+    this.liveChunks = []
+    this.liveSampleCount = 0
+    this.nextLiveChunkSamples = 0
     this.startedAt = 0
     this.lastSpeechAt = 0
     this.heardSpeech = false
@@ -124,6 +140,19 @@ export class PcmRecorder {
     this.noiseFloor = 0.003
     this.calibrationEndsAt = 0
     this.consecutiveSpeechFrames = 0
+  }
+
+  private emitLiveChunk(final = false): void {
+    if (!this.onLiveChunk || this.liveSampleCount === 0) return
+    if (final && this.liveSampleCount < Math.round(this.sampleRate * 0.1)) return
+    const source = joinChunks(this.liveChunks)
+    const resampled = resamplePcm(source, this.sampleRate, 16_000)
+    this.liveChunks = []
+    this.liveSampleCount = 0
+    this.nextLiveChunkSamples = Math.round(this.sampleRate * 1.5)
+    const copy = new Float32Array(resampled.length)
+    copy.set(resampled)
+    this.onLiveChunk(copy.buffer)
   }
 }
 
@@ -141,7 +170,7 @@ export function microphoneConstraints(inputDeviceId = ''): MediaStreamConstraint
   }
 }
 
-export async function resampleForWhisper(
+export async function resampleForSpeechRecognition(
   input: Float32Array,
   sourceRate: number
 ): Promise<Float32Array> {

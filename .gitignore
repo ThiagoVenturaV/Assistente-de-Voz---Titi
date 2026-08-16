@@ -10,3 +10,4 @@ qa/
 # Binários e modelos locais são baixados pelo script de preparação.
 runtime/whisper/bin/
 runtime/whisper/models/*.bin
+runtime/supertonic/

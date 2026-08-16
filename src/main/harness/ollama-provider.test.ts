@@ -193,6 +193,59 @@ describe('OllamaProvider tool calling', () => {
     expect(forcedBody.messages.at(-1)?.content).toContain('AUDITORIA INTERNA')
   })
 
+  it('recovers a tool call when the first native model response is completely empty', async () => {
+    const actionMessages: ChatMessage[] = [{
+      id: 'empty-native-action',
+      role: 'user',
+      content: 'Abre o Spotify e dá play.',
+      createdAt: new Date(0).toISOString()
+    }]
+    const execute = vi.fn(async () => ({
+      ok: true,
+      status: 'confirmed' as const,
+      message: 'A música começou a tocar no Spotify.'
+    }))
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({
+        message: { role: 'assistant', content: '' }
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        message: {
+          role: 'assistant',
+          content: JSON.stringify({
+            decision: 'needs_tool', confidence: 0.99, reason: 'Pedido direto de ação.'
+          })
+        }
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        choices: [{
+          message: {
+            role: 'assistant',
+            content: '',
+            tool_calls: [{
+              type: 'function',
+              function: { name: 'spotify', arguments: '{"action":"play"}' }
+            }]
+          }
+        }]
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        message: { role: 'assistant', content: '[SEM_FERRAMENTA] Pronto.' }
+      }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const provider = new OllamaProvider(fakeTools(execute))
+    await expect(provider.complete(actionMessages, DEFAULT_SETTINGS)).resolves.toBe(
+      'A música começou a tocar no Spotify.'
+    )
+    expect(execute).toHaveBeenCalledWith(
+      'spotify',
+      { action: 'play' },
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    )
+    expect(String(fetchMock.mock.calls[2][0])).toContain('/v1/chat/completions')
+  })
+
   it('strips the no-tool marker without adding a classifier round', async () => {
     const execute = vi.fn()
     const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse({

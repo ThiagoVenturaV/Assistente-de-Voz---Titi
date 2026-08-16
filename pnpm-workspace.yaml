@@ -8,3 +8,10 @@ onlyBuiltDependencies:
   - electron
   - electron-winstaller
   - esbuild
+  - koffi
+
+allowBuilds:
+  electron: true
+  electron-winstaller: true
+  esbuild: true
+  koffi: true

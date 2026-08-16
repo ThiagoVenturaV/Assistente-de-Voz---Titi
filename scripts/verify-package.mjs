@@ -18,6 +18,11 @@ const packagedMain = asar.extractFile(
   archivePath,
   join('out', 'main', 'index.js')
 ).toString('utf8')
+const packagedSupertonicWorker = asar.extractFile(
+  archivePath,
+  join('out', 'main', 'supertonic-worker.js')
+).toString('utf8')
+const packagedRuntimeCode = `${packagedMain}\n${packagedSupertonicWorker}`
 
 if (packagedPackage.name !== sourcePackage.name) {
   throw new Error(
@@ -41,11 +46,13 @@ for (const marker of [
   'focusImageBase64',
   'app-skills.json',
   'voice:push-to-talk-requested',
+  'voice:synthesize',
+  'sherpa-onnx-node',
   'DADOS LOCAIS CURADOS',
   'windowsHide',
   'keep_alive'
 ]) {
-  if (!packagedMain.includes(marker)) {
+  if (!packagedRuntimeCode.includes(marker)) {
     throw new Error(`O pacote não contém o marcador obrigatório: ${marker}.`)
   }
 }
@@ -55,7 +62,7 @@ for (const forbiddenMarker of [
   'captureQaScreens',
   "tool-confirmation-dialog .primary-button"
 ]) {
-  if (packagedMain.includes(forbiddenMarker)) {
+  if (packagedRuntimeCode.includes(forbiddenMarker)) {
     throw new Error(
       `Pacote contém um gancho de QA proibido em produção: ${forbiddenMarker}.`
     )
@@ -65,20 +72,36 @@ for (const forbiddenMarker of [
 const resourcesPath = dirname(archivePath)
 const requiredResources = [
   {
-    path: join(resourcesPath, 'runtime', 'whisper', 'bin', 'Release', 'whisper-cli.exe'),
+    path: join(resourcesPath, 'runtime', 'whisper', 'bin', 'Release', 'parakeet-cli.exe'),
     minimumBytes: 100_000
   },
   {
-    path: join(resourcesPath, 'runtime', 'whisper', 'models', 'ggml-large-v3-turbo-q8_0.bin'),
-    minimumBytes: 800_000_000
-  },
-  {
-    path: join(resourcesPath, 'runtime', 'whisper', 'models', 'ggml-silero-v6.2.0.bin'),
-    minimumBytes: 800_000
+    path: join(resourcesPath, 'runtime', 'whisper', 'models', 'ggml-parakeet-tdt-0.6b-v3-q8_0.bin'),
+    minimumBytes: 600_000_000
   },
   {
     path: join(resourcesPath, 'runtime', 'windows-ui-automation', 'windows-ui-automation.ps1'),
     minimumBytes: 2_000
+  },
+  {
+    path: join(resourcesPath, 'runtime', 'supertonic', 'model-extracted', 'sherpa-onnx-supertonic-3-tts-int8-2026-05-11', 'vector_estimator.int8.onnx'),
+    minimumBytes: 70_000_000
+  },
+  {
+    path: join(resourcesPath, 'runtime', 'supertonic', 'model-extracted', 'sherpa-onnx-supertonic-3-tts-int8-2026-05-11', 'vocoder.int8.onnx'),
+    minimumBytes: 20_000_000
+  },
+  {
+    path: join(resourcesPath, 'app.asar.unpacked', 'node_modules', 'sherpa-onnx-win-x64', 'sherpa-onnx.node'),
+    minimumBytes: 500_000
+  },
+  {
+    path: join(resourcesPath, 'app.asar.unpacked', 'node_modules', 'sherpa-onnx-win-x64', 'onnxruntime.dll'),
+    minimumBytes: 15_000_000
+  },
+  {
+    path: join(resourcesPath, 'app.asar.unpacked', 'node_modules', '@koromix', 'koffi-win32-x64', 'win32_x64', 'koffi.node'),
+    minimumBytes: 500_000
   }
 ]
 for (const resource of requiredResources) {
@@ -89,5 +112,5 @@ for (const resource of requiredResources) {
 }
 
 console.log(
-  `Pacote verificado: ${packagedPackage.name} ${packagedPackage.version}, ferramentas, processos ocultos, Whisper Large v3 Turbo Q8 e VAD presentes.`
+  `Pacote verificado: ${packagedPackage.name} ${packagedPackage.version}, ferramentas, Parakeet incremental e Supertonic neural presentes.`
 )

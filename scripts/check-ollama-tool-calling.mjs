@@ -23,6 +23,10 @@ const actionCases = [
     plans: [[{ name: 'spotify', arguments: { action: 'play' } }]]
   },
   {
+    prompt: 'Abre o Spotify e dá play.',
+    plans: [[{ name: 'spotify', arguments: { action: 'play' } }]]
+  },
+  {
     prompt: 'Não quero explicação: coloca uma música para tocar no app de música.',
     plans: [[{ name: 'spotify', arguments: { action: 'play' } }]]
   },

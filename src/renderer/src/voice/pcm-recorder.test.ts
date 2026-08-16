@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { microphoneConstraints, resampleForWhisper, resamplePcm } from './pcm-recorder'
+import { microphoneConstraints, resampleForSpeechRecognition, resamplePcm } from './pcm-recorder'
 
 describe('microphoneConstraints', () => {
   it('usa o microfone padrão quando nenhum dispositivo foi escolhido', () => {
@@ -38,7 +38,7 @@ describe('resamplePcm', () => {
   it('usa o fallback determinístico fora do navegador', async () => {
     const source = new Float32Array([1, 1, 1, -1, -1, -1])
 
-    await expect(resampleForWhisper(source, 48_000))
+    await expect(resampleForSpeechRecognition(source, 48_000))
       .resolves.toEqual(new Float32Array([1, -1]))
   })
 })

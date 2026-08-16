@@ -27,7 +27,7 @@ export default function Home() {
         <div className="hero-status"><span>Beta 0.2</span><i /> Feito para o seu computador</div>
         <h1><span>O seu PC.</span><br />Agora ele <em>escuta.</em></h1>
         <div className="hero-intro">
-          <p>O Titi conversa por texto e voz, abre seus aplicativos e já consegue operar controles acessíveis no Windows.</p>
+          <p>O Titi acompanha sua fala enquanto você conversa, responde com voz neural local, abre aplicativos e opera controles acessíveis no Windows.</p>
           <div className="hero-actions-new">
             <a className="download-button" href={DOWNLOAD_URL}>
               <span className="windows-glyph">⊞</span>
@@ -92,7 +92,7 @@ export default function Home() {
               </div>
               <p>“Titi, o que eu tenho para fazer hoje?”</p>
             </div>
-            <footer><span><i /> OUVINDO</span><p>Esc / para encerrar</p></footer>
+            <footer><span><i /> OUVINDO</span><p>Diga “parar” ou pressione Esc</p></footer>
           </article>
 
           <div className="mode-list">
@@ -164,8 +164,8 @@ export default function Home() {
           <div className="download-poster-copy">
             <p><span>BETA PÚBLICO</span> V0.2</p>
             <h2>Dê voz ao<br />seu computador.</h2>
-            <p className="poster-lead">Converse por texto, teste os dois modos de voz e conheça o Titi no seu próprio PC.</p>
-            <a className="download-button download-button--light" href={DOWNLOAD_URL}><span className="windows-glyph">⊞</span><span><strong>Baixar Titi Beta</strong><small>Windows 10 ou 11 · aproximadamente 519 MB</small></span><b>↓</b></a>
+            <p className="poster-lead">Converse por texto ou voz, acompanhe a transcrição ao vivo e ouça respostas neurais sem enviar sua fala para a nuvem.</p>
+            <a className="download-button download-button--light" href={DOWNLOAD_URL}><span className="windows-glyph">⊞</span><span><strong>Baixar Titi Beta</strong><small>Windows 10 ou 11 · aproximadamente 840 MB</small></span><b>↓</b></a>
           </div>
           <div className="download-visual"><div className="poster-orbit poster-orbit--one" /><div className="poster-orbit poster-orbit--two" /><div className="titi-sprite titi-sprite--poster" role="img" aria-label="Mascote Titi" /><span>HELLO,<br />HUMAN.</span></div>
         </div>
@@ -177,7 +177,7 @@ export default function Home() {
         <header><p className="section-index"><span>05</span> PERGUNTAS FREQUENTES</p><h2>Antes de<br /><em>começar.</em></h2></header>
         <div className="faq-list-new">
           <details><summary><span>01</span>Preciso instalar algo antes?<i /></summary><p>Não precisa preparar nada manualmente. Na primeira vez, o Titi explica cada etapa e só instala ou baixa o que faltar depois da sua confirmação.</p></details>
-          <details><summary><span>02</span>Tudo já vem no instalador?<i /></summary><p>A interface, o mascote e a voz local já vêm. O modelo de conversa, com aproximadamente 6,6 GB, é baixado depois apenas com a sua confirmação.</p></details>
+          <details><summary><span>02</span>Tudo já vem no instalador?<i /></summary><p>A interface, o mascote, a transcrição incremental e a voz neural local já vêm. O modelo de conversa, com aproximadamente 6,6 GB, é baixado depois apenas com a sua confirmação.</p></details>
           <details><summary><span>03</span>Que tipos de aplicativo o Titi pode abrir?<i /></summary><p>O beta abre alguns aplicativos compatíveis, como navegador, música, editor e agente de código. A compatibilidade com outros programas cresce a cada atualização.</p></details>
           <details><summary><span>04</span>Meus dados saem do computador?<i /></summary><p>Suas conversas, sua voz e seu histórico podem ficar no seu computador. Se algum recurso precisar de internet, o Titi informa antes.</p></details>
         </div>

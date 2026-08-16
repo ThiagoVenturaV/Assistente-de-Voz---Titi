@@ -26,8 +26,10 @@ import {
   validatedChatRequest,
   validatedConversationId,
   validatedMascotState,
+  validatedPcmAudio,
   validatedRequestId,
   validatedSettingsPatch,
+  validatedVoiceSynthesisRequest,
   validatedWavAudio
 } from './ipc/validation'
 import { AssistantHarness } from './harness/assistant-harness'
@@ -42,9 +44,11 @@ import { DesktopToolkit } from './tools/desktop-toolkit'
 import { ToolConfirmationBroker } from './tools/tool-confirmation-broker'
 import { WindowsUiAutomationController } from './tools/windows-ui-automation'
 import { OllamaVisualComputerAgent } from './tools/visual-computer-agent'
-import { WhisperTranscriber } from './voice/whisper-transcriber'
+import { ParakeetTranscriber, sanitizeTranscription } from './voice/parakeet-transcriber'
+import { ParakeetStreamingTranscriber } from './voice/parakeet-streaming-transcriber'
 import { LocalTranscriptionRefiner } from './voice/transcription-refiner'
 import { GlobalPushToTalk } from './voice/global-push-to-talk'
+import { SupertonicSynthesizer } from './voice/supertonic-synthesizer'
 
 let mainWindow: BrowserWindow | null = null
 let mascotWindow: BrowserWindow | null = null
@@ -56,13 +60,17 @@ let confirmationBroker: ToolConfirmationBroker
 let harness: AssistantHarness
 let runtimeManager: OllamaRuntimeManager
 let gameStandbyMonitor: GameStandbyMonitor
-let transcriber: WhisperTranscriber
+let transcriber: ParakeetTranscriber
+let streamingTranscriber: ParakeetStreamingTranscriber
 let transcriptionRefiner: LocalTranscriptionRefiner
+let speechSynthesizer: SupertonicSynthesizer
 let globalPushToTalk: GlobalPushToTalk
 let idleTimer: NodeJS.Timeout | null = null
 let gameStandbyTransitioning = false
 const activeChatRequests = new Map<string, { controller: AbortController; ownerId: number }>()
 const activeTranscriptions = new Map<number, AbortController>()
+const activeVoiceStreams = new Map<string, { ownerId: number }>()
+const activeSyntheses = new Map<string, { controller: AbortController; ownerId: number }>()
 
 const rendererUrl = process.env.ELECTRON_RENDERER_URL
 
@@ -129,10 +137,12 @@ app.whenReady().then(async () => {
     (progress) => broadcast('runtime:setup-progress', progress),
     app.getPath('temp')
   )
-  transcriber = new WhisperTranscriber(
-    app.isPackaged ? process.resourcesPath : app.getAppPath(),
+  transcriber = new ParakeetTranscriber(
+    runtimeResourcesPath,
     app.getPath('temp')
   )
+  streamingTranscriber = new ParakeetStreamingTranscriber(runtimeResourcesPath)
+  speechSynthesizer = new SupertonicSynthesizer(runtimeResourcesPath)
   transcriptionRefiner = new LocalTranscriptionRefiner(
     () => settingsStore.get(),
     () => appCatalog.recognitionVocabulary()
@@ -189,6 +199,11 @@ app.on('before-quit', () => {
   for (const controller of activeTranscriptions.values()) controller.abort(abortReason())
   activeChatRequests.clear()
   activeTranscriptions.clear()
+  activeVoiceStreams.clear()
+  for (const { controller } of activeSyntheses.values()) controller.abort(abortReason())
+  activeSyntheses.clear()
+  streamingTranscriber?.dispose()
+  speechSynthesizer?.dispose()
   confirmationBroker?.cancelAll()
   globalPushToTalk?.dispose()
   void gameStandbyMonitor?.stop({ restore: false })
@@ -207,6 +222,12 @@ async function enterGameStandby(): Promise<void> {
   for (const controller of activeTranscriptions.values()) {
     controller.abort(gameStandbyReason())
   }
+  for (const sessionId of activeVoiceStreams.keys()) streamingTranscriber.cancel(sessionId)
+  activeVoiceStreams.clear()
+  streamingTranscriber.dispose()
+  for (const { controller } of activeSyntheses.values()) controller.abort(gameStandbyReason())
+  activeSyntheses.clear()
+  speechSynthesizer.dispose()
   confirmationBroker.cancelAll()
   runtimeManager.cancelActiveWork(gameStandbyReason())
   try {
@@ -466,6 +487,18 @@ function registerIpcHandlers(): void {
       transcription.abort(abortReason())
       stopped = true
     }
+    for (const [sessionId, active] of activeVoiceStreams) {
+      if (active.ownerId !== event.sender.id) continue
+      streamingTranscriber.cancel(sessionId)
+      activeVoiceStreams.delete(sessionId)
+      stopped = true
+    }
+    for (const [id, active] of activeSyntheses) {
+      if (active.ownerId !== event.sender.id) continue
+      active.controller.abort(abortReason())
+      activeSyntheses.delete(id)
+      stopped = true
+    }
     if (runtimeManager.cancelActiveWork(abortReason())) stopped = true
     setMascotState('idle')
     return stopped
@@ -512,6 +545,111 @@ function registerIpcHandlers(): void {
       if (activeTranscriptions.get(event.sender.id) === controller) {
         activeTranscriptions.delete(event.sender.id)
       }
+    }
+  })
+  ipcMain.handle('voice:start-stream', async (event, value: unknown) => {
+    requireRenderer(event, 'main')
+    assertNotInGameStandby()
+    const sessionId = validatedRequestId(value)
+    for (const [activeId, active] of activeVoiceStreams) {
+      if (active.ownerId !== event.sender.id) continue
+      streamingTranscriber.cancel(activeId)
+      activeVoiceStreams.delete(activeId)
+    }
+    await streamingTranscriber.start(sessionId, (partial) => {
+      if (!event.sender.isDestroyed()) {
+        event.sender.send('voice:partial-transcription', partial)
+      }
+    })
+    activeVoiceStreams.set(sessionId, { ownerId: event.sender.id })
+  })
+  ipcMain.handle('voice:stream-chunk', (event, sessionValue: unknown, audioValue: unknown) => {
+    requireRenderer(event, 'main')
+    assertNotInGameStandby()
+    const sessionId = validatedRequestId(sessionValue)
+    const active = activeVoiceStreams.get(sessionId)
+    if (!active || active.ownerId !== event.sender.id) {
+      throw new Error('A sessão incremental não está ativa.')
+    }
+    streamingTranscriber.push(sessionId, validatedPcmAudio(audioValue))
+  })
+  ipcMain.handle('voice:finish-stream', async (event, value: unknown) => {
+    requireRenderer(event, 'main')
+    assertNotInGameStandby()
+    const sessionId = validatedRequestId(value)
+    const active = activeVoiceStreams.get(sessionId)
+    if (!active || active.ownerId !== event.sender.id) {
+      throw new Error('A sessão incremental não está ativa.')
+    }
+    activeTranscriptions.get(event.sender.id)?.abort(abortReason())
+    const controller = new AbortController()
+    activeTranscriptions.set(event.sender.id, controller)
+    const startedAt = performance.now()
+    try {
+      const transcription = await streamingTranscriber.finish(sessionId)
+      const raw = sanitizeTranscription(transcription.text)
+      const text = await transcriptionRefiner.refine(raw, controller.signal)
+      return {
+        text,
+        processingTimeMs: Math.round(performance.now() - startedAt)
+      }
+    } finally {
+      activeVoiceStreams.delete(sessionId)
+      if (activeTranscriptions.get(event.sender.id) === controller) {
+        activeTranscriptions.delete(event.sender.id)
+      }
+    }
+  })
+  ipcMain.handle('voice:cancel-stream', (event, value: unknown) => {
+    requireRenderer(event, 'main')
+    const sessionId = validatedRequestId(value)
+    const active = activeVoiceStreams.get(sessionId)
+    if (active?.ownerId === event.sender.id) {
+      streamingTranscriber.cancel(sessionId)
+      activeVoiceStreams.delete(sessionId)
+    }
+  })
+  ipcMain.handle(
+    'voice:synthesize',
+    async (event, requestIdValue: unknown, textValue: unknown, rateValue: unknown) => {
+      requireRenderer(event, 'main')
+      assertNotInGameStandby()
+      const request = validatedVoiceSynthesisRequest(requestIdValue, textValue, rateValue)
+      if (activeSyntheses.has(request.requestId)) {
+        throw new Error('Esta fala já está sendo preparada.')
+      }
+      for (const [id, active] of activeSyntheses) {
+        if (active.ownerId !== event.sender.id) continue
+        active.controller.abort(abortReason())
+        activeSyntheses.delete(id)
+      }
+      const controller = new AbortController()
+      activeSyntheses.set(request.requestId, { controller, ownerId: event.sender.id })
+      try {
+        return await speechSynthesizer.synthesize(
+          request.requestId,
+          request.text,
+          request.rate,
+          controller.signal
+        )
+      } catch (error) {
+        if (isAbortError(error) || controller.signal.aborted) throw abortReason()
+        setMascotState('error')
+        scheduleIdle(2500)
+        throw error
+      } finally {
+        const active = activeSyntheses.get(request.requestId)
+        if (active?.controller === controller) activeSyntheses.delete(request.requestId)
+      }
+    }
+  )
+  ipcMain.handle('voice:cancel-synthesis', (event, value: unknown) => {
+    requireRenderer(event, 'main')
+    const requestId = validatedRequestId(value)
+    const active = activeSyntheses.get(requestId)
+    if (active?.ownerId === event.sender.id) {
+      active.controller.abort(abortReason())
+      activeSyntheses.delete(requestId)
     }
   })
   ipcMain.handle('voice:set-live-mode', async (event, value: unknown) => {

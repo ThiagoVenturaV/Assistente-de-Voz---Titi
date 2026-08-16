@@ -199,46 +199,46 @@ export class OllamaProvider implements AssistantProvider {
         if (content) {
           const conversationalResponse = stripNoToolNeededPrefix(content)
           if (conversationalResponse !== null) return conversationalResponse
-
-          if (forcedToolRound || toolRecoveryAttempted) {
-            return 'Entendi o pedido como uma ação no computador, mas o modelo não produziu uma chamada de ferramenta válida. Nenhuma ação foi executada.'
-          }
-
-          let decision: ToolNeedDecision
-          try {
-            decision = await requestToolNeedDecision(
-              endpoint,
-              settings,
-              latestUserRequest,
-              this.tools,
-              signal
-            )
-          } catch (error) {
-            if (isAbortError(error) || signal?.aborted) throw abortError(signal)
-            return `Não consegui verificar com segurança se esse pedido exigia uma ação no computador. Nenhuma ação foi executada. ${errorMessage(error)}`
-          }
-
-          if (
-            decision.decision === 'needs_tool'
-            && decision.confidence >= TOOL_RECOVERY_CONFIDENCE
-          ) {
-            toolRecoveryAttempted = true
-            forceToolOnNextRound = true
-            agentMessages.push({
-              role: 'system',
-              content: [
-                'AUDITORIA INTERNA: o pedido atual exige uma ou mais ferramentas reais.',
-                'A resposta anterior não executou nada e foi descartada.',
-                'Planeje pela linguagem natural do usuário e chame agora todas as ferramentas necessárias, na ordem lógica.',
-                'Para abrir e dar Play no Spotify, chame somente spotify com action=play, pois essa ação já abre o aplicativo quando necessário.',
-                'Não prometa, não narre e não afirme sucesso sem resultados de ferramenta.'
-              ].join(' ')
-            })
-            continue
-          }
-
-          return content
         }
+
+        if (forcedToolRound || toolRecoveryAttempted) {
+          return 'Entendi o pedido como uma ação no computador, mas o modelo não produziu uma chamada de ferramenta válida. Nenhuma ação foi executada.'
+        }
+
+        let decision: ToolNeedDecision
+        try {
+          decision = await requestToolNeedDecision(
+            endpoint,
+            settings,
+            latestUserRequest,
+            this.tools,
+            signal
+          )
+        } catch (error) {
+          if (isAbortError(error) || signal?.aborted) throw abortError(signal)
+          return `Não consegui verificar com segurança se esse pedido exigia uma ação no computador. Nenhuma ação foi executada. ${errorMessage(error)}`
+        }
+
+        if (
+          decision.decision === 'needs_tool'
+          && decision.confidence >= TOOL_RECOVERY_CONFIDENCE
+        ) {
+          toolRecoveryAttempted = true
+          forceToolOnNextRound = true
+          agentMessages.push({
+            role: 'system',
+            content: [
+              'AUDITORIA INTERNA: o pedido atual exige uma ou mais ferramentas reais.',
+              'A resposta anterior não executou nada e foi descartada.',
+              'Planeje pela linguagem natural do usuário e chame agora todas as ferramentas necessárias, na ordem lógica.',
+              'Para abrir e dar Play no Spotify, chame somente spotify com action=play, pois essa ação já abre o aplicativo quando necessário.',
+              'Não prometa, não narre e não afirme sucesso sem resultados de ferramenta.'
+            ].join(' ')
+          })
+          continue
+        }
+
+        if (content) return content
         throw new Error('O modelo local retornou uma resposta vazia.')
       }
 

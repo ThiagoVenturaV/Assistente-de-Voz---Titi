@@ -4,28 +4,28 @@ import { access, readFile, unlink, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { VoiceTranscription } from '../../shared/contracts'
 
-export class WhisperTranscriber {
+export class ParakeetTranscriber {
   private readonly executable: string
   private readonly model: string
-  private readonly vadModel: string
 
-  constructor(resourcesPath: string, tempPath: string) {
-    this.executable = join(resourcesPath, 'runtime', 'whisper', 'bin', 'Release', 'whisper-cli.exe')
-    this.model = join(resourcesPath, 'runtime', 'whisper', 'models', 'ggml-large-v3-turbo-q8_0.bin')
-    this.vadModel = join(resourcesPath, 'runtime', 'whisper', 'models', 'ggml-silero-v6.2.0.bin')
-    this.tempPath = tempPath
+  constructor(resourcesPath: string, private readonly tempPath: string) {
+    this.executable = join(resourcesPath, 'runtime', 'whisper', 'bin', 'Release', 'parakeet-cli.exe')
+    this.model = join(
+      resourcesPath,
+      'runtime',
+      'whisper',
+      'models',
+      'ggml-parakeet-tdt-0.6b-v3-q8_0.bin'
+    )
   }
-
-  private readonly tempPath: string
 
   async transcribe(wavAudio: ArrayBuffer, signal?: AbortSignal): Promise<VoiceTranscription> {
     throwIfAborted(signal)
     const bytes = Buffer.from(wavAudio)
     validateAudio(bytes)
-    await Promise.all([access(this.executable), access(this.model), access(this.vadModel)]).catch(() => {
-      throw new Error('O motor local de voz ainda não foi preparado. Execute a preparação do whisper.cpp.')
+    await Promise.all([access(this.executable), access(this.model)]).catch(() => {
+      throw new Error('O motor local de voz ainda não foi preparado. Execute a preparação do runtime de voz.')
     })
-
     const id = `titi-voice-${randomUUID()}`
     const inputPath = join(this.tempPath, `${id}.wav`)
     const outputBase = join(this.tempPath, id)
@@ -35,9 +35,9 @@ export class WhisperTranscriber {
     try {
       await writeFile(inputPath, bytes)
       throwIfAborted(signal)
-      await runWhisper(
+      await runParakeet(
         this.executable,
-        whisperArguments(this.model, this.vadModel, inputPath, outputBase),
+        parakeetArguments(this.model, inputPath, outputBase),
         signal
       )
       throwIfAborted(signal)
@@ -52,31 +52,15 @@ export class WhisperTranscriber {
   }
 }
 
-export function whisperArguments(
-  model: string,
-  vadModel: string,
-  inputPath: string,
-  outputBase: string
-): string[] {
+export function parakeetArguments(model: string, inputPath: string, outputBase: string): string[] {
   return [
     '--model', model,
     '--file', inputPath,
-    '--language', 'pt',
     '--threads', '6',
-    '--audio-ctx', '768',
-    '--beam-size', '8',
     '--no-gpu',
-    '--no-timestamps',
-    '--suppress-nst',
-    '--vad',
-    '--vad-model', vadModel,
-    '--vad-threshold', '0.50',
-    '--vad-min-speech-duration-ms', '250',
-    '--vad-min-silence-duration-ms', '200',
-    '--vad-speech-pad-ms', '100',
+    '--no-prints',
     '--output-txt',
-    '--output-file', outputBase,
-    '--prompt', 'Conversa em português brasileiro sobre aplicativos e computador. Titi, Spotify, Brave, Ollama, Codex e Antigravity. Abrir, fechar, tocar, dar play, pausar, pesquisar, escrever e clicar.'
+    '--output-file', outputBase
   ]
 }
 
@@ -118,7 +102,7 @@ function validateAudio(bytes: Buffer): void {
   }
 }
 
-function runWhisper(executable: string, args: string[], signal?: AbortSignal): Promise<void> {
+function runParakeet(executable: string, args: string[], signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
     throwIfAborted(signal)
     const child = spawn(executable, args, {

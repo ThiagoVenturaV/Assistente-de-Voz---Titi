@@ -16,6 +16,7 @@ import { Sidebar } from './components/Sidebar'
 import { ToolConfirmationModal } from './components/ToolConfirmationModal'
 import { WindowControls } from './components/WindowControls'
 import { PcmRecorder } from './voice/pcm-recorder'
+import { resolveLiveVoiceCommand } from './voice/live-voice-command'
 
 export function App(): React.JSX.Element {
   const [settings, setSettings] = useState<TitiSettings | null>(null)
@@ -44,6 +45,8 @@ export function App(): React.JSX.Element {
   const interactionGeneration = useRef(0)
   const activeRequestId = useRef<string | null>(null)
   const activeSpeech = useRef<AbortController | null>(null)
+  const activeVoiceStreamId = useRef<string | null>(null)
+  const voiceChunkQueue = useRef<Promise<void>>(Promise.resolve())
   const gameStandbyRef = useRef(false)
   const preparingRuntimeRef = useRef(false)
 
@@ -86,6 +89,11 @@ export function App(): React.JSX.Element {
       if (recorder.current || recordingStarting.current) endListening()
       else void beginListening(false)
     })
+    const unsubscribePartialTranscription = window.titi.voice.onPartialTranscription((partial) => {
+      if (partial.sessionId !== activeVoiceStreamId.current) return
+      setDraft(partial.text)
+      setNotice(partial.text ? `Ouvindo: “${partial.text}”` : 'Ouvindo…')
+    })
     const unsubscribeGameStandby = window.titi.game.onStandbyChanged((enabled) => {
       gameStandbyRef.current = enabled
       setGameStandby(enabled)
@@ -98,9 +106,11 @@ export function App(): React.JSX.Element {
       unsubscribeRuntime()
       unsubscribeLive()
       unsubscribePushToTalk()
+      unsubscribePartialTranscription()
       unsubscribeGameStandby()
       clearLiveRestart()
       recorder.current?.cancel()
+      cancelVoiceStream()
       activeSpeech.current?.abort()
       void window.titi.interaction.stop(activeRequestId.current ?? undefined)
       window.speechSynthesis?.cancel()
@@ -251,21 +261,31 @@ export function App(): React.JSX.Element {
     }
     if (recorder.current || recordingStarting.current) return
     clearLiveRestart()
+    const streamSessionId = crypto.randomUUID()
+    activeVoiceStreamId.current = streamSessionId
+    voiceChunkQueue.current = Promise.resolve()
     const nextRecorder = new PcmRecorder(
       autoStop
         ? (reason) => reason === 'silence'
           ? void finishListening()
           : cancelSilentListening()
         : undefined,
-      settingsRef.current.voice.inputDeviceId
+      settingsRef.current.voice.inputDeviceId,
+      (pcmAudio) => {
+        voiceChunkQueue.current = voiceChunkQueue.current
+          .then(() => window.titi.voice.pushStreamChunk(streamSessionId, pcmAudio))
+          .catch(() => undefined)
+      }
     )
     const generation = ++recordingGeneration.current
     recorder.current = nextRecorder
     recordingStarting.current = true
     stopRequested.current = false
     setNotice(null)
-    window.speechSynthesis?.cancel()
+    activeSpeech.current?.abort()
     try {
+      setNotice('Preparando reconhecimento contínuo…')
+      await window.titi.voice.startStream(streamSessionId)
       await nextRecorder.start()
       if (generation !== recordingGeneration.current || recorder.current !== nextRecorder) {
         nextRecorder.cancel()
@@ -279,6 +299,7 @@ export function App(): React.JSX.Element {
       if (generation !== recordingGeneration.current) return
       recordingStarting.current = false
       recorder.current = null
+      cancelVoiceStream()
       setListening(false)
       setNotice(error instanceof Error ? error.message : 'Não consegui acessar o microfone.')
       void window.titi.mascot.setState('error')
@@ -290,6 +311,7 @@ export function App(): React.JSX.Element {
     const currentRecorder = recorder.current
     if (!currentRecorder) return
     const generation = recordingGeneration.current
+    const streamSessionId = activeVoiceStreamId.current
     recorder.current = null
     setVoiceProcessing(true)
     setListening(false)
@@ -298,8 +320,31 @@ export function App(): React.JSX.Element {
     try {
       const audio = await currentRecorder.stop()
       if (generation !== recordingGeneration.current) return
-      const transcription = await window.titi.voice.transcribe(audio)
+      await voiceChunkQueue.current
       if (generation !== recordingGeneration.current) return
+      activeVoiceStreamId.current = null
+      let transcription
+      try {
+        transcription = streamSessionId
+          ? await window.titi.voice.finishStream(streamSessionId)
+          : await window.titi.voice.transcribe(audio)
+      } catch {
+        transcription = await window.titi.voice.transcribe(audio)
+      }
+      if (generation !== recordingGeneration.current) return
+      if (
+        settingsRef.current?.voice.liveMode
+        && resolveLiveVoiceCommand(transcription.text) === 'stop'
+      ) {
+        setDraft('')
+        setVoiceProcessing(false)
+        const saved = await window.titi.voice.setLiveMode(false)
+        settingsRef.current = saved
+        setSettings(saved)
+        setNotice('Conversa ao vivo encerrada por voz.')
+        void window.titi.mascot.setState('idle')
+        return
+      }
       setDraft(transcription.text)
       setNotice(`Ouvi: “${transcription.text}”`)
       await sendMessage(transcription.text)
@@ -324,6 +369,7 @@ export function App(): React.JSX.Element {
   function cancelSilentListening(): void {
     recorder.current?.cancel()
     recorder.current = null
+    cancelVoiceStream()
     setListening(false)
     void window.titi.mascot.setState('idle')
     if (settingsRef.current?.voice.liveMode) {
@@ -368,9 +414,12 @@ export function App(): React.JSX.Element {
     recordingGeneration.current += 1
     recorder.current?.cancel()
     recorder.current = null
+    cancelVoiceStream()
     recordingStarting.current = false
     stopRequested.current = false
     setListening(false)
+    voiceProcessingRef.current = false
+    setVoiceProcessing(false)
     if (!sendingRef.current) void window.titi.mascot.setState('idle')
   }
 
@@ -382,7 +431,6 @@ export function App(): React.JSX.Element {
       || voiceProcessingRef.current
       || activeRequestId.current
       || activeSpeech.current
-      || window.speechSynthesis?.speaking
       || settingsRef.current?.voice.liveMode
       || preparingRuntimeRef.current
     )
@@ -394,6 +442,7 @@ export function App(): React.JSX.Element {
     clearLiveRestart()
     recorder.current?.cancel()
     recorder.current = null
+    cancelVoiceStream()
     recordingStarting.current = false
     stopRequested.current = false
     activeSpeech.current?.abort()
@@ -426,6 +475,7 @@ export function App(): React.JSX.Element {
     clearLiveRestart()
     recorder.current?.cancel()
     recorder.current = null
+    cancelVoiceStream()
     recordingStarting.current = false
     stopRequested.current = false
     activeSpeech.current?.abort()
@@ -442,6 +492,13 @@ export function App(): React.JSX.Element {
     setListening(false)
     setVoiceProcessing(false)
     setNotice('Modo jogo ativo. Tarefas e microfone foram pausados; a descarga do modelo foi solicitada.')
+  }
+
+  function cancelVoiceStream(): void {
+    const sessionId = activeVoiceStreamId.current
+    activeVoiceStreamId.current = null
+    voiceChunkQueue.current = Promise.resolve()
+    if (sessionId) void window.titi.voice.cancelStream(sessionId).catch(() => undefined)
   }
 
   if (!settings) {
@@ -540,46 +597,62 @@ export function App(): React.JSX.Element {
   )
 }
 
-function speakText(content: string, rate: number, signal?: AbortSignal): Promise<void> {
-  if (!window.speechSynthesis || !('SpeechSynthesisUtterance' in window)) return Promise.resolve()
-  if (signal?.aborted) return Promise.resolve()
-  window.speechSynthesis.cancel()
-  const text = content
-    .replace(/[*_`#>]/g, '')
-    .replace(/\[(.*?)\]\(.*?\)/g, '$1')
-    .trim()
-  if (!text) return Promise.resolve()
+async function speakText(content: string, rate: number, signal?: AbortSignal): Promise<void> {
+  if (signal?.aborted) return
+  const requestId = crypto.randomUUID()
+  let audio: HTMLAudioElement | null = null
+  let objectUrl: string | null = null
+  let settled = false
+  let timeout = 0
 
-  return new Promise((resolve) => {
-    const utterance = new SpeechSynthesisUtterance(text)
-    let settled = false
-    let timeout = 0
-    const abort = (): void => {
-      window.speechSynthesis.cancel()
-      finish()
-    }
-    const finish = (): void => {
-      if (settled) return
-      settled = true
-      window.clearTimeout(timeout)
-      signal?.removeEventListener('abort', abort)
-      void window.titi.mascot.setState('idle')
-      resolve()
-    }
-    timeout = window.setTimeout(() => {
-      window.speechSynthesis.cancel()
-      finish()
-    }, Math.max(8_000, Math.min(90_000, text.length * 90)))
-    utterance.lang = 'pt-BR'
-    utterance.rate = rate
-    const voices = window.speechSynthesis.getVoices()
-    utterance.voice = voices.find((voice) => voice.lang.toLowerCase() === 'pt-br')
-      ?? voices.find((voice) => voice.lang.toLowerCase().startsWith('pt'))
-      ?? null
-    utterance.onstart = () => void window.titi.mascot.setState('speaking')
-    utterance.onend = finish
-    utterance.onerror = finish
-    signal?.addEventListener('abort', abort, { once: true })
-    window.speechSynthesis.speak(utterance)
-  })
+  const cleanup = (): void => {
+    window.clearTimeout(timeout)
+    signal?.removeEventListener('abort', abort)
+    if (objectUrl) URL.revokeObjectURL(objectUrl)
+    objectUrl = null
+  }
+  const abort = (): void => {
+    void window.titi.voice.cancelSynthesis(requestId).catch(() => undefined)
+    audio?.pause()
+    audio = null
+    cleanup()
+  }
+  signal?.addEventListener('abort', abort, { once: true })
+
+  try {
+    const synthesis = await window.titi.voice.synthesize(requestId, content, rate)
+    if (signal?.aborted) return
+    objectUrl = URL.createObjectURL(new Blob([synthesis.wavAudio], { type: 'audio/wav' }))
+    audio = new Audio(objectUrl)
+    await new Promise<void>((resolve, reject) => {
+      const finish = (error?: Error): void => {
+        if (settled) return
+        settled = true
+        signal?.removeEventListener('abort', abortPlayback)
+        audio?.pause()
+        audio = null
+        cleanup()
+        void window.titi.mascot.setState('idle')
+        error ? reject(error) : resolve()
+      }
+      const abortPlayback = (): void => finish()
+      signal?.addEventListener('abort', abortPlayback, { once: true })
+      audio!.onplay = () => void window.titi.mascot.setState('speaking')
+      audio!.onended = () => finish()
+      audio!.onerror = () => finish(new Error('Não consegui reproduzir a voz neural local.'))
+      if (signal?.aborted) {
+        finish()
+        return
+      }
+      timeout = window.setTimeout(
+        () => finish(new Error('A reprodução da resposta excedeu o tempo esperado.')),
+        Math.max(15_000, Math.min(300_000, synthesis.audioDurationMs + 10_000))
+      )
+      void audio!.play().catch(() => finish(new Error('O Windows bloqueou a reprodução da voz local.')))
+    })
+  } catch (error) {
+    if (!signal?.aborted) throw error
+  } finally {
+    cleanup()
+  }
 }

@@ -78,6 +78,23 @@ const api: TitiDesktopApi = {
   voice: {
     transcribe: (wavAudio: ArrayBuffer) =>
       ipcRenderer.invoke('voice:transcribe', wavAudio),
+    startStream: (sessionId: string) => ipcRenderer.invoke('voice:start-stream', sessionId),
+    pushStreamChunk: (sessionId: string, pcmAudio: ArrayBuffer) =>
+      ipcRenderer.invoke('voice:stream-chunk', sessionId, pcmAudio),
+    finishStream: (sessionId: string) => ipcRenderer.invoke('voice:finish-stream', sessionId),
+    cancelStream: (sessionId: string) => ipcRenderer.invoke('voice:cancel-stream', sessionId),
+    onPartialTranscription: (callback) => {
+      const listener = (
+        _event: Electron.IpcRendererEvent,
+        partial: import('../shared/contracts').VoicePartialTranscription
+      ): void => callback(partial)
+      ipcRenderer.on('voice:partial-transcription', listener)
+      return () => ipcRenderer.removeListener('voice:partial-transcription', listener)
+    },
+    synthesize: (requestId: string, text: string, rate: number) =>
+      ipcRenderer.invoke('voice:synthesize', requestId, text, rate),
+    cancelSynthesis: (requestId: string) =>
+      ipcRenderer.invoke('voice:cancel-synthesis', requestId),
     setLiveMode: (enabled: boolean) => ipcRenderer.invoke('voice:set-live-mode', enabled),
     onLiveModeChanged: (callback) => {
       const listener = (_event: Electron.IpcRendererEvent, enabled: boolean): void => callback(enabled)

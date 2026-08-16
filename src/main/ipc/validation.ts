@@ -88,6 +88,44 @@ export function validatedWavAudio(value: unknown): ArrayBuffer {
   return value
 }
 
+export function validatedPcmAudio(value: unknown): ArrayBuffer {
+  if (
+    !(value instanceof ArrayBuffer)
+    || value.byteLength === 0
+    || value.byteLength % Float32Array.BYTES_PER_ELEMENT !== 0
+    || value.byteLength > 16_000 * Float32Array.BYTES_PER_ELEMENT * 15
+  ) {
+    throw new Error('Bloco PCM inválido ou maior que 15 segundos.')
+  }
+  return value
+}
+
+export interface ValidatedVoiceSynthesisRequest {
+  requestId: string
+  text: string
+  rate: number
+}
+
+export function validatedVoiceSynthesisRequest(
+  requestIdValue: unknown,
+  textValue: unknown,
+  rateValue: unknown
+): ValidatedVoiceSynthesisRequest {
+  const requestId = validatedRequestId(requestIdValue)
+  if (typeof textValue !== 'string' || textValue.length === 0 || textValue.length > 12_000) {
+    throw new Error('Texto de síntese inválido ou maior que 12.000 caracteres.')
+  }
+  if (
+    typeof rateValue !== 'number'
+    || !Number.isFinite(rateValue)
+    || rateValue < 0.7
+    || rateValue > 1.4
+  ) {
+    throw new Error('Velocidade de síntese inválida.')
+  }
+  return { requestId, text: textValue, rate: rateValue }
+}
+
 function validatedProvider(value: unknown): TitiSettings['provider'] {
   if (!isRecord(value)) throw new Error('Provedor inválido.')
   rejectUnknownKeys(value, ['kind', 'endpoint', 'model'])
