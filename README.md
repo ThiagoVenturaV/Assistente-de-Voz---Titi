@@ -1,4 +1,8 @@
-# Assistente de Voz — Titi
+<p align="center">
+  <img src="./branding/titi-head-master.png" alt="Ícone do Titi, um gato-robô" width="176" />
+</p>
+
+# Titi
 
 Titi é um assistente local para Windows com interface gráfica, conversa por texto e voz, mascote 2D animado e ferramentas controladas para agir no computador. O objetivo é permitir que a pessoa use seus aplicativos por voz sem entregar um terminal irrestrito ao modelo.
 

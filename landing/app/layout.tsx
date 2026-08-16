@@ -29,10 +29,18 @@ export async function generateMetadata(): Promise<Metadata> {
       description,
       type: "website",
       locale: "pt_BR",
-      images: [{ url: "/og-v5.png", width: 1732, height: 909, alt: "Titi — Fale do seu jeito. O PC entende e faz." }],
+      images: [{ url: "/og-brand.png", width: 1731, height: 909, alt: "Titi — Fale do seu jeito. O PC entende e faz." }],
     },
-    twitter: { card: "summary_large_image", title, description, images: ["/og-v5.png"] },
-    icons: { icon: "/titi-icon.png", shortcut: "/titi-icon.png" },
+    twitter: { card: "summary_large_image", title, description, images: ["/og-brand.png"] },
+    icons: {
+      icon: [
+        { url: "/favicon.ico", sizes: "any" },
+        { url: "/favicon-32.png", type: "image/png", sizes: "32x32" },
+        { url: "/titi-icon-192.png", type: "image/png", sizes: "192x192" },
+      ],
+      shortcut: "/favicon.ico",
+      apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+    },
   };
 }
 

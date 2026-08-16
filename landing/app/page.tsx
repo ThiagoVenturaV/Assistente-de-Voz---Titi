@@ -11,7 +11,7 @@ export default function Home() {
 
       <nav className="masthead shell" aria-label="Navegação principal">
         <a className="wordmark" href="#inicio" aria-label="Titi — início">
-          <span className="wordmark-pet"><Image src="/titi-icon.png" alt="" width={32} height={35} /></span>
+          <span className="wordmark-pet"><Image src="/titi-icon.png" alt="" width={30} height={30} /></span>
           <span>Titi</span>
         </a>
         <div className="masthead-links">
@@ -46,7 +46,7 @@ export default function Home() {
               <div className="panel-chat">
                 <p className="panel-status"><i /> AO VIVO · ENTENDENDO ENQUANTO VOCÊ FALA</p>
                 <p className="panel-user">Titi, abre meu aplicativo de música e coloca alguma coisa calma.</p>
-                <div className="panel-answer"><Image src="/titi-icon.png" alt="" width={26} height={29} /><p><small>ENTENDI</small>Abrindo seu aplicativo de música e iniciando uma seleção tranquila.</p></div>
+                <div className="panel-answer"><Image src="/titi-icon.png" alt="" width={26} height={26} /><p><small>ENTENDI</small>Abrindo seu aplicativo de música e iniciando uma seleção tranquila.</p></div>
                 <div className="panel-action"><span>♪</span><p><small>AÇÃO CONCLUÍDA</small><b>Aplicativo aberto · tocando</b></p><i>Pronto</i></div>
                 <div className="panel-composer">Converse com o Titi… <span>⌁</span></div>
               </div>
@@ -114,7 +114,7 @@ export default function Home() {
         <div className="faq-list" data-reveal><details><summary><span>01</span>Preciso configurar modelos manualmente?<i /></summary><p>Não. Na primeira vez, o Titi orienta a configuração e só baixa o modelo adicional depois da sua confirmação.</p></details><details><summary><span>02</span>Tudo já vem no instalador?<i /></summary><p>A interface, o mascote, a transcrição incremental e a voz neural local já vêm. O modelo de conversa, com aproximadamente 6,6 GB, é baixado depois.</p></details><details><summary><span>03</span>O que o Titi já consegue fazer no Windows?<i /></summary><p>O beta abre aplicativos compatíveis, usa seu navegador, pesquisa, controla Play/Pause no aplicativo de música e aciona controles acessíveis. A cobertura cresce a cada versão.</p></details><details><summary><span>04</span>Ele pede permissão antes de cada comando?<i /></summary><p>Durante o beta, os comandos compatíveis executam direto. O Antigravity permanece como uma confirmação especial antes da ação.</p></details><details><summary><span>05</span>Como interrompo uma conversa ao vivo?<i /></summary><p>Diga “parar” ou pressione Esc. O Titi encerra a escuta e devolve o controle imediatamente.</p></details><details><summary><span>06</span>Meus dados saem do computador?<i /></summary><p>Sua voz, suas conversas e seu histórico podem ficar no seu computador. Se uma ação pedida precisar de internet, como uma pesquisa, o Titi usa a conexão para essa ação.</p></details></div>
       </section>
 
-      <footer className="footer"><div className="shell footer-main"><a className="wordmark wordmark--footer" href="#inicio"><span className="wordmark-pet"><Image src="/titi-icon.png" alt="" width={32} height={35} /></span><span>Titi</span></a><p>Uma conversa mais natural<br />entre você e o seu computador.</p><div><a href="#como-funciona">Como funciona ↑</a><a href="#privacidade">Privacidade ↑</a><a href="#download">Download ↓</a></div></div><div className="shell footer-bottom"><span>© 2026 Titi</span><span>Feito no Brasil · Beta público</span><a href="#inicio">Voltar ao topo ↑</a></div></footer>
+      <footer className="footer"><div className="shell footer-main"><a className="wordmark wordmark--footer" href="#inicio"><span className="wordmark-pet"><Image src="/titi-icon.png" alt="" width={30} height={30} /></span><span>Titi</span></a><p>Uma conversa mais natural<br />entre você e o seu computador.</p><div><a href="#como-funciona">Como funciona ↑</a><a href="#privacidade">Privacidade ↑</a><a href="#download">Download ↓</a></div></div><div className="shell footer-bottom"><span>© 2026 Titi</span><span>Feito no Brasil · Beta público</span><a href="#inicio">Voltar ao topo ↑</a></div></footer>
     </main>
   );
 }
