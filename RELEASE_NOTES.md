@@ -46,6 +46,7 @@ Também permanecem as melhorias anteriores: comandos diretos com Ollama offline,
 - `pnpm typecheck`: aprovado.
 - `pnpm test`: 30 arquivos e 306 testes aprovados.
 - `pnpm qa:ollama-tools`: 19/19 cenários aprovados no Qwen 3.5 9B local, cobrindo as seis ferramentas, referências entre turnos, correções e observação seguida de ação.
+- `pnpm exec vitest run scripts/check-ollama-conversation.test.ts`: 4/4 fluxos aprovados no `OllamaProvider` real, com todas as seis definições e executor sem efeitos externos.
 - `pnpm build`: main, preload e renderer aprovados.
 - `pnpm package:win` e `pnpm verify:package`: aprovados para o artefato beta.3 final.
 - Workers empacotados: Parakeet com 10 parciais e frase final correta; Supertonic com 4,9 s de áudio gerados em 0,95 s.

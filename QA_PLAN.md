@@ -17,6 +17,7 @@ Antes do teste, o usuário havia desinstalado a versão anterior: a pasta de ins
 | Testes automatizados | Aprovado na branch | `pnpm test`: 30 arquivos e 306 testes aprovados |
 | Build de produção | Aprovado | `pnpm build`: main, preload e renderer compilados |
 | Linguagem natural e seleção de ferramentas | Aprovado no nível de contrato | `pnpm qa:ollama-tools`: 19/19 no Qwen 3.5 9B local, cobrindo as seis ferramentas, aplicativo genérico, pedidos compostos, correções, referências entre turnos, conversa sem efeito e observar → agir; o script não executa efeitos externos |
+| Conversa real do provider | Aprovado sem efeitos externos | `pnpm exec vitest run scripts/check-ollama-conversation.test.ts`: 4/4 fluxos sequenciais no `OllamaProvider` real com Qwen 3.5 9B, definições reais das seis ferramentas e executor gravador; comprovou conversa conceitual sem efeito, Spotify composto, correção contextual, web, hora e observar → agir na mesma cadeia |
 | Dados da versão anterior | Preservados após o NSIS | A instalação reabriu o nome, as configurações e a conversa anterior; `settings.json` e `conversations.json` continuam presentes em `%APPDATA%\titi-desktop` |
 | Instalador publicado | Aprovado como pré-release | tag `v0.2.0-beta.3` aponta para `a0298a2`; EXE, blockmap e `latest.yml` públicos conferem em tamanho e SHA-256, e o download anônimo responde HTTP 200 |
 | Pacote corretivo de diretório | Aprovado | `pnpm package:win` regenerou `win-unpacked`; `verify:package` confirmou beta.3, workers, módulos nativos, Parakeet, Supertonic e marcadores funcionais |

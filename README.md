@@ -124,7 +124,7 @@ pnpm qa:streaming-transcription -- <arquivo.wav> 15
 pnpm qa:packaged-tts
 ```
 
-`qa:ollama-tools` consulta o modelo local em dez cenários de linguagem natural: ações simples, correções, pedidos compostos, controle de música, pesquisa, hora e perguntas que não devem causar efeitos. A avaliação testa também a recuperação com ferramenta obrigatória, sem executar nenhuma ação retornada pelo modelo.
+`qa:ollama-tools` consulta o modelo local em 19 cenários de linguagem natural: as seis ferramentas, ações simples, correções, pedidos compostos, controle de música, pesquisa, hora e perguntas que não devem causar efeitos. A avaliação testa também a recuperação com ferramenta obrigatória, sem executar nenhuma ação retornada pelo modelo. Para exercitar o `OllamaProvider` real de ponta a ponta com um executor sem efeitos externos, execute `pnpm exec vitest run scripts/check-ollama-conversation.test.ts`.
 
 Empacotamento:
 
