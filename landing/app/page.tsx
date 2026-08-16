@@ -1,7 +1,7 @@
 import { CommandDeck, MotionRuntime } from "./motion-runtime";
 import Image from "next/image";
 
-const DOWNLOAD_URL = "https://github.com/ThiagoVenturaV/Assistente-de-Voz---Titi/releases/download/v0.2.0-beta.5/Titi-Setup-0.2.0-beta.5.exe";
+const DOWNLOAD_URL = "https://github.com/ThiagoVenturaV/Assistente-de-Voz---Titi/releases/download/v0.2.0-beta.6/Titi-Setup-0.2.0-beta.6.exe";
 
 export default function Home() {
   return (
@@ -104,7 +104,7 @@ export default function Home() {
       </section>
 
       <section className="download-section shell" id="download">
-        <div className="download-poster" data-reveal><div className="download-copy"><p><span>BETA PÚBLICO</span> V0.2.0 BETA.5</p><h2>Seu PC<br />já pode<br /><em>entender.</em></h2><p className="download-lead">Instale o Titi, fale naturalmente e descubra uma maneira mais humana de usar o Windows.</p><a className="primary-button primary-button--mint" href={DOWNLOAD_URL}><span className="windows-glyph">⊞</span><span><strong>Baixar Titi Beta</strong><small>Windows 10 ou 11 · aproximadamente 850 MB</small></span><b>↓</b></a></div><div className="download-art" data-parallax="0.06"><span className="download-orbit download-orbit--one" /><span className="download-orbit download-orbit--two" /><div className="titi-sprite download-titi" role="img" aria-label="Mascote Titi" /><p>OLÁ,<br />HUMANO.</p></div></div>
+        <div className="download-poster" data-reveal><div className="download-copy"><p><span>BETA PÚBLICO</span> V0.2.0 BETA.6</p><h2>Seu PC<br />já pode<br /><em>entender.</em></h2><p className="download-lead">Instale o Titi, fale naturalmente e descubra uma maneira mais humana de usar o Windows.</p><a className="primary-button primary-button--mint" href={DOWNLOAD_URL}><span className="windows-glyph">⊞</span><span><strong>Baixar Titi Beta</strong><small>Windows 10 ou 11 · aproximadamente 850 MB</small></span><b>↓</b></a></div><div className="download-art" data-parallax="0.06"><span className="download-orbit download-orbit--one" /><span className="download-orbit download-orbit--two" /><div className="titi-sprite download-titi" role="img" aria-label="Mascote Titi" /><p>OLÁ,<br />HUMANO.</p></div></div>
         <div className="requirements"><article><span>01</span><p><b>Windows 10 ou 11</b>Em um computador recente</p></article><article><span>02</span><p><b>16 GB de memória</b>Recomendados para conversar bem</p></article><article><span>03</span><p><b>Cerca de 8 GB livres</b>Para o aplicativo e o modelo local</p></article><article><span>04</span><p><b>GPU recomendada</b>Para voz e respostas mais rápidas</p></article></div>
         <p className="setup-note">Na primeira configuração, o Titi explica tudo antes de baixar o modelo adicional de aproximadamente 6,6 GB.</p>
       </section>

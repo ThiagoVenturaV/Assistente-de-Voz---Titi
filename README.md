@@ -6,7 +6,7 @@
 
 Titi é um assistente local para Windows com interface gráfica, conversa por texto e voz, mascote 2D animado e ferramentas controladas para agir no computador. O objetivo é permitir que a pessoa use seus aplicativos por voz sem entregar um terminal irrestrito ao modelo.
 
-> **Estado atual:** a pré-release pública `0.2.0-beta.5` entende destinos conhecidos sem pesquisar, confirma janelas em qualquer monitor e pode observar todos os monitores com visão local quando a pessoa pede explicitamente. A voz Supertonic usa DirectML com fallback para CPU, e a transcrição Parakeet continua incremental na CPU porque foi mais rápida assim no hardware medido. Durante a beta, comandos permitidos executam direto; somente abrir ou controlar o Antigravity pede confirmação. O instalador não possui assinatura pública e deve ser tratado como uma prévia para testadores; consulte `QA_PLAN.md`.
+> **Estado atual:** a pré-release pública `0.2.0-beta.6` adota a cabeça do mascote como ícone oficial do aplicativo e do site. Mensagens ditadas aparecem no chat assim que a transcrição termina, enquanto um cronômetro mostra por quanto tempo o Titi está pensando ou agindo. Permanecem a visão local de múltiplos monitores, a transcrição Parakeet incremental, a voz Supertonic em DirectML com fallback para CPU e a execução direta dos comandos compatíveis durante a beta; somente abrir ou controlar o Antigravity pede confirmação. O instalador não possui assinatura pública e deve ser tratado como uma prévia para testadores; consulte `QA_PLAN.md`.
 
 ## O que está implementado no código atual
 
