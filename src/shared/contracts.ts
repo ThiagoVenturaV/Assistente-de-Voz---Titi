@@ -101,6 +101,7 @@ export interface VoiceSynthesis {
   wavAudio: ArrayBuffer
   processingTimeMs: number
   audioDurationMs: number
+  backend: 'directml' | 'cpu'
 }
 
 export interface ToolActionLogEntry {

@@ -2,7 +2,7 @@
 
 Titi é um assistente local para Windows com interface gráfica, conversa por texto e voz, mascote 2D animado e ferramentas controladas para agir no computador. O objetivo é permitir que a pessoa use seus aplicativos por voz sem entregar um terminal irrestrito ao modelo.
 
-> **Estado atual:** a pré-release `0.2.0-beta.3` substitui a beta.2 e acrescenta referências naturais entre turnos, bloqueio de tool calls indevidas em perguntas conceituais, distinção estável entre abrir navegador/página e abrir/tocar no Spotify, além de resultados úteis da observação de interface. Permanecem cancelamento, fidelidade dos efeitos externos, standby, controle local de interfaces acessíveis, fallback visual local para Play/Pause, transcrição incremental e voz neural local. Durante a beta, comandos permitidos executam direto; somente abrir ou controlar o Antigravity pede confirmação. O instalador ainda não possui assinatura pública e deve ser tratado como uma prévia para testadores; consulte `QA_PLAN.md`.
+> **Estado atual:** o candidato `0.2.0-beta.4` mantém as correções de linguagem natural e ferramentas da beta.3 e passa a executar a voz Supertonic na GPU pelo DirectML, com fallback automático para CPU. A transcrição Parakeet continua incremental na CPU porque foi mais rápida assim no hardware medido. Durante a beta, comandos permitidos executam direto; somente abrir ou controlar o Antigravity pede confirmação. O instalador ainda não possui assinatura pública e deve ser tratado como uma prévia para testadores; consulte `QA_PLAN.md`.
 
 ## O que está implementado no código atual
 
@@ -10,7 +10,7 @@ Titi é um assistente local para Windows com interface gráfica, conversa por te
 - chat local com Ollama e `qwen3.5:9b`;
 - transcrição local com NVIDIA Parakeet TDT 0.6B v3 Q8 mantido em memória por um worker CPU; o texto parcial aparece e é revisado enquanto a pessoa fala, sem recarregar o modelo a cada frase;
 - correção contextual fechada: aliases conhecidos são determinísticos e, para aplicativos novos, o Ollama só pode sugerir a troca de um trecho literal por um nome do catálogo; verbos, negações, números, baixa confiança e nomes distantes são rejeitados pelo código;
-- resposta falada pelo Supertonic 3 INT8, uma voz neural em português executada localmente em CPU; Markdown, links e emojis são removidos somente da fala e continuam visíveis no chat;
+- resposta falada pelo Supertonic 3 INT8, uma voz neural em português executada localmente na GPU por DirectML, com fallback automático para CPU; Markdown, links e emojis são removidos somente da fala e continuam visíveis no chat;
 - frases como “pare a conversa” e “encerre o modo ao vivo” desligam a escuta sem enviar o comando ao modelo;
 - botão **Ao vivo** diretamente no mascote;
 - execução de ferramentas com validação de nome, argumentos, repetição, quantidade e número de rodadas;
@@ -33,7 +33,7 @@ Titi é um assistente local para Windows com interface gráfica, conversa por te
 - standby conservador durante jogos conhecidos ou executáveis adicionados pelo usuário; ele cancela tarefas, pausa voz, oculta o mascote e verifica a descarga do modelo pela API local;
 - gravações de conversas e configurações são serializadas para não perder atualizações concorrentes.
 
-O código passa por `pnpm typecheck` e por **306 testes em 30 arquivos**. `pnpm package:dir` também verifica o ASAR, os workers, os módulos nativos, o runtime de automação, o Parakeet e o Supertonic, além de rejeitar rotas de QA proibidas em produção. Essa evidência ainda não substitui a validação do instalador em uma máquina limpa.
+O código passa por `pnpm typecheck` e por **308 testes em 31 arquivos**. `pnpm package:dir` também verifica o ASAR, os workers, os módulos nativos, o runtime de automação, o Parakeet e os binários DirectML do Supertonic por SHA-256, além de rejeitar rotas de QA proibidas em produção. Essa evidência ainda não substitui a validação do instalador em uma máquina limpa.
 
 ## Limites desta versão
 
@@ -152,4 +152,4 @@ O pacote é gerado em `release/`. Depois da build, o verificador confere se o `a
 
 ## Hardware de desenvolvimento
 
-O perfil atual usa Ryzen 5 5600, 32 GB de RAM e RTX 2060 Super com 8 GB de VRAM. O `qwen3.5:9b` roda pelo Ollama; o Parakeet usa a CPU para não disputar a VRAM do modelo de conversa. Essa configuração é o perfil de desenvolvimento, não um requisito mínimo já homologado.
+O perfil atual usa Ryzen 5 5600, 32 GB de RAM e RTX 2060 Super com 8 GB de VRAM. O `qwen3.5:9b` roda pelo Ollama; a transcrição Parakeet permanece na CPU, enquanto a voz Supertonic usa DirectML na GPU e volta automaticamente à CPU caso o provider não inicialize. Um [benchmark controlado do Supertonic](./docs/SUPERTONIC_GPU_BENCHMARK.md) mediu síntese aquecida de 4,9 s de áudio em 0,24 s no NSIS final e acréscimo de aproximadamente 249 MiB de VRAM com o Qwen 9B residente. O runtime DirectML acrescenta cerca de 42 MB descompactados, muito menos que a alternativa CUDA de mais de 2,7 GiB. Essa configuração é o perfil de desenvolvimento, não um requisito mínimo já homologado.

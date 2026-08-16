@@ -1,10 +1,10 @@
-# Gate de QA — Titi `0.2.0-beta.3`
+# Gate de QA — Titi `0.2.0-beta.4`
 
 Auditoria atualizada em 16/08/2026. Este documento define o que precisa estar comprovado antes de orientar o usuário a instalar a nova versão ou publicar o download como beta público.
 
 ## Veredito atual
 
-**A PRÉ-RELEASE PÚBLICA ATUAL É `0.2.0-beta.3`, NÃO ASSINADA.** A beta.3 corrige tool calls indevidas em perguntas conceituais, torna estável a distinção navegador/página e Spotify open/play, preserva contexto entre turnos e expõe os controles observados de forma útil. Permanecem cancelamento, estados honestos, standby, controle opt-in de interfaces, fallback visual local, Parakeet incremental e Supertonic neural local. Por decisão explícita para a beta, ferramentas permitidas executam direto; somente o Antigravity pede confirmação. Typecheck, 306 testes, matriz local 19/19, CI, NSIS, verificação estrutural, instalação preservando o perfil, os dois workers empacotados e os hashes publicados passam. Como o candidato continua `NotSigned`, pode acionar o aviso de reputação do Windows e só deve ser tratado como pré-release para testadores.
+**A PRÉ-RELEASE PÚBLICA ATUAL AINDA É `0.2.0-beta.3`; `0.2.0-beta.4` É O NOVO CANDIDATO, AINDA NÃO PUBLICADO.** A beta.4 mantém a política e as correções funcionais da beta.3 e passa a executar a voz Supertonic na GPU por DirectML, com fallback automático para CPU. A transcrição Parakeet continua incremental na CPU por evidência de desempenho. Typecheck, 308 testes, build, NSIS, verificação de hashes, smoke DirectML e instalação preservando o perfil passam. Faltam publicar a tag/release e só então trocar a landing page. Como o candidato continua `NotSigned`, pode acionar o aviso de reputação do Windows e só deve ser tratado como pré-release para testadores.
 
 Antes do teste, o usuário havia desinstalado a versão anterior: a pasta de instalação foi removida, enquanto configurações e conversas permaneceram em `%APPDATA%\titi-desktop`. A beta.2 foi instalada sobre esse perfil e reabriu os dados existentes.
 
@@ -12,28 +12,44 @@ Antes do teste, o usuário havia desinstalado a versão anterior: a pasta de ins
 
 | Verificação | Estado | Evidência em 16/08/2026 |
 |---|---|---|
-| Versão declarada na fonte | Aprovado | `package.json` declara `0.2.0-beta.3` |
+| Versão declarada na fonte | Aprovado | `package.json` declara `0.2.0-beta.4` |
 | Typecheck | Aprovado | `pnpm typecheck`, código 0 |
-| Testes automatizados | Aprovado na branch | `pnpm test`: 30 arquivos e 306 testes aprovados |
+| Testes automatizados | Aprovado na branch | `pnpm test`: 31 arquivos e 308 testes aprovados, incluindo fallback GPU→CPU e cancelamento durante a inicialização |
 | Build de produção | Aprovado | `pnpm build`: main, preload e renderer compilados |
 | Linguagem natural e seleção de ferramentas | Aprovado no nível de contrato | `pnpm qa:ollama-tools`: 19/19 no Qwen 3.5 9B local, cobrindo as seis ferramentas, aplicativo genérico, pedidos compostos, correções, referências entre turnos, conversa sem efeito e observar → agir; o script não executa efeitos externos |
 | Conversa real do provider | Aprovado sem efeitos externos | `pnpm exec vitest run scripts/check-ollama-conversation.test.ts`: 4/4 fluxos sequenciais no `OllamaProvider` real com Qwen 3.5 9B, definições reais das seis ferramentas e executor gravador; comprovou conversa conceitual sem efeito, Spotify composto, correção contextual, web, hora e observar → agir na mesma cadeia |
 | Dados da versão anterior | Preservados após o NSIS | A instalação reabriu o nome, as configurações e a conversa anterior; `settings.json` e `conversations.json` continuam presentes em `%APPDATA%\titi-desktop` |
-| Instalador publicado | Aprovado como pré-release | tag `v0.2.0-beta.3` aponta para `a0298a2`; EXE, blockmap e `latest.yml` públicos conferem em tamanho e SHA-256, e o download anônimo responde HTTP 200 |
-| Pacote corretivo de diretório | Aprovado | `pnpm package:win` regenerou `win-unpacked`; `verify:package` confirmou beta.3, workers, módulos nativos, Parakeet, Supertonic e marcadores funcionais |
+| Instalador beta.4 publicado | Pendente somente publicação | NSIS final aprovado localmente; beta.3 permanece pública até a tag/release beta.4 existir |
+| Pacote beta.4 | Aprovado | `pnpm package:win` regenerou NSIS e `win-unpacked`; `verify:package` confirmou beta.4, workers, Parakeet, Supertonic, DirectML e hashes dos binários |
 | Runtime local de voz empacotado | Aprovado | `ggml-parakeet-tdt-0.6b-v3-q8_0.bin` com 668.757.119 bytes e runtime mínimo de 9.104.960 bytes em `win-unpacked/resources/runtime/whisper`; executáveis de teste e modelos Whisper/VAD não entram no pacote |
 | Ensaio local de transcrição pt-BR | Aprovado sem microfone real | voz Microsoft Maria curta transcrita exatamente em 1,21 s; áudio controlado de 55,4 s transcrito por inteiro em 7,81 s, enquanto o Whisper anterior cortou o meio e repetiu o final três vezes; microfone do usuário continua no smoke manual |
-| Transcrição incremental | Aprovado com áudio real controlado | 10 revisões em 15 s; primeira parcial em 165 ms, revisão contextual de “Tite” para “Titi” e frase final correta; 306 testes continuam verdes |
-| Voz neural empacotada | Aprovado | worker Supertonic executado de dentro do `app.asar` com Electron: 4,9 s de áudio gerados em 0,95 s, WAV de 431.888 bytes; emojis são removidos antes da síntese |
+| Transcrição incremental | Aprovado com áudio real controlado | 10 revisões em 15 s; primeira parcial em 165 ms, revisão contextual de “Tite” para “Titi” e frase final correta; 308 testes continuam verdes |
+| Voz neural DirectML empacotada | Aprovado no NSIS e na instalação | worker Supertonic executado de dentro do `app.asar` com Electron: 4,9 s de áudio; primeira síntese do pacote em 4,27 s, aquecida em 0,24 s, backend `directml`, WAV de 431.888 bytes; instalação também retornou `directml` e 0,24 s aquecida |
+| Supertonic CPU x CUDA x DirectML | Aprovado no hardware-alvo | CUDA foi rejeitado pelo runtime de 2,7 GiB e acréscimo de 611 MiB de VRAM; DirectML usa aproximadamente 42 MB de runtime, acrescentou cerca de 249 MiB com Qwen residente e ficou próximo de 7x mais rápido que CPU depois do aquecimento; DirectML é o padrão e CPU o fallback, conforme `docs/SUPERTONIC_GPU_BENCHMARK.md` |
 | Automação de interface empacotada | Aprovado estruturalmente | `windows-ui-automation.ps1` com 9.242 bytes em `win-unpacked/resources/runtime`, incluindo UI Automation, captura em memória, recorte ampliado e clique relativo; o verificador exige o recurso e `focusImageBase64` no ASAR |
-| Manifesto de release | Aprovado localmente | `latest.yml` declara beta.3, 878.333.160 bytes e SHA-512 correspondente ao NSIS final |
-| Assinatura do instalador | Risco explícito | `Get-AuthenticodeSignature` retorna `NotSigned` para o instalador beta.3 e `win-unpacked/Titi.exe` |
+| Manifesto de release beta.4 | Aprovado localmente | `latest.yml` declara beta.4, 892.363.026 bytes e SHA-512 correspondente ao NSIS final |
+| Assinatura do instalador | Risco explícito | `Get-AuthenticodeSignature` retorna `NotSigned` para o instalador beta.4, `win-unpacked/Titi.exe` e o executável instalado |
 | Ensaio visual real do Spotify | Aprovado na fonte | com árvore acessível vazia, o Ollama local identificou Play com 95%, o clique relativo iniciou a reprodução e a inspeção independente mostrou Pause; o recorte ampliado corrigiu a classificação pós-clique para `playing` com 95% |
 | Política de confirmação beta | Aprovado automaticamente | web, Spotify, aplicativos e UI permitida executam direto; somente abrir/controlar Antigravity é sensível; alvos protegidos continuam bloqueados |
 | Catálogo real do Windows | Aprovado para as fontes requeridas | `Get-StartApps` retornou Brave (`Brave`), Spotify (`SpotifyAB.SpotifyMusic_zpdnekdrzrea0!Spotify`), ChatGPT/Codex (`OpenAI.Codex_2p2nqsd0c76g0!App`), Antigravity e Antigravity IDE |
-| Instalação do NSIS atual | Aprovado estruturalmente | o NSIS final beta.3 retornou código 0, o pacote instalado declara beta.3, seu ASAR tem o mesmo SHA-256 `E5FC35…F0314E` do `win-unpacked` e os hashes de `settings.json` e `conversations.json` não mudaram |
+| Instalação do NSIS beta.4 | Aprovado estruturalmente | código 0, pacote instalado declara beta.4, ASAR instalado é idêntico ao `win-unpacked`, DirectML passou e `actions.json`, `conversations.json` e `settings.json` mantiveram tamanho, horário e SHA-256 |
 
-## Bloqueadores do candidato
+## Gates específicos da beta.4
+
+- [x] DirectML ser o backend primário e CPU o fallback automático.
+- [x] Verificar hashes e licenças do runtime GPU no pacote.
+- [x] Passar typecheck, 308 testes, build, `package:dir`, `verify:package` e smoke do worker empacotado.
+- [x] Gerar `Titi-Setup-0.2.0-beta.4.exe`, `.blockmap` e `latest.yml` a partir da árvore final.
+- [x] Conferir tamanho, SHA-256 e Authenticode do NSIS beta.4.
+- [x] Instalar beta.4 sobre `%APPDATA%\titi-desktop` e provar que configurações e conversas mantiveram seus hashes.
+- [x] Executar novamente o smoke DirectML no pacote final e na instalação.
+- [ ] Publicar tag e release beta.4, validar download anônimo e só então trocar a landing page pública.
+
+## Histórico do gate beta.3 e pendências manuais herdadas
+
+As seções abaixo preservam a evidência detalhada da beta.3 e os smokes manuais ainda úteis. Itens de artefato marcados como concluídos para beta.3 não aprovam automaticamente o NSIS beta.4.
+
+### Bloqueadores do candidato beta.3
 
 ### RC-00 — substituir o pacote público com instrumentação interna
 

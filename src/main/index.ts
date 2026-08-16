@@ -143,6 +143,9 @@ app.whenReady().then(async () => {
   )
   streamingTranscriber = new ParakeetStreamingTranscriber(runtimeResourcesPath)
   speechSynthesizer = new SupertonicSynthesizer(runtimeResourcesPath)
+  void speechSynthesizer.prepare().catch(() => {
+    // A síntese repetirá a inicialização e exibirá o erro apenas se ambos os backends falharem.
+  })
   transcriptionRefiner = new LocalTranscriptionRefiner(
     () => settingsStore.get(),
     () => appCatalog.recognitionVocabulary()

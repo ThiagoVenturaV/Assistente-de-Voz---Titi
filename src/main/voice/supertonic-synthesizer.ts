@@ -3,12 +3,15 @@ import { Worker } from 'node:worker_threads'
 import type { VoiceSynthesis } from '../../shared/contracts'
 import { prepareTextForSpeech } from './local-speech'
 
+type SynthesisBackend = VoiceSynthesis['backend']
+
 interface WorkerMessage {
   type: 'ready' | 'result' | 'error'
   requestId?: string
   wavAudio?: ArrayBuffer
   processingTimeMs?: number
   audioDurationMs?: number
+  backend?: SynthesisBackend
   message?: string
 }
 
@@ -24,9 +27,12 @@ const MODEL_DIRECTORY = 'sherpa-onnx-supertonic-3-tts-int8-2026-05-11'
 
 export class SupertonicSynthesizer {
   private readonly modelRoot: string
+  private readonly directmlRoot: string
   private worker: Worker | null = null
   private readyPromise: Promise<void> | null = null
   private pending = new Map<string, PendingSynthesis>()
+  private directmlDisabled = false
+  private generation = 0
 
   constructor(resourcesPath: string) {
     this.modelRoot = join(
@@ -36,6 +42,11 @@ export class SupertonicSynthesizer {
       'model-extracted',
       MODEL_DIRECTORY
     )
+    this.directmlRoot = join(resourcesPath, 'runtime', 'supertonic', 'directml')
+  }
+
+  prepare(): Promise<void> {
+    return this.ensureReady()
   }
 
   async synthesize(
@@ -74,6 +85,7 @@ export class SupertonicSynthesizer {
   }
 
   dispose(): void {
+    this.generation += 1
     this.failAll(abortError())
     void this.worker?.terminate()
     this.worker = null
@@ -82,17 +94,59 @@ export class SupertonicSynthesizer {
 
   private ensureReady(): Promise<void> {
     if (this.readyPromise) return this.readyPromise
+    const generation = this.generation
+    const preferredBackend: SynthesisBackend = this.directmlDisabled ? 'cpu' : 'directml'
+    let readiness: Promise<void>
+    readiness = this.startWorker(preferredBackend, generation)
+      .catch((error: unknown) => {
+        if (generation !== this.generation) throw abortError()
+        if (preferredBackend === 'cpu') throw error
+        this.directmlDisabled = true
+        return this.startWorker('cpu', generation)
+      })
+      .catch((error: unknown) => {
+        if (generation === this.generation && this.readyPromise === readiness) {
+          this.readyPromise = null
+        }
+        throw error
+      })
+    this.readyPromise = readiness
+    return readiness
+  }
+
+  private startWorker(backend: SynthesisBackend, generation: number): Promise<void> {
     const worker = new Worker(join(__dirname, 'supertonic-worker.js'), {
-      workerData: { modelRoot: this.modelRoot }
+      workerData: {
+        modelRoot: this.modelRoot,
+        directmlRoot: this.directmlRoot,
+        backend
+      }
     })
     this.worker = worker
-    this.readyPromise = new Promise((resolve, reject) => {
+
+    return new Promise((resolve, reject) => {
+      let startupSettled = false
       const timeout = setTimeout(() => {
-        reject(new Error('A voz neural local demorou demais para iniciar.'))
+        if (startupSettled) return
+        startupSettled = true
+        if (backend === 'directml' && generation === this.generation) {
+          this.directmlDisabled = true
+        }
+        if (this.worker === worker) this.worker = null
+        reject(new Error(`A voz neural local em ${backend} demorou demais para iniciar.`))
         void worker.terminate()
       }, 30_000)
       worker.on('message', (message: WorkerMessage) => {
         if (message.type === 'ready') {
+          if (startupSettled) return
+          if (message.backend !== backend) {
+            startupSettled = true
+            clearTimeout(timeout)
+            reject(new Error('O worker neural iniciou com um backend inesperado.'))
+            void worker.terminate()
+            return
+          }
+          startupSettled = true
           clearTimeout(timeout)
           resolve()
           return
@@ -102,17 +156,37 @@ export class SupertonicSynthesizer {
       worker.once('error', (error) => {
         const reason = error instanceof Error ? error : new Error('O worker da voz neural falhou.')
         clearTimeout(timeout)
-        reject(reason)
+        if (backend === 'directml' && generation === this.generation) {
+          this.directmlDisabled = true
+        }
+        if (!startupSettled) {
+          startupSettled = true
+          if (this.worker === worker) this.worker = null
+          reject(reason)
+          return
+        }
         this.failAll(reason)
       })
       worker.once('exit', (code) => {
         clearTimeout(timeout)
-        if (code !== 0) this.failAll(new Error(`O worker da voz neural encerrou com código ${code}.`))
-        this.worker = null
-        this.readyPromise = null
+        const wasActiveWorker = this.worker === worker
+        if (wasActiveWorker) {
+          this.worker = null
+          if (startupSettled) this.readyPromise = null
+        }
+        if (backend === 'directml' && code !== 0 && generation === this.generation) {
+          this.directmlDisabled = true
+        }
+        if (!startupSettled) {
+          startupSettled = true
+          reject(new Error(`O worker da voz neural encerrou antes de iniciar (${code}).`))
+          return
+        }
+        if (generation === this.generation && wasActiveWorker) {
+          this.failAll(new Error(`O worker da voz neural encerrou com código ${code}.`))
+        }
       })
     })
-    return this.readyPromise
   }
 
   private handleMessage(message: WorkerMessage): void {
@@ -132,10 +206,15 @@ export class SupertonicSynthesizer {
       pending.reject(new Error('A voz neural local retornou um áudio inválido.'))
       return
     }
+    if (message.backend !== 'directml' && message.backend !== 'cpu') {
+      pending.reject(new Error('A voz neural local não informou o backend utilizado.'))
+      return
+    }
     pending.resolve({
       wavAudio: message.wavAudio,
       processingTimeMs: message.processingTimeMs ?? 0,
-      audioDurationMs: message.audioDurationMs ?? 0
+      audioDurationMs: message.audioDurationMs ?? 0,
+      backend: message.backend
     })
   }
 

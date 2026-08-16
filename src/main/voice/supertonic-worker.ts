@@ -1,7 +1,10 @@
 import { accessSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { join } from 'node:path'
 import { parentPort, workerData } from 'node:worker_threads'
 import { encodePcm16Wav } from './local-speech'
+
+type SynthesisBackend = 'directml' | 'cpu'
 
 interface GeneratedAudio {
   samples: Float32Array
@@ -23,6 +26,8 @@ interface SherpaModule {
 
 interface WorkerConfiguration {
   modelRoot: string
+  directmlRoot: string
+  backend: SynthesisBackend
 }
 
 interface SynthesisCommand {
@@ -47,7 +52,7 @@ const requiredFiles = [
 ]
 for (const file of requiredFiles) accessSync(join(configuration.modelRoot, file))
 
-const sherpa = require('sherpa-onnx-node') as SherpaModule
+const sherpa = loadSherpa(configuration)
 const engine = new sherpa.OfflineTts({
   model: {
     supertonic: {
@@ -61,7 +66,7 @@ const engine = new sherpa.OfflineTts({
     },
     debug: false,
     numThreads: 4,
-    provider: 'cpu'
+    provider: configuration.backend
   },
   maxNumSentences: 2
 })
@@ -95,7 +100,8 @@ port.on('message', (command: SynthesisCommand) => {
       requestId: command.requestId,
       wavAudio,
       processingTimeMs: Math.round(performance.now() - startedAt),
-      audioDurationMs: Math.round(audio.samples.length / audio.sampleRate * 1000)
+      audioDurationMs: Math.round(audio.samples.length / audio.sampleRate * 1000),
+      backend: configuration.backend
     }, [wavAudio])
   } catch (error) {
     port.postMessage({
@@ -106,4 +112,27 @@ port.on('message', (command: SynthesisCommand) => {
   }
 })
 
-port.postMessage({ type: 'ready' })
+port.postMessage({ type: 'ready', backend: configuration.backend })
+
+function loadSherpa(workerConfiguration: WorkerConfiguration): SherpaModule {
+  if (workerConfiguration.backend === 'cpu') {
+    return require('sherpa-onnx-node') as SherpaModule
+  }
+
+  const nativeRoot = join(
+    workerConfiguration.directmlRoot,
+    'node_modules',
+    'sherpa-onnx-win-x64'
+  )
+  for (const file of [
+    'DirectML.dll',
+    'onnxruntime.dll',
+    'sherpa-onnx-c-api.dll',
+    'sherpa-onnx.node'
+  ]) {
+    accessSync(join(nativeRoot, file))
+  }
+  process.env.PATH = `${nativeRoot};${process.env.PATH ?? ''}`
+  const directmlRequire = createRequire(join(workerConfiguration.directmlRoot, 'loader.cjs'))
+  return directmlRequire('sherpa-onnx-node') as SherpaModule
+}
