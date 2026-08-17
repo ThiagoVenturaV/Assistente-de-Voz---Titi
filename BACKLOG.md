@@ -31,17 +31,17 @@ Auditoria atualizada em 17/08/2026 por frentes de Produto/QA, PO, marketing e co
 
 ### Veredito
 
-**A beta.7 está instalada e aprovada localmente como candidata a pré-release para testadores, mas ainda não está “perfeita” nem pronta para promoção ampla.** Ela promove o Qwen 4B como perfil rápido, preserva o 9B como opção de qualidade e corrige o fechamento do mascote. Os bloqueios atuais continuam sendo confiança da automação genérica, voz E2E real, cancelamento/standby honesto, assinatura/distribuição, acessibilidade, privacidade pública e alinhamento entre promessa e evidência.
+**A beta.7 está publicada, instalada e sincronizada entre GitHub, landing e esta máquina, mas ainda não está “perfeita” nem pronta para promoção ampla.** Ela promove o Qwen 4B como perfil rápido, preserva o 9B como opção de qualidade e corrige o fechamento do mascote. Os bloqueios atuais continuam sendo confiança da automação genérica, voz E2E real, cancelamento/standby honesto, assinatura/distribuição, acessibilidade, privacidade pública e alinhamento entre promessa e evidência.
 
 | Área | Estado atual | Evidência | Lacuna prioritária |
 | --- | --- | --- | --- |
-| Release e instalação | Parcial · candidata instalada | pacote beta.7 verificado e instalado; ASAR coincide e `settings.json`, `conversations.json` e `actions.json` preservaram SHA-256 | Publicar tag/ativos e download; Authenticode continua `NotSigned`; faltam Windows 10/11 limpos, desinstalação/rollback e NSIS produzido pela tag |
-| Código e CI | Saudável com flake sob carga registrado | `pnpm typecheck`; 34 arquivos/331 testes passam; CIs anteriores da `main` verdes | Validar a CI do novo commit; o timeout isolado do `ConversationStore` sob contenção permanece registrado |
+| Release e instalação | Parcial · beta.7 pública e instalada | tag, três ativos e download anônimo aprovados; ASAR instalado coincide e `settings.json`, `conversations.json` e `actions.json` preservaram SHA-256 | Authenticode continua `NotSigned`; faltam Windows 10/11 limpos, desinstalação/rollback e NSIS produzido pela tag |
+| Código e CI | Saudável com flake sob carga registrado | `pnpm typecheck`; 34 arquivos/331 testes passam; CI da PR e da `main` em `b48fb76` verdes | O timeout isolado do `ConversationStore` sob contenção permanece registrado |
 | Linguagem natural e ferramentas | Parcial avançado | Qwen 4B fez 18/19 no contrato e 4/4 no provider em cerca de metade do tempo do 9B; Qwen 3.5 9B fez 19/19 e 4/4 | Corrigir no 4B a troca contextual “Chrome → Brave”; `computer_action` ainda não bloqueia semanticamente alvos como comprar, enviar, publicar ou excluir |
 | Voz local | Parcial avançado | Parakeet incremental e Supertonic DirectML presentes no pacote; smokes controlados aprovados | Faltam 20 turnos reais, dispositivos distintos, eco/recaptura, permissão negada e “pare” em todas as fases no instalado |
 | App instalado | Smoke estrutural e do mascote aprovado | versão beta.7, hash do ASAR e dados preservados conferidos; X sempre visível e fechamento real aprovados | Ainda não substitui E2E por teclado, microfone, áudio audível e ações reais completas |
-| Landing | Candidata aprovada | build e 2 testes renderizados passam; link, versão e tamanho do modelo foram alinhados à beta.7 | Publicar somente após o release; permanecem política formal, suporte, SEO e prova real dos fluxos anunciados |
-| Governança | Parcial | README, release, QA e auditoria executiva refletem a beta.7 candidata; o registro beta.1 ficou rotulado como histórico | `MARKETING_PLAN.md` continua preso à beta.1 e o QA ainda preserva histórico detalhado da beta.3 |
+| Landing | Beta.7 pública | Sites versão 18 responde HTTP 200; build e 2 testes renderizados passam; link, versão e tamanho do modelo estão alinhados à beta.7 | Permanecem política formal, suporte, SEO e prova real dos fluxos anunciados |
+| Governança | Parcial | README, release, QA e auditoria executiva refletem a beta.7 publicada; o registro beta.1 ficou rotulado como histórico | `MARKETING_PLAN.md` continua preso à beta.1 e o QA ainda preserva histórico detalhado da beta.3 |
 
 ### Fila executiva recomendada
 
@@ -647,10 +647,10 @@ Objetivo: transformar a decisão local do computador de desenvolvimento em escol
 ### TITI-LAUNCH-001 — Site, documentação e feedback coerentes
 
 - **Prioridade/estado/trilha:** P1 · Parcial · Produto + Marketing + Suporte
-- **Evidência atual:** landing beta.7 compila e passa dois testes renderizados; CTAs foram alinhados ao novo artefato e o tamanho do modelo padrão foi corrigido para aproximadamente 2,5 GB. Publicação aguarda o release; ainda faltam transparência de tamanho/assinatura antes do primeiro download, política formal, suporte, SEO técnico e prova real dos fluxos anunciados.
+- **Evidência atual:** landing beta.7 compila, passa dois testes renderizados e está pública na Sites versão 18; CTAs apontam para o ativo publicado, e o tamanho do modelo padrão foi corrigido para aproximadamente 2,5 GB. Site e download anônimo responderam HTTP 200; ainda faltam transparência de tamanho/assinatura antes do primeiro download, política formal, suporte, SEO técnico e prova real dos fluxos anunciados.
 - **Resultado:** site promete o que o executável entrega e usuário sabe baixar, aprender e reportar.
 - **Aceite:**
-  - [ ] landing aponta para release atual e evita marcas desnecessárias/termos internos;
+  - [x] landing aponta para release atual e evita marcas desnecessárias/termos internos;
   - [ ] README, FAQ e onboarding explicam requisitos, downloads, privacidade, atualização e limites;
   - [ ] política de privacidade distingue dados locais e nuvem;
   - [ ] issue/formulário coleta versão e diagnóstico redigido, nunca segredo;
