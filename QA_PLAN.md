@@ -4,7 +4,7 @@ Auditoria atualizada em 17/08/2026. Este documento define o que precisa estar co
 
 ## Veredito atual
 
-**O CANDIDATO LOCAL `0.2.0-beta.7` ESTÁ APROVADO PARA PUBLICAÇÃO COMO PRÉ-RELEASE NÃO ASSINADA; A BETA.6 CONTINUA PÚBLICA ATÉ O UPLOAD.** Passaram 331 testes, typecheck, build, NSIS, verificação do pacote, smokes de Parakeet e Supertonic DirectML, instalação sobre o perfil preservado e o teste real do botão de fechar do mascote. O Qwen 4B passou em 18/19 cenários do contrato e em 4/4 fluxos do provider, com a correção “Chrome → Brave” registrada como regressão conhecida; o Qwen 3.5 9B permanece selecionável e passou em 19/19. Como o instalador continua `NotSigned`, pode acionar o SmartScreen e não deve ser tratado como versão estável.
+**A PRÉ-RELEASE PÚBLICA `0.2.0-beta.7` ESTÁ PUBLICADA, INSTALADA E SINCRONIZADA ENTRE GITHUB, LANDING E ESTA MÁQUINA.** Passaram 331 testes, typecheck, build, NSIS, verificação do pacote, smokes de Parakeet e Supertonic DirectML, instalação sobre o perfil preservado e o teste real do botão de fechar do mascote. A tag aponta para `b48fb76`, a CI da `main` terminou verde, os três ativos foram publicados e o download anônimo respondeu HTTP 200 com 892.673.907 bytes. A landing Sites versão 18 também respondeu HTTP 200 com a beta.7. O Qwen 4B passou em 18/19 cenários do contrato e em 4/4 fluxos do provider, com a correção “Chrome → Brave” registrada como regressão conhecida; o Qwen 3.5 9B permanece selecionável e passou em 19/19. Como o instalador continua `NotSigned`, pode acionar o SmartScreen e não deve ser tratado como versão estável.
 
 Antes do teste, o usuário havia desinstalado a versão anterior: a pasta de instalação foi removida, enquanto configurações e conversas permaneceram em `%APPDATA%\titi-desktop`. A beta.2 foi instalada sobre esse perfil e reabriu os dados existentes.
 
@@ -19,7 +19,7 @@ Antes do teste, o usuário havia desinstalado a versão anterior: a pasta de ins
 | Linguagem natural e seleção de ferramentas | Parcial documentado | `qwen3:4b-instruct`: 18/19, média de 1,05 s nesta rodada; `qwen3.5:9b`: 19/19; o caso 4B “Chrome → Brave” permanece conhecido e nenhum efeito externo é executado pelo script |
 | Conversa real do provider | Aprovado sem efeitos externos | 4/4 fluxos sequenciais no `OllamaProvider` real com Qwen 4B e 4/4 com Qwen 3.5 9B, definições reais das ferramentas e executor gravador; detalhes em `docs/OLLAMA_AGENT_MODEL_BENCHMARK.md` |
 | Dados da versão anterior | Preservados após o NSIS | A instalação reabriu o nome, as configurações e a conversa anterior; `settings.json` e `conversations.json` continuam presentes em `%APPDATA%\titi-desktop` |
-| Instalador beta.7 candidato | Aprovado localmente | EXE de 892.673.907 bytes e SHA-256 `D39A3F53…A540BA`; blockmap e `latest.yml` gerados; publicação ainda pendente neste ponto do gate |
+| Instalador beta.7 publicado | Aprovado | EXE de 892.673.907 bytes e SHA-256 `D39A3F53…A540BA`; instalador, blockmap e `latest.yml` estão na pré-release pública e o download anônimo respondeu HTTP 200 com o tamanho exato |
 | Pacote beta.7 | Aprovado | `pnpm package:win` e `verify:package` confirmaram beta.7, ferramentas, CSP de mídia local, workers, Parakeet, Supertonic, DirectML e hashes |
 | Runtime local de voz empacotado | Aprovado | `ggml-parakeet-tdt-0.6b-v3-q8_0.bin` com 668.757.119 bytes e runtime mínimo de 9.104.960 bytes em `win-unpacked/resources/runtime/whisper`; executáveis de teste e modelos Whisper/VAD não entram no pacote |
 | Ensaio local de transcrição pt-BR | Aprovado sem microfone real | voz Microsoft Maria curta transcrita exatamente em 1,21 s; áudio controlado de 55,4 s transcrito por inteiro em 7,81 s, enquanto o Whisper anterior cortou o meio e repetiu o final três vezes; microfone do usuário continua no smoke manual |
@@ -51,7 +51,7 @@ Antes do teste, o usuário havia desinstalado a versão anterior: a pasta de ins
 - [x] Aprovar no aplicativo instalado que o X do mascote permanece visível e o oculta ao clicar.
 - [x] Provar visão local de 2 monitores e abertura direta do YouTube no Brave.
 - [x] Executar novamente os smokes DirectML e Parakeet no pacote final.
-- [ ] Publicar tag e release beta.7, validar download anônimo e só então trocar a landing page pública.
+- [x] Publicar tag e release beta.7, validar download anônimo e só então trocar a landing page pública.
 
 ## Histórico do gate beta.3 e pendências manuais herdadas
 
@@ -226,10 +226,10 @@ Sem assinatura, a mensagem permitida é “pré-release de teste não assinada�
 
 ### Estado contra esse critério
 
-- **Artefato e integridade beta.7:** aprovado localmente; publicação no GitHub ainda pendente neste ponto do gate; candidato não assinado.
+- **Artefato e integridade beta.7:** aprovado e publicado no GitHub; os três ativos coincidem com os hashes locais e o instalador continua não assinado.
 - **Execução isolada do `win-unpacked` beta.7:** Parakeet e Supertonic DirectML aprovados no pacote; visão de 2 monitores e navegação direta permanecem cobertas pela beta.5 e pelo código inalterado.
 - **Instalação NSIS beta.7 sobre dados preservados:** aprovada para integridade, igualdade do ASAR, preservação exata do perfil e fechamento do mascote; áudio audível e matriz manual completa permanecem pendentes.
 - **Smoke funcional real de voz, abertura aprovada dos quatro aplicativos, memória e jogo:** pendente.
-- **Verificação do download publicado:** pendente até a tag, os três assets e o acesso anônimo da beta.7 existirem; assinatura continua ausente.
+- **Verificação do download publicado:** aprovada; tag, três ativos e acesso anônimo da beta.7 existem, e o instalador retornou HTTP 200 com 892.673.907 bytes; assinatura continua ausente.
 
-Portanto, a beta.7 está aprovada localmente para publicação como pré-release de teste com hash e aviso explícito de que não é assinada. Os smokes manuais restantes continuam impedindo tratá-la como versão estável.
+Portanto, a beta.7 está publicada como pré-release de teste, com hash e aviso explícito de que não é assinada. Os smokes manuais restantes continuam impedindo tratá-la como versão estável.
