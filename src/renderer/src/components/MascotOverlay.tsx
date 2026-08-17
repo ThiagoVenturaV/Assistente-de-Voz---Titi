@@ -40,7 +40,15 @@ export function MascotOverlay(): React.JSX.Element {
   return (
     <main className={`mascot-overlay mascot-overlay--${state}`}>
       <div className="mascot-drag-zone drag-region">
-        <button className="overlay-close no-drag" title="Ocultar mascote" onClick={() => window.titi.mascot.hide()}><CloseIcon /></button>
+        <button
+          className="overlay-close no-drag"
+          title="Ocultar mascote"
+          aria-label="Ocultar mascote"
+          style={{ display: 'grid' }}
+          onClick={() => window.titi.mascot.hide()}
+        >
+          <CloseIcon />
+        </button>
         <button className="mascot-open no-drag" title={`Abrir ${name}`} onClick={() => window.titi.mascot.openApp()}>
           <span className="mascot-halo" />
           <TitiSprite state={state} size={148} label={name} />

@@ -1,58 +1,61 @@
-# Gate de QA — Titi `0.2.0-beta.6`
+# Gate de QA — Titi `0.2.0-beta.7`
 
-Auditoria atualizada em 16/08/2026. Este documento define o que precisa estar comprovado antes de orientar o usuário a instalar a nova versão ou publicar o download como beta público.
+Auditoria atualizada em 17/08/2026. Este documento define o que precisa estar comprovado antes de orientar o usuário a instalar a nova versão ou publicar o download como beta público.
 
 ## Veredito atual
 
-**A PRÉ-RELEASE PÚBLICA ATUAL É `0.2.0-beta.6`, NÃO ASSINADA.** Passaram 330 testes, typecheck, build, NSIS, verificação do pacote, 19/19 cenários de tool calling, Parakeet empacotado, Supertonic DirectML e a atualização preservando o perfil. A tag `v0.2.0-beta.6` aponta para o commit integrado `b940db8`; EXE, blockmap e `latest.yml` estão públicos com tamanhos e digests conferidos, o download anônimo retorna HTTP 200 e a landing pública serve a versão 17 com o link beta.6. Como o instalador continua `NotSigned`, pode acionar o SmartScreen e não deve ser tratado como versão estável.
+**O CANDIDATO LOCAL `0.2.0-beta.7` ESTÁ APROVADO PARA PUBLICAÇÃO COMO PRÉ-RELEASE NÃO ASSINADA; A BETA.6 CONTINUA PÚBLICA ATÉ O UPLOAD.** Passaram 331 testes, typecheck, build, NSIS, verificação do pacote, smokes de Parakeet e Supertonic DirectML, instalação sobre o perfil preservado e o teste real do botão de fechar do mascote. O Qwen 4B passou em 18/19 cenários do contrato e em 4/4 fluxos do provider, com a correção “Chrome → Brave” registrada como regressão conhecida; o Qwen 3.5 9B permanece selecionável e passou em 19/19. Como o instalador continua `NotSigned`, pode acionar o SmartScreen e não deve ser tratado como versão estável.
 
 Antes do teste, o usuário havia desinstalado a versão anterior: a pasta de instalação foi removida, enquanto configurações e conversas permaneceram em `%APPDATA%\titi-desktop`. A beta.2 foi instalada sobre esse perfil e reabriu os dados existentes.
 
 ## Evidências desta auditoria
 
-| Verificação | Estado | Evidência em 16/08/2026 |
+| Verificação | Estado | Evidência em 17/08/2026 |
 |---|---|---|
-| Versão declarada na fonte | Aprovado | `package.json` declara `0.2.0-beta.6` |
+| Versão declarada na fonte | Aprovado | `package.json` declara `0.2.0-beta.7` |
 | Typecheck | Aprovado | `pnpm typecheck`, código 0 |
-| Testes automatizados | Aprovado na branch | `pnpm test`: 33 arquivos e 330 testes aprovados |
+| Testes automatizados | Aprovado na branch | `pnpm test`: 34 arquivos e 331 testes aprovados, incluindo o controle de fechar do mascote sempre visível |
 | Build de produção | Aprovado | `pnpm build`: main, preload e renderer compilados |
-| Linguagem natural e seleção de ferramentas | Aprovado no nível de contrato | `pnpm qa:ollama-tools`: 19/19 no Qwen 3.5 9B local, cobrindo as seis ferramentas, aplicativo genérico, pedidos compostos, correções, referências entre turnos, conversa sem efeito e observar → agir; o script não executa efeitos externos |
-| Conversa real do provider | Aprovado sem efeitos externos | `pnpm exec vitest run scripts/check-ollama-conversation.test.ts`: 4/4 fluxos sequenciais no `OllamaProvider` real com Qwen 3.5 9B, definições reais das seis ferramentas e executor gravador; comprovou conversa conceitual sem efeito, Spotify composto, correção contextual, web, hora e observar → agir na mesma cadeia |
+| Linguagem natural e seleção de ferramentas | Parcial documentado | `qwen3:4b-instruct`: 18/19, média de 1,05 s nesta rodada; `qwen3.5:9b`: 19/19; o caso 4B “Chrome → Brave” permanece conhecido e nenhum efeito externo é executado pelo script |
+| Conversa real do provider | Aprovado sem efeitos externos | 4/4 fluxos sequenciais no `OllamaProvider` real com Qwen 4B e 4/4 com Qwen 3.5 9B, definições reais das ferramentas e executor gravador; detalhes em `docs/OLLAMA_AGENT_MODEL_BENCHMARK.md` |
 | Dados da versão anterior | Preservados após o NSIS | A instalação reabriu o nome, as configurações e a conversa anterior; `settings.json` e `conversations.json` continuam presentes em `%APPDATA%\titi-desktop` |
-| Instalador beta.6 publicado | Aprovado como pré-release | tag `v0.2.0-beta.6` em `b940db8`; EXE de 892.673.449 bytes e SHA-256 `173C79C4…9C556`, blockmap e `latest.yml` públicos; download anônimo HTTP 200 |
-| Pacote beta.6 | Aprovado | `pnpm package:win` e `verify:package` confirmaram beta.6, ferramentas, CSP de mídia local, workers, Parakeet, Supertonic, DirectML e hashes |
+| Instalador beta.7 candidato | Aprovado localmente | EXE de 892.673.907 bytes e SHA-256 `D39A3F53…A540BA`; blockmap e `latest.yml` gerados; publicação ainda pendente neste ponto do gate |
+| Pacote beta.7 | Aprovado | `pnpm package:win` e `verify:package` confirmaram beta.7, ferramentas, CSP de mídia local, workers, Parakeet, Supertonic, DirectML e hashes |
 | Runtime local de voz empacotado | Aprovado | `ggml-parakeet-tdt-0.6b-v3-q8_0.bin` com 668.757.119 bytes e runtime mínimo de 9.104.960 bytes em `win-unpacked/resources/runtime/whisper`; executáveis de teste e modelos Whisper/VAD não entram no pacote |
 | Ensaio local de transcrição pt-BR | Aprovado sem microfone real | voz Microsoft Maria curta transcrita exatamente em 1,21 s; áudio controlado de 55,4 s transcrito por inteiro em 7,81 s, enquanto o Whisper anterior cortou o meio e repetiu o final três vezes; microfone do usuário continua no smoke manual |
-| Transcrição incremental | Aprovado no pacote beta.6 | 10 revisões em 15 s, frase final correta e processamento final em 10,692 s |
-| Voz neural DirectML empacotada | Aprovado no pacote beta.6 | 4,9 s de áudio; primeira síntese em 1,01 s, aquecida em 0,28 s, backend `directml`, WAV PCM mono de 44.100 Hz e 431.888 bytes |
+| Transcrição incremental | Aprovado no pacote beta.7 | 10 revisões em 15 s, frase final correta e processamento final em 6,834 s |
+| Voz neural DirectML empacotada | Aprovado no pacote beta.7 | 4,9 s de áudio; primeira síntese em 0,73 s, aquecida em 0,23 s, backend `directml`, WAV PCM mono de 44.100 Hz e 431.888 bytes |
 | Supertonic CPU x CUDA x DirectML | Aprovado no hardware-alvo | CUDA foi rejeitado pelo runtime de 2,7 GiB e acréscimo de 611 MiB de VRAM; DirectML usa aproximadamente 42 MB de runtime, acrescentou cerca de 249 MiB com Qwen residente e ficou próximo de 7x mais rápido que CPU depois do aquecimento; DirectML é o padrão e CPU o fallback, conforme `docs/SUPERTONIC_GPU_BENCHMARK.md` |
 | Automação de interface empacotada | Aprovado estruturalmente | `windows-ui-automation.ps1` com 9.242 bytes em `win-unpacked/resources/runtime`, incluindo UI Automation, captura em memória, recorte ampliado e clique relativo; o verificador exige o recurso e `focusImageBase64` no ASAR |
 | Visão local multimonitor | Aprovado no pacote | pedido natural roteado para `computer_look`; 2 monitores observados, YouTube confirmado com 95% e duração de 29,4 s |
 | Navegação e janelas | Aprovado no pacote | YouTube abriu pela URL direta no Brave, e a janela foi confirmada em qualquer monitor sem falha com coordenada infinita |
 | Mensagem imediata e cronômetro | Aprovado | testes cobrem inserção otimista sem duplicação, rótulo temporal e encerramento do timer; suíte renderer aprovada |
 | Identidade visual | Aprovado | o master da cabeça do mascote gera ICO/PNG, ícone do executável, avatares do desktop, favicons e Open Graph da landing |
-| Manifesto de release beta.6 | Aprovado localmente | `latest.yml` declara beta.6 e 892.673.449 bytes, com SHA-512 correspondente ao NSIS final |
-| Assinatura do instalador | Risco explícito | `Get-AuthenticodeSignature` retorna `NotSigned` para o instalador beta.6 e `win-unpacked/Titi.exe` |
+| Mascote flutuante | Aprovado no instalado | X sempre visível, área de 36 × 36 px e nome acessível “Ocultar mascote”; o clique deixou somente a janela principal do Titi aberta |
+| Manifesto de release beta.7 | Aprovado localmente | `latest.yml` declara beta.7 e 892.673.907 bytes, com SHA-512 correspondente ao NSIS final |
+| Assinatura do instalador | Risco explícito | `Get-AuthenticodeSignature` retorna `NotSigned` para o instalador beta.7 e `win-unpacked/Titi.exe` |
 | Ensaio visual real do Spotify | Aprovado na fonte | com árvore acessível vazia, o Ollama local identificou Play com 95%, o clique relativo iniciou a reprodução e a inspeção independente mostrou Pause; o recorte ampliado corrigiu a classificação pós-clique para `playing` com 95% |
 | Política de confirmação beta | Aprovado automaticamente | web, Spotify, aplicativos e UI permitida executam direto; somente abrir/controlar Antigravity é sensível; alvos protegidos continuam bloqueados |
 | Catálogo real do Windows | Aprovado para as fontes requeridas | `Get-StartApps` retornou Brave (`Brave`), Spotify (`SpotifyAB.SpotifyMusic_zpdnekdrzrea0!Spotify`), ChatGPT/Codex (`OpenAI.Codex_2p2nqsd0c76g0!App`), Antigravity e Antigravity IDE |
-| Instalação do NSIS beta.6 | Aprovado estruturalmente | código 0 e ASAR instalado idêntico ao `win-unpacked` (`A86A1E18…CB5D`); `actions.json`, `conversations.json` e `settings.json` mantiveram seus SHA-256 |
+| Instalação do NSIS beta.7 | Aprovado estruturalmente e visualmente | código 0 e ASAR instalado idêntico ao `win-unpacked` (`A9070C81…26ECF`); `actions.json`, `conversations.json` e `settings.json` mantiveram seus SHA-256; botão de fechar aprovado no mascote real |
 
-## Gates específicos da beta.6
+## Gates específicos da beta.7
 
 - [x] DirectML ser o backend primário e CPU o fallback automático.
 - [x] Verificar hashes e licenças do runtime GPU no pacote.
-- [x] Passar typecheck, 330 testes, build, `package:win`, `verify:package`, Parakeet, Supertonic e QA do Ollama.
-- [x] Gerar `Titi-Setup-0.2.0-beta.6.exe`, `.blockmap` e `latest.yml` a partir da árvore final.
-- [x] Conferir tamanho, SHA-256 e Authenticode do NSIS beta.6.
-- [x] Instalar beta.6 sobre `%APPDATA%\titi-desktop` e provar que configurações, conversas e ações mantiveram seus hashes.
+- [x] Passar typecheck, 331 testes, build, `package:win`, `verify:package`, Parakeet e Supertonic.
+- [x] Registrar 18/19 do Qwen 4B sem ocultar a regressão contextual e manter o 9B aprovado como opção de qualidade.
+- [x] Gerar `Titi-Setup-0.2.0-beta.7.exe`, `.blockmap` e `latest.yml` a partir da árvore final.
+- [x] Conferir tamanho, SHA-256 e Authenticode do NSIS beta.7.
+- [x] Instalar beta.7 sobre `%APPDATA%\titi-desktop` e provar que configurações, conversas e ações mantiveram seus hashes.
+- [x] Aprovar no aplicativo instalado que o X do mascote permanece visível e o oculta ao clicar.
 - [x] Provar visão local de 2 monitores e abertura direta do YouTube no Brave.
 - [x] Executar novamente os smokes DirectML e Parakeet no pacote final.
-- [x] Publicar tag e release beta.6, validar download anônimo e só então trocar a landing page pública.
+- [ ] Publicar tag e release beta.7, validar download anônimo e só então trocar a landing page pública.
 
 ## Histórico do gate beta.3 e pendências manuais herdadas
 
-As seções abaixo preservam a evidência detalhada da beta.3 e os smokes manuais ainda úteis. Itens históricos não substituem a evidência específica da beta.6 acima.
+As seções abaixo preservam a evidência detalhada da beta.3 e os smokes manuais ainda úteis. Itens históricos não substituem a evidência específica da beta.7 acima.
 
 ### Bloqueadores do candidato beta.3
 
@@ -208,9 +211,9 @@ Além do código 0:
 
 Só orientar o usuário a instalar quando **todos** estes itens forem verdadeiros:
 
-1. existe um instalador final `Titi-Setup-0.2.0-beta.6.exe`, com estado de assinatura e hash publicados;
-2. a versão interna, `latest.yml`, tag, notas e link de download são `0.2.0-beta.6`;
-3. typecheck, 330 testes, build, QA do modelo, empacotamento e verificação do pacote passam no mesmo candidato;
+1. existe um instalador final `Titi-Setup-0.2.0-beta.7.exe`, com estado de assinatura e hash publicados;
+2. a versão interna, `latest.yml`, tag, notas e link de download são `0.2.0-beta.7`;
+3. typecheck, 331 testes, build, QA do modelo, empacotamento e verificação do pacote passam no mesmo candidato;
 4. a instalação real sobre os dados preservados passa sem perda de nome, configurações ou conversas;
 5. Spotify, Brave e Codex/ChatGPT abrem direto; Antigravity pede confirmação; a UI do Spotify passa no ciclo observar → agir → verificar;
 6. modo ao vivo, aperte-para-falar, microfone e mascote passam no Windows real;
@@ -223,10 +226,10 @@ Sem assinatura, a mensagem permitida é “pré-release de teste não assinada�
 
 ### Estado contra esse critério
 
-- **Artefato e integridade beta.6:** aprovado localmente e no GitHub; pré-release pública não assinada.
-- **Execução isolada do `win-unpacked` beta.6:** Parakeet e Supertonic DirectML aprovados no pacote; visão de 2 monitores e navegação direta permanecem cobertas pela beta.5 e pelo código inalterado.
-- **Instalação NSIS beta.6 sobre dados preservados:** aprovada para integridade, igualdade do ASAR e preservação exata do perfil; áudio audível e matriz manual completa permanecem pendentes.
+- **Artefato e integridade beta.7:** aprovado localmente; publicação no GitHub ainda pendente neste ponto do gate; candidato não assinado.
+- **Execução isolada do `win-unpacked` beta.7:** Parakeet e Supertonic DirectML aprovados no pacote; visão de 2 monitores e navegação direta permanecem cobertas pela beta.5 e pelo código inalterado.
+- **Instalação NSIS beta.7 sobre dados preservados:** aprovada para integridade, igualdade do ASAR, preservação exata do perfil e fechamento do mascote; áudio audível e matriz manual completa permanecem pendentes.
 - **Smoke funcional real de voz, abertura aprovada dos quatro aplicativos, memória e jogo:** pendente.
-- **Verificação do download publicado:** aprovada para tag, commit, três assets, tamanhos, digests e acesso anônimo; assinatura continua ausente.
+- **Verificação do download publicado:** pendente até a tag, os três assets e o acesso anônimo da beta.7 existirem; assinatura continua ausente.
 
-Portanto, a beta.6 está publicada para testadores com hash e aviso explícito de que não é assinada. Os smokes manuais restantes continuam impedindo tratá-la como versão estável.
+Portanto, a beta.7 está aprovada localmente para publicação como pré-release de teste com hash e aviso explícito de que não é assinada. Os smokes manuais restantes continuam impedindo tratá-la como versão estável.

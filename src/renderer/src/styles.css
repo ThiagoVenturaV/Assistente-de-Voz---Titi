@@ -362,8 +362,8 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .mascot-halo { position: absolute; width: 132px; height: 83px; bottom: 12px; background: radial-gradient(ellipse, rgba(112, 214, 189, .17), transparent 70%); filter: blur(8px); }
 .mascot-overlay--listening .mascot-halo, .mascot-overlay--speaking .mascot-halo { animation: halo-pulse 1.2s infinite ease-in-out; }
 @keyframes halo-pulse { 50% { opacity: .45; transform: scale(1.16); } }
-.overlay-close { position: absolute; z-index: 5; width: 27px; height: 27px; right: 3px; top: 5px; display: none; place-items: center; padding: 0; color: #b1b7ae; background: rgba(27, 30, 27, .86); border: 1px solid var(--line-strong); border-radius: 50%; cursor: pointer; }
-.mascot-overlay:hover .overlay-close { display: grid; }
+.overlay-close { position: absolute; z-index: 5; width: 36px; height: 36px; right: 1px; top: 1px; display: grid; place-items: center; padding: 0; color: #d9ded6; background: rgba(27, 30, 27, .94); border: 1px solid rgba(255, 255, 255, .18); border-radius: 50%; box-shadow: 0 6px 18px rgba(0, 0, 0, .34); cursor: pointer; transition: color 120ms, background 120ms, border-color 120ms, transform 120ms; }
+.overlay-close:hover, .overlay-close:focus-visible { color: #fff; background: rgba(67, 72, 67, .98); border-color: rgba(255, 255, 255, .34); transform: scale(1.06); }
 .overlay-close svg { width: 13px; }
 .mascot-controls { width: 100%; display: flex; align-items: stretch; gap: 6px; }
 .mascot-status { min-width: 0; min-height: 57px; flex: 1; display: flex; align-items: center; gap: 8px; padding: 7px 9px; color: #dce1d9; background: rgba(25, 28, 25, .94); border: 1px solid rgba(255, 255, 255, .12); border-radius: 17px; box-shadow: 0 10px 25px rgba(0, 0, 0, .36), inset 0 1px rgba(255, 255, 255, .035); backdrop-filter: blur(12px); cursor: pointer; text-align: left; }

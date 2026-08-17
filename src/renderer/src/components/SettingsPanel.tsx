@@ -47,6 +47,11 @@ const sections: Array<{
   { id: 'activity', label: 'Atividade', icon: MonitorIcon }
 ]
 
+const recommendedOllamaModels = [
+  { name: 'qwen3:4b-instruct', label: 'qwen3:4b-instruct — Rápido (padrão)' },
+  { name: 'qwen3.5:9b', label: 'qwen3.5:9b — Qualidade (mais lento)' }
+] as const
+
 export function SettingsPanel({
   settings,
   runtime,
@@ -214,7 +219,7 @@ export function SettingsPanel({
                       })}
                     />
                   </Field>
-                  <Field label="Modelo" hint="Recomendação inicial para sua RTX 2060 Super de 8 GB.">
+                  <Field label="Modelo" hint="O 4B é o padrão rápido; o 9B continua disponível para priorizar qualidade.">
                     {runtime?.availableModels.length ? (
                       <select
                         value={draft.provider.model}
@@ -223,8 +228,9 @@ export function SettingsPanel({
                           provider: { ...draft.provider, model: event.target.value }
                         })}
                       >
-                        {!runtime.availableModels.includes(draft.provider.model) && <option>{draft.provider.model}</option>}
-                        {runtime.availableModels.map((model) => <option key={model}>{model}</option>)}
+                        {ollamaModelOptions(draft.provider.model, runtime.availableModels).map((model) => (
+                          <option key={model} value={model}>{ollamaModelLabel(model)}</option>
+                        ))}
                       </select>
                     ) : (
                       <input
@@ -444,6 +450,18 @@ function runtimeActionLabel(runtime: RuntimeStatus | null): string {
   if (runtime?.setupAction === 'start-engine') return 'Iniciar'
   if (runtime?.setupAction === 'download-model') return 'Baixar modelo'
   return 'Verificar'
+}
+
+function ollamaModelOptions(selectedModel: string, availableModels: string[]): string[] {
+  return Array.from(new Set([
+    ...recommendedOllamaModels.map(({ name }) => name),
+    selectedModel,
+    ...availableModels
+  ].filter(Boolean)))
+}
+
+function ollamaModelLabel(model: string): string {
+  return recommendedOllamaModels.find(({ name }) => name === model)?.label ?? model
 }
 
 function SettingsGroup({ title, description, children }: { title: string; description: string; children: React.ReactNode }): React.JSX.Element {

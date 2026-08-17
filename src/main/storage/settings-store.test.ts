@@ -98,7 +98,7 @@ describe('SettingsStore', () => {
       mascotName: 'Titi Antigo',
       keepHistory: true,
       confirmSensitiveActions: true,
-      provider: { endpoint: 'http://127.0.0.1:11434', model: 'qwen3.5:9b' },
+      provider: { endpoint: 'http://127.0.0.1:11434', model: 'qwen3:4b-instruct' },
       voice: { pushToTalkShortcut: 'CommandOrControl+Shift+Space' }
     })
   })

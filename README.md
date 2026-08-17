@@ -6,12 +6,12 @@
 
 Titi é um assistente local para Windows com interface gráfica, conversa por texto e voz, mascote 2D animado e ferramentas controladas para agir no computador. O objetivo é permitir que a pessoa use seus aplicativos por voz sem entregar um terminal irrestrito ao modelo.
 
-> **Estado atual:** a pré-release pública `0.2.0-beta.6` adota a cabeça do mascote como ícone oficial do aplicativo e do site. Mensagens ditadas aparecem no chat assim que a transcrição termina, enquanto um cronômetro mostra por quanto tempo o Titi está pensando ou agindo. Permanecem a visão local de múltiplos monitores, a transcrição Parakeet incremental, a voz Supertonic em DirectML com fallback para CPU e a execução direta dos comandos compatíveis durante a beta; somente abrir ou controlar o Antigravity pede confirmação. O instalador não possui assinatura pública e deve ser tratado como uma prévia para testadores; consulte `QA_PLAN.md`.
+> **Estado atual:** a pré-release `0.2.0-beta.7` usa `qwen3:4b-instruct` como perfil rápido padrão e mantém `qwen3.5:9b` como opção de qualidade. O botão de fechar do mascote flutuante agora permanece visível, com área de clique ampliada. Permanecem a transcrição Parakeet incremental, a voz Supertonic em DirectML com fallback para CPU, a visão local de múltiplos monitores e a execução direta dos comandos compatíveis durante a beta; somente abrir ou controlar o Antigravity pede confirmação. O instalador não possui assinatura pública e deve ser tratado como uma prévia para testadores; consulte `QA_PLAN.md`.
 
 ## O que está implementado no código atual
 
 - aplicativo Electron/React com onboarding, chat, configurações e mascote flutuante;
-- chat local com Ollama e `qwen3.5:9b`;
+- chat local com Ollama e `qwen3:4b-instruct` por padrão; o `qwen3.5:9b` permanece como perfil de qualidade opcional;
 - transcrição local com NVIDIA Parakeet TDT 0.6B v3 Q8 mantido em memória por um worker CPU; o texto parcial aparece e é revisado enquanto a pessoa fala, sem recarregar o modelo a cada frase;
 - correção contextual fechada: aliases conhecidos são determinísticos e, para aplicativos novos, o Ollama só pode sugerir a troca de um trecho literal por um nome do catálogo; verbos, negações, números, baixa confiança e nomes distantes são rejeitados pelo código;
 - resposta falada pelo Supertonic 3 INT8, uma voz neural em português executada localmente na GPU por DirectML, com fallback automático para CPU; Markdown, links e emojis são removidos somente da fala e continuam visíveis no chat;
@@ -41,7 +41,7 @@ Titi é um assistente local para Windows com interface gráfica, conversa por te
 - standby conservador durante jogos conhecidos ou executáveis adicionados pelo usuário; ele cancela tarefas, pausa voz, oculta o mascote e verifica a descarga do modelo pela API local;
 - gravações de conversas e configurações são serializadas para não perder atualizações concorrentes.
 
-O código passa por `pnpm typecheck` e por **330 testes em 33 arquivos**. `pnpm package:dir` também verifica o ASAR, os workers, os módulos nativos, o runtime de automação, o CSP necessário para reproduzir a voz, o Parakeet e os binários DirectML do Supertonic por SHA-256, além de rejeitar rotas de QA proibidas em produção. Essa evidência ainda não substitui a validação do instalador em uma máquina limpa.
+O código passa por `pnpm typecheck` e por **331 testes em 34 arquivos**. `pnpm package:dir` também verifica o ASAR, os workers, os módulos nativos, o runtime de automação, o CSP necessário para reproduzir a voz, o Parakeet e os binários DirectML do Supertonic por SHA-256, além de rejeitar rotas de QA proibidas em produção. Essa evidência ainda não substitui a validação do instalador em uma máquina limpa.
 
 ## Limites desta versão
 
@@ -50,6 +50,7 @@ O código passa por `pnpm typecheck` e por **330 testes em 33 arquivos**. `pnpm 
 - a observação visual genérica cobre todos os monitores, mas ainda é somente leitura; a automação genérica continua usando controles expostos pela acessibilidade do Windows, e a única exceção visual de clique é Play/Pause do Spotify, limitada à própria janela. Digitação livre, arrastar e menus de contexto ainda não estão cobertos;
 - o standby inclui uma lista segura editável, mas ainda precisa ser testado com jogos reais, tela cheia, múltiplos monitores, downloads e tarefas em andamento;
 - somente Ollama está implementado; API e OAuth ainda não fazem parte do produto;
+- o perfil rápido 4B passou em 18/19 cenários do corpus local; a correção contextual “Chrome → Brave” continua como regressão conhecida, enquanto o perfil de qualidade 9B passou em 19/19;
 - seleção e interrupção estão implementadas, mas ainda faltam microfone real, vinte turnos ao vivo e cancelamento exercitado em todas as fases do aplicativo instalado;
 - ainda não há atualização dentro do aplicativo, assinatura do instalador ou rollback automático;
 - a voz neural já é local, mas o timbre e a expressividade ainda podem evoluir em versões futuras.
@@ -76,7 +77,7 @@ As receitas de aplicativos guardam uma ação estruturada validada, nunca um com
 
 ## Primeira execução e IA local
 
-O instalador contém a interface, o mascote e o runtime de transcrição. O modelo de conversa não é embutido porque ocupa aproximadamente 6,6 GB.
+O instalador contém a interface, o mascote e o runtime de transcrição. O modelo de conversa padrão não é embutido porque ocupa aproximadamente 2,5 GB.
 
 Na primeira execução, Titi verifica quatro estados:
 
@@ -90,7 +91,8 @@ Nenhum download grande começa sem uma ação explícita. Um modelo instalado, m
 Dependências oficiais:
 
 - [Ollama para Windows](https://docs.ollama.com/windows)
-- [Qwen 3.5 no Ollama](https://ollama.com/library/qwen3.5)
+- [Qwen 3 4B Instruct no Ollama](https://ollama.com/library/qwen3:4b-instruct)
+- [Qwen 3.5 no Ollama](https://ollama.com/library/qwen3.5) (perfil opcional de qualidade)
 - [whisper.cpp](https://github.com/ggml-org/whisper.cpp)
 
 ## Estado por área
@@ -161,4 +163,4 @@ O pacote é gerado em `release/`. Depois da build, o verificador confere se o `a
 
 ## Hardware de desenvolvimento
 
-O perfil atual usa Ryzen 5 5600, 32 GB de RAM e RTX 2060 Super com 8 GB de VRAM. O `qwen3.5:9b` roda pelo Ollama; a transcrição Parakeet permanece na CPU, enquanto a voz Supertonic usa DirectML na GPU e volta automaticamente à CPU caso o provider não inicialize. Um [benchmark controlado do Supertonic](./docs/SUPERTONIC_GPU_BENCHMARK.md) mediu síntese aquecida de 4,9 s de áudio em 0,24 s no NSIS final e acréscimo de aproximadamente 249 MiB de VRAM com o Qwen 9B residente. O runtime DirectML acrescenta cerca de 42 MB descompactados, muito menos que a alternativa CUDA de mais de 2,7 GiB. Essa configuração é o perfil de desenvolvimento, não um requisito mínimo já homologado.
+O perfil atual usa Ryzen 5 5600, 32 GB de RAM e RTX 2060 Super com 8 GB de VRAM. O `qwen3:4b-instruct` é o padrão rápido pelo Ollama, e o `qwen3.5:9b` permanece selecionável como perfil de qualidade; a transcrição Parakeet permanece na CPU, enquanto a voz Supertonic usa DirectML na GPU e volta automaticamente à CPU caso o provider não inicialize. Um [benchmark controlado do Supertonic](./docs/SUPERTONIC_GPU_BENCHMARK.md) mediu síntese aquecida de 4,9 s de áudio em 0,24 s no NSIS final e acréscimo de aproximadamente 249 MiB de VRAM com o Qwen 9B residente. O runtime DirectML acrescenta cerca de 42 MB descompactados, muito menos que a alternativa CUDA de mais de 2,7 GiB. Essa configuração é o perfil de desenvolvimento, não um requisito mínimo já homologado.

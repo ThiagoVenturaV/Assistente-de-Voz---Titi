@@ -12,7 +12,7 @@ export const DEFAULT_SETTINGS: TitiSettings = {
   provider: {
     kind: 'ollama',
     endpoint: 'http://127.0.0.1:11434',
-    model: 'qwen3.5:9b'
+    model: 'qwen3:4b-instruct'
   },
   voice: {
     enabled: true,
