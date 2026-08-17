@@ -1,7 +1,7 @@
 {
   "name": "titi-landing",
   "description": "Landing page pública do assistente local Titi.",
-  "version": "0.2.0-beta.6",
+  "version": "0.2.0-beta.7",
   "private": true,
   "engines": {
     "node": ">=22.13.0"

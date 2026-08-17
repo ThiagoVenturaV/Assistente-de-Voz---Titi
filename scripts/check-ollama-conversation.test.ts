@@ -10,7 +10,7 @@ import type {
 } from '../src/main/tools/contracts'
 
 const settings = structuredClone(DEFAULT_SETTINGS)
-settings.provider.model = process.env.OLLAMA_MODEL?.trim() || 'qwen3.5:9b'
+settings.provider.model = process.env.OLLAMA_MODEL?.trim() || 'qwen3:4b-instruct'
 settings.provider.endpoint = process.env.OLLAMA_ENDPOINT?.trim() || 'http://127.0.0.1:11434'
 
 describe.sequential('conversa real do OllamaProvider', () => {

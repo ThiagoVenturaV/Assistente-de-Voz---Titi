@@ -12,7 +12,7 @@ Princípios obrigatórios:
 2. **A pessoa continua no controle:** Titi mostra o que pretende fazer, pede confirmação conforme o risco e informa o resultado real da ferramenta.
 3. **Qualquer aplicativo, com limites seguros:** descoberta e automação não podem equivaler a entregar um terminal irrestrito ao modelo.
 4. **Falhar de forma legível:** erros indicam o que ocorreu e como tentar novamente; Titi nunca afirma sucesso sem evidência.
-5. **Voz neural é a última entrega:** a voz atual permanece como alternativa leve até todo o núcleo P0/P1 estar estável.
+5. **Voz natural com orçamento de produto:** a voz neural local já faz parte do núcleo; qualidade, latência e fallback evoluem sem ultrapassar os portões de segurança, privacidade e confiabilidade.
 
 ## Legenda
 
@@ -25,7 +25,144 @@ Princípios obrigatórios:
 - **P2:** evolução após os fluxos essenciais estarem estáveis.
 - **P3:** última prioridade deliberada.
 
-## Auditoria da branch, release e site — `0.2.0-beta.1`
+## Auditoria multidisciplinar atual — `0.2.0-beta.7`
+
+Auditoria atualizada em 17/08/2026 por frentes de Produto/QA, PO, marketing e copy, com verificação do repositório, candidato, instalação e landing. Este bloco prevalece sobre os registros históricos abaixo.
+
+### Veredito
+
+**A beta.7 está instalada e aprovada localmente como candidata a pré-release para testadores, mas ainda não está “perfeita” nem pronta para promoção ampla.** Ela promove o Qwen 4B como perfil rápido, preserva o 9B como opção de qualidade e corrige o fechamento do mascote. Os bloqueios atuais continuam sendo confiança da automação genérica, voz E2E real, cancelamento/standby honesto, assinatura/distribuição, acessibilidade, privacidade pública e alinhamento entre promessa e evidência.
+
+| Área | Estado atual | Evidência | Lacuna prioritária |
+| --- | --- | --- | --- |
+| Release e instalação | Parcial · candidata instalada | pacote beta.7 verificado e instalado; ASAR coincide e `settings.json`, `conversations.json` e `actions.json` preservaram SHA-256 | Publicar tag/ativos e download; Authenticode continua `NotSigned`; faltam Windows 10/11 limpos, desinstalação/rollback e NSIS produzido pela tag |
+| Código e CI | Saudável com flake sob carga registrado | `pnpm typecheck`; 34 arquivos/331 testes passam; CIs anteriores da `main` verdes | Validar a CI do novo commit; o timeout isolado do `ConversationStore` sob contenção permanece registrado |
+| Linguagem natural e ferramentas | Parcial avançado | Qwen 4B fez 18/19 no contrato e 4/4 no provider em cerca de metade do tempo do 9B; Qwen 3.5 9B fez 19/19 e 4/4 | Corrigir no 4B a troca contextual “Chrome → Brave”; `computer_action` ainda não bloqueia semanticamente alvos como comprar, enviar, publicar ou excluir |
+| Voz local | Parcial avançado | Parakeet incremental e Supertonic DirectML presentes no pacote; smokes controlados aprovados | Faltam 20 turnos reais, dispositivos distintos, eco/recaptura, permissão negada e “pare” em todas as fases no instalado |
+| App instalado | Smoke estrutural e do mascote aprovado | versão beta.7, hash do ASAR e dados preservados conferidos; X sempre visível e fechamento real aprovados | Ainda não substitui E2E por teclado, microfone, áudio audível e ações reais completas |
+| Landing | Candidata aprovada | build e 2 testes renderizados passam; link, versão e tamanho do modelo foram alinhados à beta.7 | Publicar somente após o release; permanecem política formal, suporte, SEO e prova real dos fluxos anunciados |
+| Governança | Parcial | README, release, QA e auditoria executiva refletem a beta.7 candidata; o registro beta.1 ficou rotulado como histórico | `MARKETING_PLAN.md` continua preso à beta.1 e o QA ainda preserva histórico detalhado da beta.3 |
+
+### Fila executiva recomendada
+
+**Now — beta.8 de confiança:** `TITI-SEC-003`, `TITI-CANCEL-001`, `TITI-GAME-001`, `TITI-VOICE-001/003`, `TITI-DIST-001`, `TITI-QA-001`, `TITI-INSTALL-001`, `TITI-ACC-001`, `TITI-PRIV-002`, `TITI-GOV-001` e `TITI-MKT-001`.
+
+**Next — beta.8/9:** assinatura e updater, automação observar → agir → verificar, catálogo/ambiguidades, avaliação contínua, componentes do runtime, diagnóstico, desempenho, suporte/feedback e SEO.
+
+**Later:** provedores/API/OAuth, delegação a agentes de código, navegador avançado, sincronização opcional, i18n e receitas exportáveis.
+
+### Novos itens resultantes da auditoria
+
+#### TITI-SEC-003 — Limite seguro da automação genérica
+
+- **Prioridade/estado/trilha:** P0 · Não iniciado · Segurança + Automação
+- **Problema:** `computer_action` executa clique sem confirmação em qualquer controle observado de um aplicativo não bloqueado; o nome do alvo não é classificado por efeito. Um controle “Comprar”, “Enviar”, “Publicar” ou “Excluir” pode ultrapassar a política declarada do beta.
+- **Resultado:** manter execução direta apenas para ações comprovadamente reversíveis e de baixo risco, sem reintroduzir confirmação genérica em tudo.
+- **Aceite:**
+  - [ ] lista fechada libera somente controles reversíveis aprovados por categoria de aplicativo;
+  - [ ] comprar, enviar, publicar, excluir, credenciais, pagamento e mudança de conta falham fechados antes do clique;
+  - [ ] texto observado continua dado não confiável e nunca concede autorização;
+  - [ ] testes de prompt injection e nomes enganosos provam ausência de efeito;
+  - [ ] Antigravity continua exigindo confirmação e alvos protegidos continuam bloqueados.
+
+#### TITI-GOV-001 — Fonte de verdade e governança de release
+
+- **Prioridade/estado/trilha:** P0 · Em andamento · Produto + PO + Release
+- **Problema:** backlog, marketing, QA, landing e release repetem critérios e já divergiram em versão, política de confirmação, voz e estado das ferramentas.
+- **Resultado:** uma fonte de verdade atual orienta produto, comunicação e suporte.
+- **Aceite:**
+  - [ ] referências ativas não citam beta.1/beta.3; histórico fica rotulado e arquivado por release;
+  - [ ] cada item possui estado, dono, versão-alvo, dependências e evidência reproduzível;
+  - [ ] script compara versão/download entre `package.json`, landing, release e documentação;
+  - [ ] QA contém somente o gate atual e links para relatórios históricos;
+  - [ ] GitHub Issues ou Project espelha o Now/Next/Later sem esconder todo o trabalho em Markdown.
+
+#### TITI-MKT-001 — Promessa pública ligada à evidência
+
+- **Prioridade/estado/trilha:** P0 · Não iniciado · Marketing + Produto + QA
+- **Problema:** a landing usa “TUDO LOCAL”, “ação concluída” e fluxos de voz no presente enquanto parte dos smokes reais permanece aberta; o primeiro CTA não mostra tamanho, download adicional nem ausência de assinatura.
+- **Resultado:** cada promessa pública é comprovada ou explicitamente marcada como beta/visão.
+- **Aceite:**
+  - [ ] matriz liga cada afirmação da landing a um teste do app instalado;
+  - [ ] substituir absolutos por “núcleo local”/“processado localmente por padrão” e explicar quando a internet é usada;
+  - [ ] antes do primeiro download aparecem versão, 851,32 MiB, Windows suportado, aproximadamente 2,5 GB adicionais para o perfil padrão, `NotSigned`/SmartScreen, notas e integridade;
+  - [ ] exemplos não comprovados usam “em teste” e nunca apresentam ilustração como telemetria real;
+  - [ ] headline principal e metadata usam a mesma frase-mãe.
+
+#### TITI-PRIV-002 — Política pública local-first
+
+- **Prioridade/estado/trilha:** P0 · Não iniciado · Privacidade + Produto + Marketing
+- **Resultado:** a pessoa entende o que fica local, o que é persistido, o que usa internet e como apagar.
+- **Aceite:**
+  - [ ] política pública cobre áudio, transcrição, conversa, memória, atividade, screenshots em memória, downloads, pesquisa/navegação e diagnóstico;
+  - [ ] links aparecem no primeiro bloco de confiança, rodapé, onboarding e configurações;
+  - [ ] modo privado não altera hashes dos stores persistentes em teste instalado;
+  - [ ] nenhum upload, telemetria ou fingerprint ocorre sem opt-in específico e revogável.
+
+#### TITI-VOICE-003 — Aperte-para-falar seguro e operável por teclado
+
+- **Prioridade/estado/trilha:** P0 · Não iniciado · Voz + Acessibilidade + Renderer
+- **Problema:** o botão atual depende de `pointerdown/up/leave`, sem captura de ponteiro, `pointercancel`, blur global ou limite máximo; Space/Enter também não têm comportamento equivalente. A landing diz “Diga ‘parar’”, mas o reconhecedor não aceita a palavra isolada.
+- **Aceite:**
+  - [ ] capturar o ponteiro e encerrar em `pointerup`, `pointercancel`, perda de foco, desmontagem e timeout máximo de segurança;
+  - [ ] toque, mouse e Space/Enter iniciam/encerram a mesma máquina de estados sem gravação presa;
+  - [ ] `parar` isolado funciona somente quando o modo ao vivo está ativo, com teste de falsos positivos, ou a copy pública usa uma frase realmente suportada;
+  - [ ] permissão removida ou dispositivo perdido encerra captura e oferece recuperação legível;
+  - [ ] E2E prova nenhuma gravação ou reinício atrasado após qualquer encerramento.
+
+#### TITI-EVAL-001 — Avaliação contínua de linguagem natural e voz
+
+- **Prioridade/estado/trilha:** P1 · Parcial · IA + Voz + QA
+- **Evidência atual:** existem QA de 19 cenários de tool calling, integração pelo `OllamaProvider` real, A/B pela interface instalada e smokes controlados de Parakeet/Supertonic. Em 16/08/2026, `qwen3:4b-instruct` fez 18/19 no contrato, 4/4 no provedor em cerca de metade do tempo do `qwen3.5:9b` e venceu o teste pelo aplicativo; por isso virou o perfil rápido padrão, mantendo o 9B como opção de qualidade. `nemotron-mini:4b` foi descartado por incompatibilidade. Detalhes em `docs/OLLAMA_AGENT_MODEL_BENCHMARK.md`.
+- **Aceite:**
+  - [ ] corpus pt-BR versionado cobre sotaques, ruído, correções, referência, negação, números, nomes de apps e pedidos sem ação;
+  - [ ] release registra WER, latência de parcial/final, acerto de ferramenta, falso efeito e tempo de TTS;
+  - [ ] regressão acima do orçamento bloqueia a release;
+  - [ ] amostras reais só entram com consentimento e redação documentados.
+
+#### TITI-RUNTIME-PACK-001 — Componentes e armazenamento do runtime
+
+- **Prioridade/estado/trilha:** P1 · Parcial · Runtime + Release + UX
+- **Resultado:** instalador/modelos grandes são compreensíveis, reparáveis e atualizáveis.
+- **Aceite:**
+  - [ ] UI mostra espaço por Parakeet, Supertonic e modelo de conversa antes de baixar/instalar;
+  - [ ] componentes têm hash, licença, versão, reparar e remover;
+  - [ ] downloads retomam e removem parcial ao cancelar;
+  - [ ] decisão entre embutido e opcional é medida por sucesso de onboarding e custo de atualização.
+
+#### TITI-GROWTH-001 — Beachhead, prova real e loop seguro de beta
+
+- **Prioridade/estado/trilha:** P1 · Não iniciado · Marketing + Produto + Suporte
+- **Resultado:** aprender com o público certo sem fingir adoção nem coletar conteúdo sensível.
+- **Aceite:**
+  - [ ] definir ICP primário/secundário, três jobs-to-be-done, objeções e “não é para”;
+  - [ ] vídeo de 30–60 s usa o build público e três fluxos reproduzíveis, com legenda e estado real;
+  - [ ] feedback coleta versão, Windows, etapa e código de erro, avisando para não enviar áudio, conversa, tokens ou caminhos pessoais;
+  - [ ] métricas agregadas de visita → clique → download não usam conteúdo, fingerprint ou identificador persistente.
+
+#### TITI-SEO-001 — Fundamentos de descoberta e confiança
+
+- **Prioridade/estado/trilha:** P1 · Parcial · Marketing + Web + Legal
+- **Aceite:**
+  - [ ] canonical, `og:url`, `og:site_name`, robots, sitemap e `SoftwareApplication` JSON-LD aparecem no HTML público;
+  - [ ] repositório possui descrição, homepage, tópicos e licença detectável coerente com `package.json`;
+  - [ ] rota de suporte e política de privacidade são encontráveis no rodapé;
+  - [ ] textos críticos usam tamanho legível e alvos interativos móveis têm ao menos 44 × 44 CSS px;
+  - [ ] domínio próprio é avaliado antes da promoção ampla.
+
+#### TITI-QA-FLAKE-001 — Estabilidade de storage sob contenção
+
+- **Prioridade/estado/trilha:** P1 · Parcial · Storage + QA + Performance
+- **Evidência:** com suíte desktop e build da landing simultâneos, o caso de 20 mensagens concorrentes excedeu o timeout de 5 s uma vez e deixou teardown atrasado; passou 3/3 isolado, a suíte completa passou depois e as CIs estão verdes.
+- **Aceite:**
+  - [ ] reproduzir ou descartar a contenção em runner Windows limitado com telemetria de duração, sem conteúdo;
+  - [ ] 20 mutações concorrentes preservam todas as mensagens e terminam dentro de orçamento definido por hardware;
+  - [ ] teardown aguarda operações de I/O e nunca deixa diretório temporário `ENOTEMPTY`;
+  - [ ] dez execuções da matriz de stress passam sem apenas inflar timeout para esconder regressão.
+
+## Histórico preservado — auditoria da branch, release e site `0.2.0-beta.1`
+
+O conteúdo desta seção registra a fotografia de 15/08/2026 e não deve orientar decisões atuais sem confrontar a auditoria beta.7 acima.
 
 Auditoria atualizada em 15/08/2026 sobre `src/`, pacote local, GitHub Release, GitHub Actions e landing hospedada. Na tag publicada, `pnpm test` passou com **22 arquivos e 181 testes**. Na branch de trabalho auditada, `pnpm typecheck` e **24 arquivos/212 testes** passam após as correções de segurança, cancelamento, contexto e microfone; `pnpm package:dir` também gerou e verificou um novo `win-unpacked`. A tag pública `v0.2.0-beta.1` referencia o commit `31a81c8`, cujo workflow **Qualidade** terminou com sucesso. Esses resultados não substituem um novo instalador NSIS, a instalação real nem os testes manuais de voz, jogos e acessibilidade.
 
@@ -108,7 +245,7 @@ O beta só pode ser declarado completo quando:
 ### TITI-BASE-002 — Voz local essencial
 
 - **Prioridade/estado:** P0 · Pronto (base)
-- **Já entregue:** Whisper local, fala do Windows, aperte-para-falar e modo ao vivo pelo app/mascote.
+- **Já entregue:** Parakeet local incremental, Supertonic 3 INT8 com DirectML/fallback CPU, aperte-para-falar e modo ao vivo pelo app/mascote.
 - **Proteção:** preservar o fluxo microfone → transcrição → modelo → fala e a alternativa integral por texto.
 
 ### TITI-BASE-003 — Ferramentas iniciais
@@ -126,13 +263,13 @@ Objetivo: fazer as promessas já visíveis na interface funcionarem de verdade e
 ### TITI-SEC-001 — Motor central de risco e confirmação
 
 - **Prioridade/estado/trilha:** P0 · Parcial · Segurança + Harness
-- **Evidência atual:** `ConfirmationToolExecutor`, broker correlacionado ao modal e testes de aprovação, recusa, expiração, ferramenta desconhecida, navegação, busca de música e toda abertura de aplicativo. O `win-unpacked` comprovou modal, recusa sem efeito e quatro aprovações.
+- **Evidência atual:** `ConfirmationToolExecutor`, broker correlacionado à cadeia e testes de aprovação, recusa, expiração, ferramenta desconhecida e argumentos inválidos. Na política beta.7, ações compatíveis executam direto e somente abrir/controlar Antigravity pede confirmação; `TITI-SEC-003` fecha o risco semântico do clique genérico.
 - **Resultado:** toda ferramenta declara risco (`leitura`, `reversível`, `sensível`, `destrutiva`) e passa por uma política única.
 - **Aceite:**
-  - [x] web, busca externa e abertura de aplicativo mostram ação, alvo e consequências antes do executor;
-  - [x] abrir Brave, Spotify, Codex/ChatGPT, Antigravity ou nome novo exige permissão uma vez;
+  - [x] web, busca, mídia e aplicativos permitidos seguem a política de execução direta da beta;
+  - [x] abrir/controlar Antigravity mostra ação, alvo e consequência antes do executor;
   - [x] negar/expirar cancela antes do executor real e devolve o motivo ao modelo;
-  - [x] `confirmSensitiveActions` é mantido ativo pela configuração e não desliga a barreira;
+  - [ ] renomear/remover `confirmSensitiveActions` para que o contrato represente a política real e não sugira uma chave genérica enganosa;
   - [ ] registro de nova ferramenta exige metadados explícitos de risco e falha fechado se estiverem ausentes;
   - [ ] futuras compras, mensagens, publicação, conta e exclusão possuem casos de política antes de serem habilitadas;
   - [ ] testes provam que prompt injection ou chamada direta não contornam a política.
@@ -165,15 +302,16 @@ Objetivo: fazer as promessas já visíveis na interface funcionarem de verdade e
 ### TITI-VOICE-001 — Fechar o fluxo de voz atual
 
 - **Prioridade/estado/trilha:** P0 · Parcial · Voz + UX
-- **Evidência atual:** o renderer separa início, silêncio, transcrição, envio, fala e reinício; permite selecionar/testar a entrada; um comando unificado para gravador, Whisper, modelo, confirmação e fala está no pacote de diretório. Não existe teste E2E de microfone nesta release.
+- **Evidência atual:** o renderer separa início, silêncio, transcrição incremental Parakeet, envio, fala Supertonic e reinício; permite selecionar/testar a entrada e possui cancelamento unificado no código. Smokes controlados passam, mas não existe teste E2E com microfone/alto-falante reais nesta release.
 - **Resultado:** voz funciona sem sobreposição, travamento ou dependência do botão mantido ativo.
 - **Aceite:**
   - [ ] modo ao vivo inicia/termina no app e mascote sem manter **Aperte para falar**;
   - [ ] 20 turnos alternam ouvir → transcrever → responder → falar → ouvir sem capturas simultâneas;
   - [ ] negar/remover microfone mostra recuperação e encerra captura;
   - [x] usuário escolhe entrada e testa microfone/volume na interface; falta prova com hardware real;
-  - [ ] fala do Titi não é recapturada como comando em condição normal.
-  - [ ] desligar ao vivo em cada etapa (início, gravação, transcrição, modelo e fala) impede qualquer reinício atrasado.
+  - [ ] fala do Titi não é recapturada como comando em condição normal;
+  - [ ] desligar ao vivo em cada etapa (início, gravação, transcrição, modelo e fala) impede qualquer reinício atrasado;
+  - [ ] aperte-para-falar atende os critérios de segurança e teclado de `TITI-VOICE-003`.
 
 ### TITI-VOICE-002 — Atalho global e interrupção
 
@@ -258,7 +396,7 @@ Objetivo: fazer as promessas já visíveis na interface funcionarem de verdade e
 ### TITI-QA-001 — Harness de QA do executável real
 
 - **Prioridade/estado/trilha:** P0 · Parcial · QA
-- **Evidência atual:** typecheck e 181 testes passam; CI do commit da tag está verde; verificador do pacote passa; `win-unpacked` gerou telas de onboarding/home/configurações/modal e exerceu negar/aprovar quatro apps. O perfil de QA revela os despachos não verificados em vez de comprovar abertura pelo executor.
+- **Evidência atual:** typecheck e 34 arquivos/331 testes passam; CIs anteriores da `main` estão verdes; verificador e smokes do pacote beta.7 passam. A auditoria anterior encontrou um timeout isolado do `ConversationStore` sob contenção, registrado em `TITI-QA-FLAKE-001`.
 - **Resultado:** testes cobrem o produto instalado, não apenas funções isoladas.
 - **Aceite:**
   - [x] unitários cobrem política, storage, ferramentas, runtime Ollama e partes da voz;
@@ -284,13 +422,14 @@ Objetivo: fazer as promessas já visíveis na interface funcionarem de verdade e
 
 ### TITI-INSTALL-001 — Instalação NSIS e preservação de dados
 
-- **Prioridade/estado/trilha:** P0 · Não iniciado · Release + QA + Storage
-- **Evidência atual:** instalador público existe e o perfil `%APPDATA%\titi-desktop` foi preservado após remover a versão antiga; a pasta de instalação não existe, então nenhuma instalação `0.2.0-beta.1` foi exercitada.
+- **Prioridade/estado/trilha:** P0 · Parcial · Release + QA + Storage
+- **Evidência atual:** `0.2.0-beta.7` está instalada nesta máquina, o ASAR declara a versão correta e seu SHA-256 coincide com o pacote auditado; a atualização preservou os hashes de `settings.json`, `conversations.json` e `actions.json`. O instalador continua sem Authenticode e falta a matriz limpa Windows 10/11.
 - **Resultado:** instalar, reinstalar e remover o Titi produzem resultado previsível sem perder dados ou abrir consoles.
 - **Aceite:**
   - [ ] usuário comum instala o ativo baixado sem CMD/PowerShell/Terminal visível;
-  - [ ] ASAR instalado declara `0.2.0-beta.1` e contém Whisper/sprites obrigatórios;
-  - [ ] nome, configurações e conversas `0.1.x` reaparecem sem repetir onboarding;
+  - [x] ASAR instalado declara `0.2.0-beta.7` e contém Parakeet, Supertonic e sprites obrigatórios;
+  - [x] atualização beta.6 → beta.7 preserva configurações, conversas e atividade nesta máquina;
+  - [ ] fixture real de `0.1.x` migra em Windows limpo sem repetir onboarding;
   - [ ] abrir/fechar três vezes não cria instâncias duplicadas, janela branca ou processo órfão;
   - [ ] reinstalar a mesma versão preserva dados e atalhos sem criar instalação paralela;
   - [ ] desinstalação explica se mantém/apaga dados e cumpre a escolha;
@@ -328,13 +467,15 @@ Objetivo: sair da lista fixa de aplicativos e cumprir a proposta de usar o compu
 
 ### TITI-AUTO-001 — Automação genérica via Windows UI Automation
 
-- **Prioridade/estado/trilha:** P1 · Não iniciado · Automação + Segurança
+- **Prioridade/estado/trilha:** P1 · Parcial · Automação + Segurança
+- **Evidência atual:** a ferramenta observa controles acessíveis de todas as telas, retorna alvos tipados e consegue clicar no mesmo ciclo; o fallback visual do Spotify também está integrado. Falta fechar a classificação semântica de risco, digitação, seleção, verificação pós-ação e uma matriz de apps reais.
 - **Resultado:** clicar, digitar, selecionar e ler controles acessíveis em diferentes apps por uma camada estruturada.
 - **Aceite:**
-  - [ ] árvore de elementos vira alvos tipados; conteúdo do app é marcado como não confiável;
+  - [x] árvore de elementos vira alvos tipados; conteúdo do app é marcado como não confiável;
   - [ ] digitação mostra destino/texto antes de campos sensíveis ou envios;
   - [ ] fluxos passam em navegador, música, editor e um app escolhido pelo usuário;
-  - [ ] senha, pagamento, publicação, exclusão e envio passam por `TITI-SEC-001`;
+  - [ ] senha, pagamento, publicação, exclusão e envio falham fechados conforme `TITI-SEC-003`;
+  - [ ] resultado diferencia observar, despachar, confirmar efeito e falhar, com nova observação quando necessário;
   - [ ] falha oferece orientação/receita específica sem recorrer a shell irrestrito.
 
 ### TITI-WEB-001 — Operação segura do navegador
@@ -372,12 +513,12 @@ Objetivo: sair da lista fixa de aplicativos e cumprir a proposta de usar o compu
 ### TITI-GAME-001 — Standby automático durante jogos
 
 - **Prioridade/estado/trilha:** P0 · Parcial/experimental · Runtime + Produto
-- **Evidência atual:** monitor integrado exige amostras consecutivas, ignora navegadores/vídeo/apresentação conhecidos e possui testes para entrada, saída e jogo configurado sem tela cheia. Ao entrar, o código desliga o modo ao vivo, oculta o mascote e descarrega o modelo.
+- **Evidência atual:** monitor integrado exige amostras consecutivas, possui lista editável na interface, ignora navegadores/vídeo/apresentação conhecidos e testa entrada/saída. Ao entrar, o código desliga o modo ao vivo, oculta o mascote, descarrega o modelo e atualmente aborta a tarefa ativa — comportamento mais forte que a promessa de “pausar”.
 - **Resultado:** jogos não disputam GPU/CPU com o modelo e o mascote não cobre a tela.
 - **Aceite:**
-  - [ ] detectar executável em tela cheia ou lista editável; falta UI de lista, contagem e cancelamento;
+  - [x] detectar executável em tela cheia ou lista editável na interface;
   - [ ] parar modo ao vivo, ocultar overlay e descarregar modelo já está integrado, mas falta medir até 30 segundos no pacote;
-  - [ ] não encerrar download/conversa/tarefa sem avisar e permitir concluir/cancelar;
+  - [ ] antes do standby, permitir concluir, cancelar ou adiar a tarefa; nunca abortar silenciosamente;
   - [ ] ao sair, restaura UI/modo ao vivo no código; falta E2E e política para tarefas em andamento;
   - [ ] três jogos/modos de tela cheia não geram falso positivo em vídeo/apresentação.
 
@@ -462,13 +603,16 @@ Objetivo: transformar a decisão local do computador de desenvolvimento em escol
 ### TITI-ACC-001 — Acessibilidade essencial
 
 - **Prioridade/estado/trilha:** P0 · Parcial · Design + QA
+- **Evidência atual:** há rótulos, `aria-live`, foco visível e redução de movimento, mas o diálogo de configurações não inicializa/prende/restaura foco nem fecha por Esc; aperte-para-falar não tem operação equivalente por teclado e links móveis do rodapé medem menos de 44 × 44 CSS px.
 - **Resultado:** fluxo principal funciona sem mouse e sem depender de animação, cor ou áudio.
 - **Aceite:**
-  - [ ] ordem/foco visível, atalhos e modais não prendem teclado;
+  - [ ] diálogo inicializa foco, prende o Tab, fecha por Esc e restaura foco ao gatilho;
+  - [ ] chat, aperte-para-falar, modo ao vivo e ações principais funcionam com teclado;
   - [ ] Narrador anuncia gravação, progresso e novas respostas sem repetição excessiva;
   - [ ] contraste atende WCAG 2.2 AA e estado não depende apenas de cor;
   - [ ] **Reduzir movimento** desativa animações não essenciais do app/mascote;
-  - [ ] transcrição e respostas visíveis permanecem alternativa integral à voz.
+  - [ ] transcrição e respostas visíveis permanecem alternativa integral à voz;
+  - [ ] alvos interativos móveis do site e do app possuem no mínimo 44 × 44 CSS px.
 
 ### TITI-OBS-002 — Diagnóstico local e suporte
 
@@ -503,6 +647,7 @@ Objetivo: transformar a decisão local do computador de desenvolvimento em escol
 ### TITI-LAUNCH-001 — Site, documentação e feedback coerentes
 
 - **Prioridade/estado/trilha:** P1 · Parcial · Produto + Marketing + Suporte
+- **Evidência atual:** landing beta.7 compila e passa dois testes renderizados; CTAs foram alinhados ao novo artefato e o tamanho do modelo padrão foi corrigido para aproximadamente 2,5 GB. Publicação aguarda o release; ainda faltam transparência de tamanho/assinatura antes do primeiro download, política formal, suporte, SEO técnico e prova real dos fluxos anunciados.
 - **Resultado:** site promete o que o executável entrega e usuário sabe baixar, aprender e reportar.
 - **Aceite:**
   - [ ] landing aponta para release atual e evita marcas desnecessárias/termos internos;
@@ -524,17 +669,18 @@ Objetivo: transformar a decisão local do computador de desenvolvimento em escol
 
 ---
 
-## Marco 5 — Voz neural natural (última prioridade)
+## Marco 5 — Qualidade de voz neural local
 
-Este marco só começa quando todos os P0 e P1 anteriores estiverem prontos e aprovados. Não deve atrasar segurança, automação, standby, acessibilidade ou distribuição.
+O backend neural já foi integrado à beta.6. Este marco mede e aprimora a experiência real sem deixar segurança, acessibilidade ou confiabilidade em segundo plano.
 
 ### TITI-TTS-001 — Voz neural local opcional
 
-- **Prioridade/estado/trilha:** P3 · Não iniciado · Voz + Performance
+- **Prioridade/estado/trilha:** P1 · Parcial · Voz + Performance
+- **Evidência atual:** Supertonic 3 INT8 roda localmente com DirectML e fallback CPU, está incluído no pacote e passa em smokes controlados. Ainda faltam seleção/prévia, orçamento de latência, avaliação humana e E2E de interrupção/eco no instalado.
 - **Resultado:** resposta menos robótica, preservando alternativa leve e compatível.
 - **Aceite:**
-  - [ ] pacote de voz é baixado sob ação explícita, com tamanho, licença e espaço informados;
-  - [ ] funciona offline depois do download e não envia texto a terceiros;
+  - [x] pacote atual funciona offline e não envia texto a terceiros;
+  - [ ] tamanho, licença, espaço e opção de reparar/remover ficam visíveis;
   - [ ] usuário escolhe voz, ouve prévia e ajusta velocidade; emoção só aparece se suportada;
   - [ ] fala interrompe imediatamente e não é recapturada pelo modo ao vivo;
   - [ ] em jogos/pressão de recursos usa voz leve ou silêncio conforme preferência;
@@ -542,7 +688,7 @@ Este marco só começa quando todos os P0 e P1 anteriores estiverem prontos e ap
 
 ### TITI-TTS-002 — Qualidade e inclusão das vozes
 
-- **Prioridade/estado/trilha:** P3 · Não iniciado · Produto + QA
+- **Prioridade/estado/trilha:** P1 · Não iniciado · Produto + QA
 - **Resultado:** vozes agradáveis para públicos diversos, sem personificação infantil obrigatória.
 - **Aceite:**
   - [ ] falantes de pt-BR avaliam inteligibilidade, naturalidade e fadiga;
@@ -561,9 +707,7 @@ Este marco só começa quando todos os P0 e P1 anteriores estiverem prontos e ap
 
 ## Ordem recomendada
 
-1. Fechar `TITI-SEC-*`, `TITI-PRIV-001`, `TITI-VOICE-*`, `TITI-RUN-001` e `TITI-HARNESS-001`.
-2. Em paralelo, construir `TITI-QA-001`, `TITI-ACC-001`, `TITI-OBS-001` e `TITI-DIST-001` para que as próximas entregas já tenham portões reais.
-3. Entregar catálogo/automação de apps e standby; depois navegador, mídia e agentes de código.
-4. Generalizar provedores e refazer onboarding sobre o harness estável.
-5. Fechar diagnóstico, desempenho, atualização e lançamento público.
-6. Somente então iniciar a voz neural natural.
+1. **Beta.7 — confiança:** fechar `TITI-SEC-003`, cancelamento/standby honesto, voz E2E, aperte-para-falar por teclado, acessibilidade, privacidade pública e governança da evidência.
+2. **Beta.8 — distribuição:** gerar NSIS no workflow de tag, assinar, provar atualização/rollback em Windows 10/11, integrar diagnóstico e definir o updater.
+3. **Beta.9 — produto amplo:** completar observar → agir → verificar, catálogo/ambiguidades, mídia/navegador, avaliação contínua, componentes do runtime e orçamento de desempenho/voz.
+4. Depois, expandir provedores, APIs/OAuth, agentes de código, i18n, sincronização opcional e receitas compartilháveis conforme demanda comprovada.

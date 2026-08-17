@@ -4,7 +4,7 @@ const options = readOptions(process.argv.slice(2))
 const endpoint = normalizeEndpoint(
   options.endpoint ?? process.env.OLLAMA_ENDPOINT ?? 'http://127.0.0.1:11434'
 )
-const model = options.model ?? process.env.OLLAMA_MODEL ?? 'qwen3.5:9b'
+const model = options.model ?? process.env.OLLAMA_MODEL ?? 'qwen3:4b-instruct'
 const NO_TOOL_NEEDED_PREFIX = '[SEM_FERRAMENTA]'
 const actionCases = [
   {
@@ -210,7 +210,11 @@ const tools = [
 console.log(`QA de tool calling — ${model} em ${endpoint}`)
 console.log('Nenhuma ferramenta será executada; apenas a resposta JSON do modelo será validada.\n')
 
+await warmModel()
+console.log('Aquecimento concluído; métricas iniciadas.\n')
+
 let failures = 0
+const requestMetrics = []
 for (const testCase of actionCases) {
   const { prompt, plans } = testCase
   try {
@@ -302,6 +306,7 @@ try {
 }
 
 const totalChecks = actionCases.length + conversationCases.length + contextualCases.length + 1
+printRequestMetrics()
 if (failures) {
   console.error(`\n${failures} de ${totalChecks} verificações falharam.`)
   process.exitCode = 1
@@ -313,7 +318,28 @@ async function askModel(prompt) {
   return askModelMessages([{ role: 'user', content: prompt }])
 }
 
+async function warmModel() {
+  const response = await fetch(`${endpoint}/api/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model,
+      stream: false,
+      think: false,
+      keep_alive: '5m',
+      messages: [{ role: 'user', content: 'Responda somente: OK' }],
+      options: { temperature: 0, num_ctx: 4096 }
+    }),
+    signal: AbortSignal.timeout(120_000)
+  })
+  const payload = await response.json().catch(() => null)
+  if (!response.ok || payload?.error) {
+    throw new Error(payload?.error ?? `Aquecimento respondeu com HTTP ${response.status}`)
+  }
+}
+
 async function askModelMessages(messages) {
+  const startedAt = performance.now()
   const response = await fetch(`${endpoint}/api/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -325,7 +351,7 @@ async function askModelMessages(messages) {
       messages: [
         {
           role: 'system',
-          content: `Você é um assistente local do Windows. Interprete linguagem natural, correções, referências e pedidos compostos. Quando o usuário pedir uma ação ou observação no computador, chame uma ou mais ferramentas reais e nunca apenas prometa. Para o Spotify, action=open apenas abre sem reproduzir; se o pedido disser tocar, reproduzir ou dar play, use action=play, que já abre o aplicativo. Nunca combine spotify com open_application para o mesmo pedido. Para apenas abrir um navegador sem página nem busca, use open_application; open_web exige url ou query. Para operar uma interface sem ferramenta específica, use computer_observe primeiro e computer_action somente com um nome de controle exato que foi observado. Somente quando nenhuma ferramenta for necessária, comece a resposta exatamente com ${NO_TOOL_NEEDED_PREFIX}.`
+          content: `Você é um assistente local do Windows. Interprete linguagem natural, correções, referências e pedidos compostos. Quando o usuário corrigir ou substituir o pedido anterior, trate o turno mais recente como uma nova ação: use a ferramenta com o alvo corrigido e não repita o alvo anterior. Quando o usuário pedir uma ação ou observação no computador, chame uma ou mais ferramentas reais e nunca apenas prometa. Para o Spotify, action=open apenas abre sem reproduzir; se o pedido disser tocar, reproduzir ou dar play, use action=play, que já abre o aplicativo. Nunca combine spotify com open_application para o mesmo pedido. Para apenas abrir um navegador sem página nem busca, use open_application; open_web exige url ou query. Para operar uma interface sem ferramenta específica, use computer_observe primeiro e computer_action somente com um nome de controle exato que foi observado. Somente quando nenhuma ferramenta for necessária, comece a resposta exatamente com ${NO_TOOL_NEEDED_PREFIX}.`
         },
         ...messages
       ],
@@ -336,6 +362,7 @@ async function askModelMessages(messages) {
   })
 
   const payload = await response.json().catch(() => null)
+  recordRequestMetric('native', startedAt, payload)
   if (!response.ok) {
     const detail = payload?.error ? `: ${payload.error}` : ''
     throw new Error(`Ollama respondeu com HTTP ${response.status}${detail}`)
@@ -349,6 +376,7 @@ async function askModelWithRequiredTools(prompt) {
 }
 
 async function askModelWithRequiredToolsMessages(messages) {
+  const startedAt = performance.now()
   const response = await fetch(`${endpoint}/v1/chat/completions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -358,7 +386,7 @@ async function askModelWithRequiredToolsMessages(messages) {
       messages: [
         {
           role: 'system',
-          content: 'Interprete o pedido pela linguagem natural e pelo contexto anterior e chame todas as ferramentas necessárias. Não narre nem prometa; uma ou mais chamadas são obrigatórias. No Spotify, action=open apenas abre sem reproduzir; se o pedido disser tocar, reproduzir ou dar Play, use action=play, que já abre o aplicativo. Nunca combine spotify com open_application para o mesmo pedido. Para apenas abrir um navegador sem página nem busca, use open_application; open_web exige url ou query. Para operar uma interface sem ferramenta específica, use computer_observe antes de computer_action.'
+          content: 'Interprete o pedido pela linguagem natural e pelo contexto anterior e chame todas as ferramentas necessárias. Quando o usuário corrigir ou substituir o pedido anterior, trate o turno mais recente como uma nova ação: use a ferramenta com o alvo corrigido e não repita o alvo anterior. Não narre nem prometa; uma ou mais chamadas são obrigatórias. No Spotify, action=open apenas abre sem reproduzir; se o pedido disser tocar, reproduzir ou dar Play, use action=play, que já abre o aplicativo. Nunca combine spotify com open_application para o mesmo pedido. Para apenas abrir um navegador sem página nem busca, use open_application; open_web exige url ou query. Para operar uma interface sem ferramenta específica, use computer_observe antes de computer_action.'
         },
         ...messages
       ],
@@ -370,6 +398,7 @@ async function askModelWithRequiredToolsMessages(messages) {
   })
 
   const payload = await response.json().catch(() => null)
+  recordRequestMetric('recuperação obrigatória', startedAt, payload)
   if (!response.ok) {
     const detail = payload?.error?.message ?? payload?.error
     throw new Error(`Ollama compatível respondeu com HTTP ${response.status}${detail ? `: ${detail}` : ''}`)
@@ -452,6 +481,7 @@ function fold(value) {
 }
 
 async function classifyToolNeed(prompt) {
+  const startedAt = performance.now()
   const format = {
     type: 'object',
     additionalProperties: false,
@@ -490,6 +520,7 @@ async function classifyToolNeed(prompt) {
     signal: AbortSignal.timeout(120_000)
   })
   const payload = await response.json().catch(() => null)
+  recordRequestMetric('classificador', startedAt, payload)
   if (!response.ok || payload?.error) {
     throw new Error(payload?.error ?? `Classificador respondeu com HTTP ${response.status}`)
   }
@@ -525,6 +556,43 @@ function equivalentArgument(key, actual, expected) {
 
 function summarizeCalls(calls) {
   return calls.map((call) => `${call?.function?.name}(${JSON.stringify(parseArguments(call?.function?.arguments) ?? {})})`).join(' → ')
+}
+
+function recordRequestMetric(kind, startedAt, payload) {
+  const wallMs = performance.now() - startedAt
+  const evalCount = Number(payload?.eval_count ?? payload?.usage?.completion_tokens ?? 0)
+  const evalDurationNs = Number(payload?.eval_duration ?? 0)
+  requestMetrics.push({
+    kind,
+    wallMs,
+    evalCount: Number.isFinite(evalCount) ? evalCount : 0,
+    evalDurationNs: Number.isFinite(evalDurationNs) ? evalDurationNs : 0
+  })
+}
+
+function printRequestMetrics() {
+  if (!requestMetrics.length) return
+  const wallValues = requestMetrics.map(({ wallMs }) => wallMs).sort((left, right) => left - right)
+  const wallTotal = wallValues.reduce((total, value) => total + value, 0)
+  const evalCount = requestMetrics.reduce((total, metric) => total + metric.evalCount, 0)
+  const evalDurationNs = requestMetrics.reduce((total, metric) => total + metric.evalDurationNs, 0)
+  const byKind = Object.entries(Object.groupBy(requestMetrics, ({ kind }) => kind))
+    .map(([kind, metrics]) => `${kind}=${metrics.length}`)
+    .join(', ')
+  const tokensPerSecond = evalDurationNs > 0 ? evalCount / (evalDurationNs / 1e9) : null
+
+  console.log('\nMétricas Ollama (modelo aquecido):')
+  console.log(`  requisições: ${requestMetrics.length} (${byKind})`)
+  console.log(`  parede: total=${formatSeconds(wallTotal)}, média=${formatSeconds(wallTotal / wallValues.length)}, p50=${formatSeconds(percentile(wallValues, 0.5))}, p95=${formatSeconds(percentile(wallValues, 0.95))}`)
+  console.log(`  geração: ${evalCount} tokens${tokensPerSecond === null ? '' : `, ${tokensPerSecond.toFixed(1)} tokens/s`}`)
+}
+
+function percentile(values, ratio) {
+  return values[Math.min(values.length - 1, Math.ceil(values.length * ratio) - 1)]
+}
+
+function formatSeconds(milliseconds) {
+  return `${(milliseconds / 1000).toFixed(2)} s`
 }
 
 function parseArguments(value) {

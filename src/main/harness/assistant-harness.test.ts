@@ -148,7 +148,7 @@ describe('AssistantHarness deterministic tools', () => {
     await settingsRead.mock.results[0].value
     await Promise.resolve()
     expect(fetchMock).toHaveBeenCalledOnce()
-    resolveStatus(jsonResponse({ models: [{ name: 'qwen3.5:9b' }] }))
+    resolveStatus(jsonResponse({ models: [{ name: 'qwen3:4b-instruct' }] }))
     await expect(statusPromise).resolves.toMatchObject({ connected: true })
   })
 
@@ -160,7 +160,7 @@ describe('AssistantHarness deterministic tools', () => {
     const fetchMock = vi.fn(async (input: string | URL | Request) => {
       const url = String(input)
       if (url.endsWith('/api/tags')) {
-        return jsonResponse({ models: [{ name: 'qwen3.5:9b' }] })
+        return jsonResponse({ models: [{ name: 'qwen3:4b-instruct' }] })
       }
       return jsonResponse({ message: { role: 'assistant', content: '[SEM_FERRAMENTA] Explicação normal.' } })
     })
@@ -377,7 +377,7 @@ function connectedModel(answer: string) {
   return vi.fn(async (input: string | URL | Request, _init?: RequestInit) => {
     const url = String(input)
     return url.endsWith('/api/tags')
-      ? jsonResponse({ models: [{ name: 'qwen3.5:9b' }] })
+      ? jsonResponse({ models: [{ name: 'qwen3:4b-instruct' }] })
       : jsonResponse({ message: { role: 'assistant', content: `[SEM_FERRAMENTA] ${answer}` } })
   })
 }
