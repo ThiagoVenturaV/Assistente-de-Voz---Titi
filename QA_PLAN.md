@@ -6,19 +6,20 @@ Esta rodada mantém escopo deliberado: **não inclui** `TITI-MEET-001` (modo reu
 
 ## Veredito do candidato beta 8
 
-**NO-GO PARA TAG E LANDING BETA 8 ATÉ A INSTALAÇÃO DO CANDIDATO PASSAR.** A fonte candidata declara `0.2.0-beta.8`; 415 testes em 47 arquivos, typecheck, build, landing, auditorias, NSIS, Parakeet e Supertonic empacotados passam. O instalador local foi conferido, mas ainda faltam instalá-lo sobre os dados preservados, executar o autoteste real, criar a tag imutável e validar os cinco ativos públicos. A landing pública permanece apontando para a beta 7 até esses gates fecharem.
+**CANDIDATO LOCAL APROVADO PARA A CI FINAL; NO-GO PARA TAG E LANDING ATÉ ESSA CI PASSAR.** A fonte candidata declara `0.2.0-beta.8`; 423 testes em 48 arquivos, typecheck, build, landing, auditorias, NSIS, Parakeet e Supertonic empacotados passam. A instalação local preservou os dados e a interface abriu pelo protocolo interno seguro. A confirmação humana de microfone/áudio permanece pendente e será declarada como limite do beta. A landing pública continua apontando para a beta 7 até a tag produzir e validar os cinco ativos públicos.
 
 ## Evidência já aprovada no código candidato
 
 | Verificação | Estado | Evidência de 20/08/2026 |
 |---|---|---|
 | Versão e metadados | Aprovado na fonte | `package.json`, landing, notas, QA, backlog e marketing declaram `0.2.0-beta.8`; `qa:release-sync` deve passar após o NSIS gerar o novo `latest.yml` |
-| Typecheck e testes | Aprovado | `pnpm typecheck`; 47 arquivos e 415 testes, incluindo autoteste guiado, release, segurança, diagnóstico, voz, microfone e acessibilidade |
-| Build, pacote e NSIS | Aprovado localmente | `package:win` e `verify:package`; ASAR, fuses, módulos nativos e runtimes verificados no candidato beta 8 |
+| Typecheck e testes | Aprovado | `pnpm typecheck`; 48 arquivos e 423 testes, incluindo protocolo interno, autoteste guiado, release, segurança, diagnóstico, voz, microfone e acessibilidade |
+| Build, pacote e NSIS | Aprovado localmente | `package:win` e `verify:package`; ASAR, fuses, protocolo `titi://app`, módulos nativos e runtimes verificados no candidato beta 8 |
 | Landing candidata | Aprovada localmente | build e 5 testes renderizados; link beta 8 preparado, mas proibido publicar antes do ativo responder |
-| Transcrição empacotada | Aprovada no NSIS local | 10 parciais em 15 s, frase final correta, 6,736 s no smoke desta rodada |
-| Voz neural empacotada | Aprovada no NSIS local | DirectML, 4,9 s de áudio, 0,76 s fria e 0,20 s aquecida |
-| Integridade local | Aprovada | 892.692.865 bytes; SHA-256 `A9852D70EE90C54534662B07691C9AC50D20F3439E743D4BFD764EF4DFCCEFFC`; ASAR SHA-256 `B8368259F85792588551AC2E7F13E8359D3016E14CB072B896344DF2C28109D0`; Authenticode `NotSigned` permitido apenas por ser pré-release |
+| Transcrição empacotada | Aprovada no NSIS local | 10 parciais em 15 s, frase final correta, 7,170 s no smoke desta rodada |
+| Voz neural empacotada | Aprovada no NSIS local | DirectML, 4,9 s de áudio, 0,80 s fria e 0,21 s aquecida |
+| Integridade local | Aprovada | 892.693.188 bytes; SHA-256 `5B7E743A1E7A0B546F38E7BC98CE09918FC85A88062542576FC9292701C2A0BB`; ASAR SHA-256 `0CF70F3B0F1A8BDF09A0B5253C6B09805C1C644C1D53691EBD432C89ED6292F3`; Authenticode `NotSigned` permitido apenas por ser pré-release |
+| Inicialização e instalação | Aprovada localmente | fuse de snapshot incompatível foi corrigido; renderer migrou de `file://` para `titi://app`; NSIS `/currentuser` código 0; ASAR instalado idêntico; ações, conversas e configurações preservaram SHA-256; interface, histórico, 2 telas, autoteste e X do mascote verificados no Windows real |
 | CI da preparação | Aprovada | PR #12 verde em Windows limpo, com dependências, auditorias, testes e `package:dir` |
 
 ## Gates específicos da beta 8
@@ -28,7 +29,7 @@ Esta rodada mantém escopo deliberado: **não inclui** `TITI-MEET-001` (modo reu
 - [x] Gerar `Titi-Setup-0.2.0-beta.8.exe`, blockmap e `latest.yml` do candidato local.
 - [x] Passar `verify:package`, `qa:release-sync`, assinatura com política de pré-release e os smokes empacotados no NSIS beta 8.
 - [x] Registrar tamanho, SHA-256, SHA-512 do `latest.yml` e hash do ASAR do candidato local; manifesto final será gerado pelo commit da tag.
-- [ ] Instalar o NSIS beta 8 sobre o perfil preservado e provar que configurações, conversas e ações permanecem.
+- [x] Instalar o NSIS beta 8 sobre o perfil preservado e provar que configurações, conversas e ações permanecem.
 - [ ] Executar o autoteste guiado real: microfone, transcrição, modelo, tool calling e áudio audível.
 - [ ] Confirmar que o modal aparece somente no Antigravity e que ações perigosas falham fechadas.
 - [ ] Criar a tag `v0.2.0-beta.8` no SHA aprovado e aguardar o workflow `Release verificável`.

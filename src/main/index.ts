@@ -2,12 +2,15 @@ import { randomUUID } from 'node:crypto'
 import { statfs, writeFile } from 'node:fs/promises'
 import { cpus, release as osRelease, totalmem } from 'node:os'
 import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import {
   app,
   BrowserWindow,
   dialog,
   globalShortcut,
   ipcMain,
+  net,
+  protocol,
   screen,
   session,
   shell,
@@ -64,6 +67,10 @@ import {
   safeExternalHttpsUrl,
   type TrustedRendererLocation
 } from './security/renderer-origin'
+import {
+  TITI_RENDERER_SCHEME,
+  resolveRendererAssetPath
+} from './security/renderer-protocol'
 import { AuditedToolExecutor } from './tools/audited-tool-executor'
 import { ConfirmationToolExecutor } from './tools/confirmation-tool-executor'
 import { DesktopToolkit } from './tools/desktop-toolkit'
@@ -111,6 +118,17 @@ const pendingGameStandbyRequests = new Map<string, {
 }>()
 const trustedRendererLocations = new WeakMap<BrowserWindow, TrustedRendererLocation>()
 
+protocol.registerSchemesAsPrivileged([{
+  scheme: TITI_RENDERER_SCHEME,
+  privileges: {
+    standard: true,
+    secure: true,
+    supportFetchAPI: true,
+    stream: true,
+    codeCache: true
+  }
+}])
+
 if (!app.requestSingleInstanceLock()) {
   app.quit()
 }
@@ -118,6 +136,7 @@ if (!app.requestSingleInstanceLock()) {
 app.on('second-instance', () => showMainWindow())
 
 app.whenReady().then(async () => {
+  configureRendererProtocol()
   const userDataPath = app.getPath('userData')
   settingsStore = new SettingsStore(userDataPath)
   conversationStore = new ConversationStore(userDataPath)
@@ -460,11 +479,24 @@ async function createMascotWindow(): Promise<void> {
 function loadView(window: BrowserWindow, hash: 'app' | 'mascot'): void {
   const location = resolveTrustedRendererLocation(
     app.isPackaged,
-    process.env.ELECTRON_RENDERER_URL,
-    join(__dirname, '../renderer/index.html')
+    process.env.ELECTRON_RENDERER_URL
   )
   trustedRendererLocations.set(window, location)
   void window.loadURL(rendererUrlWithHash(location, hash))
+}
+
+function configureRendererProtocol(): void {
+  const rendererRoot = join(__dirname, '../renderer')
+  protocol.handle(TITI_RENDERER_SCHEME, (request) => {
+    const assetPath = resolveRendererAssetPath(request.url, rendererRoot)
+    if (!assetPath) {
+      return new Response('Recurso não encontrado.', {
+        status: 404,
+        headers: { 'content-type': 'text/plain; charset=utf-8' }
+      })
+    }
+    return net.fetch(pathToFileURL(assetPath).toString())
+  })
 }
 
 function lockNavigation(window: BrowserWindow): void {

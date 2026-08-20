@@ -69,6 +69,8 @@ for (const marker of [
   'computer_observe',
   'computer_look',
   'capture-desktop',
+  'TITI_RENDERER_BASE_URL',
+  'protocol.handle(TITI_RENDERER_SCHEME',
   'windows-ui-automation.ps1',
   'focusImageBase64',
   'app-skills.json',
@@ -109,7 +111,7 @@ const expectedFuses = new Map([
   [FuseV1Options.EnableNodeCliInspectArguments, disabledFuse],
   [FuseV1Options.EnableEmbeddedAsarIntegrityValidation, enabledFuse],
   [FuseV1Options.OnlyLoadAppFromAsar, enabledFuse],
-  [FuseV1Options.LoadBrowserProcessSpecificV8Snapshot, enabledFuse],
+  [FuseV1Options.LoadBrowserProcessSpecificV8Snapshot, disabledFuse],
   [FuseV1Options.GrantFileProtocolExtraPrivileges, disabledFuse]
 ])
 
