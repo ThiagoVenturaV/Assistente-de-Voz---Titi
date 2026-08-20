@@ -47,7 +47,11 @@ const api: TitiDesktopApi = {
   },
   diagnostics: {
     summary: () => ipcRenderer.invoke('diagnostics:summary'),
-    export: () => ipcRenderer.invoke('diagnostics:export')
+    export: () => ipcRenderer.invoke('diagnostics:export'),
+    runSelfTestModel: (requestId: string) =>
+      ipcRenderer.invoke('diagnostics:self-test-model', requestId),
+    cancelSelfTest: (requestId: string) =>
+      ipcRenderer.invoke('diagnostics:self-test-cancel', requestId)
   },
   memory: {
     list: () => ipcRenderer.invoke('memory:list'),
@@ -94,6 +98,7 @@ const api: TitiDesktopApi = {
   voice: {
     transcribe: (wavAudio: ArrayBuffer) =>
       ipcRenderer.invoke('voice:transcribe', wavAudio),
+    cancelTranscription: () => ipcRenderer.invoke('voice:cancel-transcription'),
     startStream: (sessionId: string) => ipcRenderer.invoke('voice:start-stream', sessionId),
     pushStreamChunk: (sessionId: string, pcmAudio: ArrayBuffer) =>
       ipcRenderer.invoke('voice:stream-chunk', sessionId, pcmAudio),

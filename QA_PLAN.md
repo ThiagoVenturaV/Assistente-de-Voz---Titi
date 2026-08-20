@@ -6,7 +6,7 @@ Esta rodada mantém escopo deliberado: **não inclui** `TITI-MEET-001` (modo reu
 
 ## Veredito atual
 
-**A PRÉ-RELEASE PÚBLICA `0.2.0-beta.7` ESTÁ PUBLICADA, INSTALADA E SINCRONIZADA ENTRE GITHUB, LANDING E ESTA MÁQUINA.** No candidato publicado passaram 331 testes, typecheck, build, NSIS, verificação do pacote, smokes de Parakeet e Supertonic DirectML, instalação sobre o perfil preservado e o teste real do botão de fechar do mascote. A tag aponta para `b48fb76`, a CI da `main` terminou verde, os três ativos foram publicados e o download anônimo respondeu HTTP 200 com 892.673.907 bytes. A landing Sites versão 21 também respondeu HTTP 200 com a beta.7, transparência de download, política de privacidade, suporte, SEO técnico e alvos móveis ampliados. A branch em preparação passa 402 testes em 42 arquivos, incluindo diagnóstico seguro, perda de microfone e acessibilidade. O Qwen 4B passou em 18/19 cenários do contrato e em 4/4 fluxos do provider, com a correção “Chrome → Brave” registrada como regressão conhecida; o Qwen 3.5 9B permanece selecionável e passou em 19/19. Como o instalador continua `NotSigned`, pode acionar o SmartScreen e não deve ser tratado como versão estável.
+**A PRÉ-RELEASE PÚBLICA `0.2.0-beta.7` ESTÁ PUBLICADA, INSTALADA E SINCRONIZADA ENTRE GITHUB, LANDING E ESTA MÁQUINA.** No candidato publicado passaram 331 testes, typecheck, build, NSIS, verificação do pacote, smokes de Parakeet e Supertonic DirectML, instalação sobre o perfil preservado e o teste real do botão de fechar do mascote. A tag aponta para `b48fb76`, a CI da `main` terminou verde, os três ativos foram publicados e o download anônimo respondeu HTTP 200 com 892.673.907 bytes. A landing Sites versão 21 também respondeu HTTP 200 com a beta.7, transparência de download, política de privacidade, suporte, SEO técnico e alvos móveis ampliados. A branch em preparação passa 419 testes em 48 arquivos, incluindo autoteste guiado, diagnóstico seguro, perda de microfone, política beta e acessibilidade. O Qwen 4B passou em 18/19 cenários do contrato e em 4/4 fluxos do provider, com a correção “Chrome → Brave” registrada como regressão conhecida; o Qwen 3.5 9B permanece selecionável e passou em 19/19. Como o instalador continua `NotSigned`, pode acionar o SmartScreen e não deve ser tratado como versão estável.
 
 Antes do teste, o usuário havia desinstalado a versão anterior: a pasta de instalação foi removida, enquanto configurações e conversas permaneceram em `%APPDATA%\titi-desktop`. A instalação foi executada sobre esse perfil e reabriu os dados existentes.
 
@@ -17,7 +17,7 @@ Antes do teste, o usuário havia desinstalado a versão anterior: a pasta de ins
 | Versão declarada na fonte | Aprovado | `package.json` declara `0.2.0-beta.7` |
 | Sincronização de metadados de versão | Aprovado | `pnpm qa:release-sync` confirmou coerência entre `package.json`, `landing`, `latest.yml` e nota de versão |
 | Typecheck | Aprovado | `pnpm typecheck`, código 0 |
-| Testes automatizados | Aprovado na branch | `pnpm test`: 42 arquivos e 402 testes aprovados, incluindo release, diagnóstico seguro, perda de microfone, acessibilidade, privacidade, standby e o controle de fechar do mascote |
+| Testes automatizados | Aprovado na branch | `pnpm test`: 48 arquivos e 419 testes aprovados, incluindo release, autoteste guiado, diagnóstico seguro, perda de microfone, política beta, acessibilidade, privacidade, standby e o controle de fechar do mascote |
 | Build de produção | Aprovado | `pnpm build`: main, preload e renderer compilados |
 | Linguagem natural e seleção de ferramentas | Parcial documentado | `qwen3:4b-instruct`: 18/19, média de 1,05 s nesta rodada; `qwen3.5:9b`: 19/19; o caso 4B “Chrome → Brave” permanece conhecido e nenhum efeito externo é executado pelo script |
 | Conversa real do provider | Aprovado sem efeitos externos | 4/4 fluxos sequenciais no `OllamaProvider` real com Qwen 4B e 4/4 com Qwen 3.5 9B, definições reais das ferramentas e executor gravador; detalhes em `docs/OLLAMA_AGENT_MODEL_BENCHMARK.md` |
@@ -89,7 +89,7 @@ Só orientar o usuário a instalar quando **todos** estes itens forem verdadeiro
 
 1. existe um instalador final `Titi-Setup-0.2.0-beta.7.exe`, com estado de assinatura e hash publicados;
 2. a versão interna, `latest.yml`, tag, notas e link de download são `0.2.0-beta.7`;
-3. typecheck, 402 testes, build, QA do modelo, empacotamento e verificação do pacote passam no mesmo candidato;
+3. typecheck, 419 testes, build, QA do modelo, empacotamento e verificação do pacote passam no mesmo candidato;
 4. a instalação real sobre os dados preservados passa sem perda de nome, configurações ou conversas;
 5. Spotify, Brave e Codex/ChatGPT abrem direto; Antigravity pede confirmação; a UI do Spotify passa no ciclo observar → agir → verificar;
 6. modo ao vivo, aperte-para-falar, microfone e mascote passam no Windows real;

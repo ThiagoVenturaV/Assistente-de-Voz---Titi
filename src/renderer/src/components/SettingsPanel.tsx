@@ -16,7 +16,9 @@ import {
   ShieldIcon
 } from './icons'
 import { MicrophoneSettings } from './MicrophoneSettings'
+import { GuidedSelfTest } from './GuidedSelfTest'
 import { PUBLIC_PRIVACY_URL } from '../product-links'
+import { SUPPORTED_LOCAL_MODELS } from '../../../shared/model-catalog'
 
 type SettingsSection =
   | 'general'
@@ -48,11 +50,6 @@ const sections: Array<{
   { id: 'memory', label: 'Memória', icon: CpuIcon },
   { id: 'activity', label: 'Atividade', icon: MonitorIcon }
 ]
-
-const recommendedOllamaModels = [
-  { name: 'qwen3:4b-instruct', label: 'qwen3:4b-instruct — Rápido (padrão)' },
-  { name: 'qwen3.5:9b', label: 'qwen3.5:9b — Qualidade (mais lento)' }
-] as const
 
 export function SettingsPanel({
   settings,
@@ -452,6 +449,7 @@ export function SettingsPanel({
 
             {section === 'activity' && (
               <SettingsGroup title="Diagnóstico e ações" description="Resumo local para suporte e registro das ferramentas usadas pelo Titi.">
+                <GuidedSelfTest settings={settings} />
                 {diagnosticSummary && (
                   <div className="diagnostic-summary">
                     <DiagnosticItem label="Versão" value={diagnosticSummary.appVersion} />
@@ -561,14 +559,14 @@ function runtimeActionLabel(runtime: RuntimeStatus | null): string {
 
 function ollamaModelOptions(selectedModel: string, availableModels: string[]): string[] {
   return Array.from(new Set([
-    ...recommendedOllamaModels.map(({ name }) => name),
+    ...SUPPORTED_LOCAL_MODELS.map(({ name }) => name),
     selectedModel,
     ...availableModels
   ].filter(Boolean)))
 }
 
 function ollamaModelLabel(model: string): string {
-  return recommendedOllamaModels.find(({ name }) => name === model)?.label ?? model
+  return SUPPORTED_LOCAL_MODELS.find(({ name }) => name === model)?.label ?? model
 }
 
 function SettingsGroup({ title, description, children }: { title: string; description: string; children: React.ReactNode }): React.JSX.Element {

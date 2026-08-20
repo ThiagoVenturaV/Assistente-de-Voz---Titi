@@ -142,7 +142,7 @@ export class DesktopToolkit implements ToolExecutor {
     },
     {
       type: 'function',
-      risk: 'sensitive',
+      risk: 'reversible',
       execution: { timeoutMs: 10_000, sideEffect: 'external' },
       function: {
         name: 'close_window',
@@ -224,7 +224,7 @@ export class DesktopToolkit implements ToolExecutor {
     },
     {
       type: 'function',
-      risk: 'sensitive',
+      risk: 'reversible',
       execution: { timeoutMs: 10_000, sideEffect: 'external' },
       function: {
         name: 'computer_action',

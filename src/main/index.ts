@@ -47,6 +47,7 @@ import {
 } from './ipc/validation'
 import { AssistantHarness } from './harness/assistant-harness'
 import { buildDiagnosticReport } from './diagnostics/diagnostic-report'
+import { runGuidedSelfTestModelProbe } from './diagnostics/guided-self-test'
 import {
   allowsAudioPermissionCheck,
   allowsAudioPermissionRequest
@@ -98,6 +99,12 @@ const activeChatRequests = new Map<string, { controller: AbortController; ownerI
 const activeTranscriptions = new Map<number, AbortController>()
 const activeVoiceStreams = new Map<string, { ownerId: number }>()
 const activeSyntheses = new Map<string, { controller: AbortController; ownerId: number }>()
+const activeDiagnosticSelfTests = new Map<string, {
+  controller: AbortController
+  ownerId: number
+  timeout: NodeJS.Timeout
+}>()
+const DIAGNOSTIC_SELF_TEST_TIMEOUT_MS = 90_000
 const pendingGameStandbyRequests = new Map<string, {
   resolve: (decision: GameStandbyDecision) => void
   timeout: NodeJS.Timeout
@@ -235,6 +242,11 @@ app.on('before-quit', () => {
   activeVoiceStreams.clear()
   for (const { controller } of activeSyntheses.values()) controller.abort(abortReason())
   activeSyntheses.clear()
+  for (const { controller, timeout } of activeDiagnosticSelfTests.values()) {
+    clearTimeout(timeout)
+    controller.abort(abortReason())
+  }
+  activeDiagnosticSelfTests.clear()
   streamingTranscriber?.dispose()
   speechSynthesizer?.dispose()
   confirmationBroker?.cancelAll()
@@ -329,6 +341,11 @@ function abortAllRunningInteractions(reason: Error): void {
     active.controller.abort(reason)
     activeSyntheses.delete(id)
   }
+  for (const [id, active] of activeDiagnosticSelfTests) {
+    clearTimeout(active.timeout)
+    active.controller.abort(reason)
+    activeDiagnosticSelfTests.delete(id)
+  }
   runtimeManager.cancelActiveWork(reason)
 }
 
@@ -351,6 +368,7 @@ function hasRunningInteraction(): boolean {
     || activeTranscriptions.size > 0
     || activeVoiceStreams.size > 0
     || activeSyntheses.size > 0
+    || activeDiagnosticSelfTests.size > 0
   )
 }
 
@@ -562,6 +580,46 @@ function registerIpcHandlers(): void {
     await writeFile(result.filePath, JSON.stringify(report, null, 2), 'utf8')
     return result.filePath
   })
+  ipcMain.handle('diagnostics:self-test-model', async (event, value: unknown) => {
+    requireRenderer(event, 'main')
+    assertNotInGameStandby()
+    const requestId = validatedRequestId(value)
+    if (activeDiagnosticSelfTests.has(requestId)) {
+      throw new Error('Este autoteste já está em andamento.')
+    }
+    const controller = new AbortController()
+    const timeout = setTimeout(() => {
+      controller.abort(diagnosticSelfTestTimeoutReason())
+    }, DIAGNOSTIC_SELF_TEST_TIMEOUT_MS)
+    const active = { controller, ownerId: event.sender.id, timeout }
+    activeDiagnosticSelfTests.set(requestId, active)
+    try {
+      const beforeProbe = await runtimeManager.status(controller.signal)
+      if (!beforeProbe.connected && beforeProbe.engineInstalled) {
+        await runtimeManager.ensureRunning(controller.signal)
+      }
+      throwIfAborted(controller.signal)
+      return await runGuidedSelfTestModelProbe({
+        settings: await settingsStore.get(),
+        signal: controller.signal
+      })
+    } finally {
+      clearTimeout(timeout)
+      if (activeDiagnosticSelfTests.get(requestId) === active) {
+        activeDiagnosticSelfTests.delete(requestId)
+      }
+    }
+  })
+  ipcMain.handle('diagnostics:self-test-cancel', (event, value: unknown) => {
+    requireRenderer(event, 'main')
+    const requestId = validatedRequestId(value)
+    const active = activeDiagnosticSelfTests.get(requestId)
+    if (!active || active.ownerId !== event.sender.id) return false
+    clearTimeout(active.timeout)
+    active.controller.abort(abortReason())
+    activeDiagnosticSelfTests.delete(requestId)
+    return true
+  })
   ipcMain.handle('game:standby-decision', (event, value: unknown) => {
     requireRenderer(event, 'main')
     let response: GameStandbyDecisionResponse
@@ -702,6 +760,14 @@ function registerIpcHandlers(): void {
         activeTranscriptions.delete(event.sender.id)
       }
     }
+  })
+  ipcMain.handle('voice:cancel-transcription', (event) => {
+    requireRenderer(event, 'main')
+    const controller = activeTranscriptions.get(event.sender.id)
+    if (!controller) return false
+    controller.abort(abortReason())
+    activeTranscriptions.delete(event.sender.id)
+    return true
   })
   ipcMain.handle('voice:start-stream', async (event, value: unknown) => {
     requireRenderer(event, 'main')
@@ -895,6 +961,12 @@ function configureMediaPermissions(): void {
       callback(Boolean(wantsAudio))
     }
   )
+}
+
+function diagnosticSelfTestTimeoutReason(): Error {
+  const error = new Error('A prova da IA local excedeu 90 segundos.')
+  error.name = 'TimeoutError'
+  return error
 }
 
 function isTrustedMainWindowContents(webContents: WebContents): boolean {

@@ -139,23 +139,49 @@ jobs:
             'release/release-manifest.json'
           )
 
-          gh release view $env:GITHUB_REF_NAME *> $null
-          if ($LASTEXITCODE -eq 0) {
-            throw "A release $env:GITHUB_REF_NAME já existe; tags publicadas não podem ser reutilizadas."
-          }
+          $existingJson = & gh release view $env:GITHUB_REF_NAME --json isDraft,tagName 2>$null
+          $releaseExists = $LASTEXITCODE -eq 0
+          if ($releaseExists) {
+            $existing = $existingJson | ConvertFrom-Json
+            if (-not $existing.isDraft) {
+              throw "A release $env:GITHUB_REF_NAME já está pública; tags publicadas não podem ser reutilizadas."
+            }
 
-          $arguments = @(
-            'release', 'create', $env:GITHUB_REF_NAME,
-            '--verify-tag', '--title', "Titi $version",
-            '--notes-file', 'RELEASE_NOTES.md', '--draft'
-          )
-          if ($version.Contains('-')) {
-            $arguments += '--prerelease'
-          }
-          $arguments += $assets
-          & gh @arguments
-          if ($LASTEXITCODE -ne 0) {
-            throw "Falha ao criar o rascunho da release $env:GITHUB_REF_NAME."
+            $editArguments = @(
+              'release', 'edit', $env:GITHUB_REF_NAME,
+              '--title', "Titi $version",
+              '--notes-file', 'RELEASE_NOTES.md',
+              '--draft=true'
+            )
+            if ($version.Contains('-')) {
+              $editArguments += '--prerelease=true'
+            } else {
+              $editArguments += '--prerelease=false'
+            }
+            & gh @editArguments
+            if ($LASTEXITCODE -ne 0) {
+              throw "Falha ao atualizar o rascunho retomável de $env:GITHUB_REF_NAME."
+            }
+            & gh release upload $env:GITHUB_REF_NAME @assets --clobber
+            if ($LASTEXITCODE -ne 0) {
+              throw "Falha ao substituir os ativos do rascunho retomável de $env:GITHUB_REF_NAME."
+            }
+            "Rascunho existente retomado com segurança; nenhuma release pública foi sobrescrita." |
+              Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+          } else {
+            $arguments = @(
+              'release', 'create', $env:GITHUB_REF_NAME,
+              '--verify-tag', '--title', "Titi $version",
+              '--notes-file', 'RELEASE_NOTES.md', '--draft'
+            )
+            if ($version.Contains('-')) {
+              $arguments += '--prerelease'
+            }
+            $arguments += $assets
+            & gh @arguments
+            if ($LASTEXITCODE -ne 0) {
+              throw "Falha ao criar o rascunho da release $env:GITHUB_REF_NAME."
+            }
           }
 
       - name: Baixar novamente e comparar todos os ativos

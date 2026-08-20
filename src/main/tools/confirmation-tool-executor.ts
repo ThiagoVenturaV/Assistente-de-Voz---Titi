@@ -313,15 +313,7 @@ export function assessToolRisk(name: string, argumentsValue: unknown): ToolRiskA
       if (ANTIGRAVITY_APPLICATION_NAMES.has(normalizeApplicationName(application))) {
         return antigravityConfirmation('computer_action', `acionar “${safeLabel(target, 120)}”`)
       }
-      return sensitive(
-        'computer_action',
-        'Permitir ação na interface?',
-        `O Titi quer acionar “${safeLabel(target, 120)}” em ${safeLabel(application, 80)}.`,
-        [
-          'O controle pode produzir um efeito externo que não é possível inferir apenas pelo texto visível.',
-          'A ação será vinculada à mesma janela e ao mesmo controle que acabaram de ser observados.'
-        ]
-      )
+      return { kind: 'safe' }
     }
     case 'focus_window':
     case 'minimize_window': {

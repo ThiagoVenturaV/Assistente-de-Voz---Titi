@@ -129,6 +129,17 @@ export interface DiagnosticSummary {
   automaticUpload: false
 }
 
+export interface DiagnosticSelfTestModelResult {
+  model: string
+  durationMs: number
+  tool: {
+    name: 'current_datetime'
+    called: boolean
+    ok: boolean
+    message: string
+  }
+}
+
 export interface ToolActionLogEntry {
   id: string
   tool: string
@@ -235,9 +246,12 @@ export interface TitiDesktopApi {
   diagnostics: {
     summary(): Promise<DiagnosticSummary>
     export(): Promise<string | null>
+    runSelfTestModel(requestId: string): Promise<DiagnosticSelfTestModelResult>
+    cancelSelfTest(requestId: string): Promise<boolean>
   }
   voice: {
     transcribe(wavAudio: ArrayBuffer): Promise<VoiceTranscription>
+    cancelTranscription(): Promise<boolean>
     startStream(sessionId: string): Promise<void>
     pushStreamChunk(sessionId: string, pcmAudio: ArrayBuffer): Promise<void>
     finishStream(sessionId: string): Promise<VoiceTranscription>

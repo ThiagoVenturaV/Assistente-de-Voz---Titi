@@ -36,7 +36,7 @@ Auditoria atualizada em 19/08/2026 por frentes de Produto/QA, PO, marketing e co
 | Área | Estado atual | Evidência | Lacuna prioritária |
 | --- | --- | --- | --- |
 | Release e instalação | Parcial · beta.7 pública e instalada | tag, três ativos e download anônimo aprovados; ASAR instalado coincide e `settings.json`, `conversations.json` e `actions.json` preservaram SHA-256 | Authenticode continua `NotSigned`; faltam Windows 10/11 limpos, desinstalação/rollback e NSIS produzido pela tag |
-| Código e CI | Saudável com flake sob carga registrado | typecheck, build e 42 arquivos/402 testes passam na branch; a CI publicada da beta.7 permanece verde | O timeout isolado do `ConversationStore` sob contenção permanece registrado |
+| Código e CI | Saudável com flake sob carga registrado | typecheck, build e 48 arquivos/419 testes passam na branch; a CI publicada da beta.7 permanece verde | O timeout isolado do `ConversationStore` sob contenção permanece registrado |
 | Linguagem natural e ferramentas | Parcial avançado | Qwen 4B fez 18/19 no contrato e 4/4 no provider em cerca de metade do tempo do 9B; Qwen 3.5 9B fez 19/19 e 4/4 | Corrigir no 4B a troca contextual “Chrome → Brave”; `computer_action` ainda não bloqueia semanticamente alvos como comprar, enviar, publicar ou excluir |
 | Voz local | Parcial avançado | Parakeet incremental e Supertonic DirectML presentes no pacote; smokes controlados aprovados | Faltam 20 turnos reais, dispositivos distintos, eco/recaptura, permissão negada e “pare” em todas as fases no instalado |
 | App instalado | Smoke estrutural e do mascote aprovado | versão beta.7, hash do ASAR e dados preservados conferidos; X sempre visível e fechamento real aprovados | Ainda não substitui E2E por teclado, microfone, áudio audível e ações reais completas |
@@ -506,7 +506,7 @@ Objetivo: fazer as promessas já visíveis na interface funcionarem de verdade e
 ### TITI-QA-001 — Harness de QA do executável real
 
 - **Prioridade/estado/trilha:** P0 · Parcial · QA
-- **Evidência atual:** typecheck, build e 42 arquivos/402 testes passam na branch; CIs anteriores da `main` estão verdes; verificador e smokes do pacote beta.7 passam. A auditoria anterior encontrou um timeout isolado do `ConversationStore` sob contenção, registrado em `TITI-QA-FLAKE-001`.
+- **Evidência atual:** typecheck, build e 48 arquivos/419 testes passam na branch; CIs anteriores da `main` estão verdes; verificador e smokes do pacote beta.7 passam. A auditoria anterior encontrou um timeout isolado do `ConversationStore` sob contenção, registrado em `TITI-QA-FLAKE-001`.
 - **Resultado:** testes cobrem o produto instalado, não apenas funções isoladas.
 - **Aceite:**
   - [x] unitários cobrem política, storage, ferramentas, runtime Ollama e partes da voz;
@@ -727,12 +727,12 @@ Objetivo: transformar a decisão local do computador de desenvolvimento em escol
 
 ### TITI-OBS-002 — Diagnóstico local e suporte
 
-- **Prioridade/estado/trilha:** P1 · Parcial avançado · Observabilidade + Suporte
-- **Evidência atual:** Configurações → Atividade mostra o resumo local; a exportação manual possui testes contra conversas, URLs, tokens, caminhos, IDs e argumentos e declara ausência de upload automático.
+- **Prioridade/estado/trilha:** P1 · Pronto no código · Observabilidade + Suporte
+- **Evidência atual:** Configurações → Atividade mostra o resumo local; a exportação manual possui testes contra conversas, URLs, tokens, caminhos, IDs e argumentos e declara ausência de upload automático. O autoteste guiado percorre microfone, transcrição, inferência, tool calling restrito a `current_datetime` e TTS com confirmação humana de áudio, sem criar conversa.
 - **Resultado:** usuário entende e relata problemas sem expor conversas ou segredos.
 - **Aceite:**
   - [x] tela mostra versão, hardware resumido, provedor/modelo, áudio, espaço e saúde;
-  - [ ] **Testar** verifica microfone, transcrição, modelo, fala e ferramenta inofensiva;
+  - [x] **Testar** verifica microfone, transcrição, modelo, fala e ferramenta inofensiva;
   - [x] exportação redige caminhos pessoais, chaves, conversa, argumentos, identificadores e tokens;
   - [x] não existe coleta remota; o relatório declara `automaticUpload: false` e qualquer coleta futura continua condicionada a opt-in separado e revogável.
 

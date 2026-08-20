@@ -17,7 +17,7 @@ function makeDelegate(): ToolExecutor & { execute: ReturnType<typeof vi.fn> } {
       { type: 'function', risk: 'reversible', function: { name: 'computer_action', description: 'Control', parameters: { type: 'object', properties: {} } } },
       { type: 'function', risk: 'reversible', function: { name: 'focus_window', description: 'Focus window', parameters: { type: 'object', properties: {} } } },
       { type: 'function', risk: 'reversible', function: { name: 'minimize_window', description: 'Minimize window', parameters: { type: 'object', properties: {} } } },
-      { type: 'function', risk: 'sensitive', function: { name: 'close_window', description: 'Close window', parameters: { type: 'object', properties: {} } } },
+      { type: 'function', risk: 'reversible', function: { name: 'close_window', description: 'Close window', parameters: { type: 'object', properties: {} } } },
       { type: 'function', risk: 'read', function: { name: 'unknown', description: 'Unknown', parameters: { type: 'object', properties: {} } } }
     ],
     execute: vi.fn(async () => ({ ok: true, message: 'Executada.' }))
@@ -106,7 +106,7 @@ describe('ConfirmationToolExecutor', () => {
     expect(delegate.execute).toHaveBeenCalledOnce()
   })
 
-  it('usa fluxo sem confirmação para foco e minimizar janela e pede confirmação para fechar', async () => {
+  it('usa fluxo direto para foco, minimizar e fechar janela durante a beta', async () => {
     const delegate = makeDelegate()
     const confirm = vi.fn<ToolConfirmationRequester>(async () => ({
       status: 'denied',
@@ -122,17 +122,12 @@ describe('ConfirmationToolExecutor', () => {
     expect(delegate.execute).toHaveBeenCalledWith('minimize_window', { application: 'Spotify' })
 
     await expect(executor.execute('close_window', { application: 'Spotify' }))
-      .resolves.toMatchObject({ ok: false, details: { confirmationStatus: 'denied', risk: 'sensitive' } })
-    expect(confirm).toHaveBeenCalledTimes(1)
-    expect(confirm).toHaveBeenCalledWith(
-      expect.objectContaining({
-        tool: 'close_window',
-        risk: 'sensitive'
-      })
-    )
+      .resolves.toMatchObject({ ok: true })
+    expect(confirm).not.toHaveBeenCalled()
+    expect(delegate.execute).toHaveBeenCalledWith('close_window', { application: 'Spotify' })
   })
 
-  it('observa sem confirmação, mas exige aprovação explícita antes de clicar', async () => {
+  it('observa e aciona um controle de baixo risco sem confirmação durante a beta', async () => {
     const delegate = makeDelegate()
     const confirm = vi.fn<ToolConfirmationRequester>(async () => ({
       status: 'denied',
@@ -149,12 +144,9 @@ describe('ConfirmationToolExecutor', () => {
       application: 'Spotify',
       target: 'Play',
       controlType: 'Button'
-    })).resolves.toMatchObject({
-      ok: false,
-      details: { confirmationStatus: 'denied', risk: 'sensitive' }
-    })
-    expect(confirm).toHaveBeenCalledTimes(1)
-    expect(delegate.execute).toHaveBeenCalledTimes(1)
+    })).resolves.toMatchObject({ ok: true })
+    expect(confirm).not.toHaveBeenCalled()
+    expect(delegate.execute).toHaveBeenCalledTimes(2)
   })
 
   it('descobre e abre um aplicativo novo sem confirmação durante a beta', async () => {

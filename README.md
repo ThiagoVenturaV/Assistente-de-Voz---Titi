@@ -6,7 +6,7 @@
 
 Titi é um assistente local para Windows com interface gráfica, conversa por texto e voz, mascote 2D animado e ferramentas controladas para agir no computador. O objetivo é permitir que a pessoa use seus aplicativos por voz sem entregar um terminal irrestrito ao modelo.
 
-> **Estado atual:** a pré-release `0.2.0-beta.7` usa `qwen3:4b-instruct` como perfil rápido padrão e mantém `qwen3.5:9b` como opção de qualidade. Permanecem a transcrição Parakeet incremental, a voz Supertonic em DirectML com fallback para CPU e a visão local de múltiplos monitores. Toda ação genérica de interface pede confirmação explícita e fica vinculada à janela e ao controle recém-observados. O instalador continua sem assinatura pública e deve ser tratado como prévia para testadores.
+> **Estado atual:** a pré-release `0.2.0-beta.7` usa `qwen3:4b-instruct` como perfil rápido padrão e mantém `qwen3.5:9b` como opção de qualidade. Permanecem a transcrição Parakeet incremental, a voz Supertonic em DirectML com fallback para CPU e a visão local de múltiplos monitores. Durante o beta, controles observados de baixo risco executam diretamente; somente abrir ou controlar o Antigravity exibe confirmação. Ações perigosas continuam bloqueadas. O instalador continua sem assinatura pública e deve ser tratado como prévia para testadores.
 > **Escopo desta iteração:** não implementamos ainda `TITI-MEET-001` (modo reunião) nem `TITI-REMOTE-001` (cliente remoto).
 
 ## O que está implementado no código atual
@@ -34,15 +34,15 @@ Titi é um assistente local para Windows com interface gráfica, conversa por te
 - a ferramenta `computer_look` captura até oito monitores, analisa as imagens somente no Ollama local, devolve um resumo estruturado e não persiste nem envia as capturas para a nuvem;
 - controle opt-in de aplicativos visíveis pela acessibilidade do Windows: o Titi observa controles, exige que o alvo tenha sido visto na mesma interação e bloqueia nomes ambíguos;
 - `play` e `pause` são ações distintas: no Spotify, o Titi tenta o botão acessível e, quando o aplicativo não expõe controles, captura a região visível da janela, envia somente um recorte ampliado do player ao Ollama local, clica dentro da própria janela e verifica visualmente o novo estado;
-- ferramentas de leitura e ações reversíveis permitidas continuam diretas; cliques genéricos, fechamento de janela e abertura do Antigravity exigem confirmação explícita;
+- ferramentas de leitura, cliques observados de baixo risco e ações reversíveis permitidas continuam diretas; somente abrir ou controlar o Antigravity exige confirmação explícita;
 - histórico local, modo privado em memória, exportação e exclusão de conversas;
 - memória curada de fatos e preferências que o usuário pediu explicitamente para guardar;
-- painel local de atividade com resultado, duração e confirmação das ferramentas, além de resumo e exportação manual de diagnóstico sem conversas, argumentos, caminhos ou identificadores de dispositivos;
+- painel local de atividade com resultado e duração das ferramentas, resumo e exportação manual sem conteúdo pessoal, além de um autoteste guiado de microfone, transcrição, IA, ferramenta segura e áudio audível;
 - inicialização oculta do Ollama, sem shell e com proteção contra partidas duplicadas;
 - standby conservador durante jogos conhecidos ou executáveis adicionados pelo usuário; ele cancela tarefas, pausa voz, oculta o mascote e verifica a descarga do modelo pela API local;
 - gravações de conversas e configurações são serializadas para não perder atualizações concorrentes.
 
-O código passa por `pnpm typecheck` e por **402 testes em 42 arquivos**. `pnpm package:dir` também verifica a integridade do ASAR, os fuses restritivos do Electron, os workers, os módulos nativos e todos os recursos externos por SHA-256, além de rejeitar rotas de QA proibidas em produção. Essa evidência ainda não substitui a validação do instalador assinado em uma máquina limpa.
+O código passa por `pnpm typecheck` e por **419 testes em 48 arquivos**. `pnpm package:dir` também verifica a integridade do ASAR, os fuses restritivos do Electron, os workers, os módulos nativos e todos os recursos externos por SHA-256, além de rejeitar rotas de QA proibidas em produção. Essa evidência ainda não substitui a validação do instalador assinado em uma máquina limpa.
 
 ## Limites desta versão
 
@@ -63,7 +63,7 @@ Consulte [BACKLOG.md](./BACKLOG.md) para os critérios de aceite e os bloqueios 
 
 O modelo informa apenas o nome comum do aplicativo. Caminhos, executáveis e identificadores são resolvidos pelo catálogo local em fontes confiáveis do Windows. Nomes de terminal, caminhos livres, scripts, protocolos perigosos e ferramentas desconhecidas são bloqueados.
 
-Por decisão explícita para a fase beta, ações reversíveis permitidas como abrir aplicativos, navegar e pesquisar podem executar sem confirmação. Cliques genéricos, fechamento de janela e abertura do Antigravity pedem permissão; recusar ou deixar a confirmação expirar impede o efeito. Compras, mensagens, publicação, exclusões externas e comandos arbitrários não estão disponíveis.
+Por decisão explícita para a fase beta, ações permitidas como abrir aplicativos, navegar, pesquisar, fechar janelas e acionar controles observados de baixo risco podem executar sem confirmação. Somente abrir ou controlar o Antigravity pede permissão; recusar ou deixar essa confirmação expirar impede o efeito. Compras, mensagens, publicação, exclusões externas e comandos arbitrários continuam bloqueados.
 
 ## Histórico privado, memória e aprendizado
 
