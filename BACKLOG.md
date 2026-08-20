@@ -25,23 +25,23 @@ Princípios obrigatórios:
 - **P2:** evolução após os fluxos essenciais estarem estáveis.
 - **P3:** última prioridade deliberada.
 
-## Auditoria multidisciplinar atual — `0.2.0-beta.7`
+## Auditoria multidisciplinar atual — `0.2.0-beta.8`
 
-Auditoria atualizada em 19/08/2026 por frentes de Produto/QA, PO, marketing e copy, com verificação do repositório, candidato, instalação e landing. Este bloco prevalece sobre os registros históricos abaixo.
+Auditoria atualizada em 20/08/2026 por frentes de Produto/QA, PO, marketing e copy, com verificação do repositório, candidato, instalação e landing. Este bloco prevalece sobre os registros históricos abaixo.
 
 ### Veredito
 
-**A beta.7 está publicada, instalada e sincronizada entre GitHub, landing e esta máquina, mas ainda não está “perfeita” nem pronta para promoção ampla.** Ela promove o Qwen 4B como perfil rápido, preserva o 9B como opção de qualidade e corrige o fechamento do mascote. Os bloqueios atuais continuam sendo confiança da automação genérica, voz E2E real, cancelamento/standby honesto, assinatura/distribuição, acessibilidade, privacidade pública e alinhamento entre promessa e evidência.
+**A beta.8 é candidata em preparação e ainda não está publicada nem instalada.** A preparação integrada na `main` fecha a política sem modal genérico, adiciona autoteste guiado, diagnóstico privado, recuperação de microfone, acessibilidade e release retomável; o Qwen 4B permanece como perfil rápido e o 9B como opção de qualidade. O gate atual é produzir e provar o NSIS beta 8 exato sem reutilizar artefatos da beta 7.
 
 | Área | Estado atual | Evidência | Lacuna prioritária |
 | --- | --- | --- | --- |
-| Release e instalação | Parcial · beta.7 pública e instalada | tag, três ativos e download anônimo aprovados; ASAR instalado coincide e `settings.json`, `conversations.json` e `actions.json` preservaram SHA-256 | Authenticode continua `NotSigned`; faltam Windows 10/11 limpos, desinstalação/rollback e NSIS produzido pela tag |
-| Código e CI | Saudável com flake sob carga registrado | typecheck, build e 48 arquivos/419 testes passam na branch; a CI publicada da beta.7 permanece verde | O timeout isolado do `ConversationStore` sob contenção permanece registrado |
-| Linguagem natural e ferramentas | Parcial avançado | Qwen 4B fez 18/19 no contrato e 4/4 no provider em cerca de metade do tempo do 9B; Qwen 3.5 9B fez 19/19 e 4/4 | Corrigir no 4B a troca contextual “Chrome → Brave”; `computer_action` ainda não bloqueia semanticamente alvos como comprar, enviar, publicar ou excluir |
-| Voz local | Parcial avançado | Parakeet incremental e Supertonic DirectML presentes no pacote; smokes controlados aprovados | Faltam 20 turnos reais, dispositivos distintos, eco/recaptura, permissão negada e “pare” em todas as fases no instalado |
-| App instalado | Smoke estrutural e do mascote aprovado | versão beta.7, hash do ASAR e dados preservados conferidos; X sempre visível e fechamento real aprovados | Ainda não substitui E2E por teclado, microfone, áudio audível e ações reais completas |
-| Landing | Beta.7 pública | Sites versão 21 publicada; build e 5 testes renderizados passam; política, suporte seguro, SEO técnico, textos legíveis e alvos móveis de 44 px estão no ar | Permanecem licença detectável após sincronização do repositório, contraste manual e ampliação da prova real dos fluxos anunciados |
-| Governança | Parcial avançado | README, release, QA e auditoria executiva refletem a beta.7 publicada; o relatório beta.3 foi arquivado e o gate atual contém apenas o link histórico | Falta espelhar Now/Next/Later em GitHub Issues ou Project com donos e dependências explícitos |
+| Release e instalação | Candidata · beta.8 não publicada | workflow validado, retomada segura de rascunho, manifesto/checksums e bloqueio de estável não assinada possuem testes | Gerar, instalar e publicar o NSIS beta 8; Authenticode continua `NotSigned`; Windows 10/11 e rollback permanecem |
+| Código e CI | Saudável com flake sob carga registrado | typecheck, build e 47 arquivos/415 testes passam; PR #12 e `main` verdes em checkout Windows limpo | O timeout isolado do `ConversationStore` sob contenção permanece registrado |
+| Linguagem natural e ferramentas | Parcial avançado | Qwen 4B fez 18/19 no corpus e 4/4 no provider; autoteste prova tool calling; alvos perigosos falham fechados e somente Antigravity confirma | Repetir corpus contextual atualizado e ampliar automação observar → agir → verificar |
+| Voz local | Parcial avançado | Parakeet incremental e Supertonic DirectML passam no pacote; autoteste guiado percorre a cadeia e pede confirmação humana do áudio | Faltam 20 turnos reais, dispositivos distintos, eco/recaptura e “pare” em todas as fases no instalado |
+| App instalado | Beta.7 aprovada; beta.8 pendente | NSIS beta.8 local passou integridade, Parakeet e Supertonic DirectML; beta.7 preservou perfil e fechamento do mascote | Instalar beta.8 sobre o perfil, rodar autoteste e repetir ações reais |
+| Landing | Beta.7 pública · política v22 | Sites v22 está pública com política correta do beta; candidata beta.8 compila e passa 5 testes, mas não será publicada antes da release | Publicar link beta.8 só após validar o ativo anônimo; contraste manual e prova real permanecem |
+| Governança | Pronto no código | README, release, QA, backlog e marketing são conferidos pelo script; Issues #9/#10/#11 espelham Now/Next/Later | Atualizar evidências finais após NSIS/tag e adicionar donos quando houver equipe fixa |
 
 ### Fila executiva recomendada
 
@@ -195,7 +195,7 @@ Pesquisa feita nas páginas oficiais dos produtos. A tabela registra padrões ú
 - **Aceite:**
   - [x] `docs/PUBLIC_PROMISES.md` liga as afirmações da landing a testes e limites do app instalado;
   - [x] absolutos foram substituídos por “núcleo local”/“localmente por padrão”, com os usos de internet explicados;
-  - [x] antes do primeiro download aparecem versão, 851,32 MiB, Windows suportado, aproximadamente 2,5 GB adicionais, ausência de assinatura/SmartScreen, notas e integridade;
+  - [x] antes do primeiro download aparecem versão, tamanho aproximado de 852 MiB, Windows suportado, aproximadamente 2,5 GB adicionais, ausência de assinatura/SmartScreen, notas e integridade; tamanho exato só entra após o ativo final;
   - [x] a ilustração é identificada como demo do beta e usa resultado verificado somente nos fluxos cobertos;
   - [x] headline principal e metadata preservam a mesma frase-mãe.
 
@@ -506,7 +506,7 @@ Objetivo: fazer as promessas já visíveis na interface funcionarem de verdade e
 ### TITI-QA-001 — Harness de QA do executável real
 
 - **Prioridade/estado/trilha:** P0 · Parcial · QA
-- **Evidência atual:** typecheck, build e 48 arquivos/419 testes passam na branch; CIs anteriores da `main` estão verdes; verificador e smokes do pacote beta.7 passam. A auditoria anterior encontrou um timeout isolado do `ConversationStore` sob contenção, registrado em `TITI-QA-FLAKE-001`.
+- **Evidência atual:** typecheck, build e 47 arquivos/415 testes passam na branch; CIs anteriores da `main` estão verdes; verificador e smokes do pacote beta.8 local passam. A auditoria anterior encontrou um timeout isolado do `ConversationStore` sob contenção, registrado em `TITI-QA-FLAKE-001`.
 - **Resultado:** testes cobrem o produto instalado, não apenas funções isoladas.
 - **Aceite:**
   - [x] unitários cobrem política, storage, ferramentas, runtime Ollama e partes da voz;
@@ -759,7 +759,7 @@ Objetivo: transformar a decisão local do computador de desenvolvimento em escol
 ### TITI-LAUNCH-001 — Site, documentação e feedback coerentes
 
 - **Prioridade/estado/trilha:** P1 · Parcial · Produto + Marketing + Suporte
-- **Evidência atual:** landing beta.7 compila, passa cinco testes renderizados e está pública na Sites versão 21; CTAs apontam para o ativo publicado, e versão, tamanho, assinatura ausente, download adicional, política, suporte, SEO técnico e alvos móveis ampliados estão no ar. Ainda faltam contraste manual, licença detectável após sincronização do repositório e ampliação da prova real dos fluxos anunciados.
+- **Evidência atual:** landing beta.7 está pública na Sites versão 22 com política beta coerente; a fonte candidata beta.8 compila e passa cinco testes renderizados, mas seu CTA permanece proibido em produção até a release existir. Licença, metadados, política, suporte e SEO já estão no repositório; faltam contraste manual e ampliação da prova real dos fluxos anunciados.
 - **Resultado:** site promete o que o executável entrega e usuário sabe baixar, aprender e reportar.
 - **Aceite:**
   - [x] landing aponta para release atual e evita marcas desnecessárias/termos internos;

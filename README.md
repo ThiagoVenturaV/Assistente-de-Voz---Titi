@@ -6,7 +6,7 @@
 
 Titi é um assistente local para Windows com interface gráfica, conversa por texto e voz, mascote 2D animado e ferramentas controladas para agir no computador. O objetivo é permitir que a pessoa use seus aplicativos por voz sem entregar um terminal irrestrito ao modelo.
 
-> **Estado atual:** a pré-release `0.2.0-beta.7` usa `qwen3:4b-instruct` como perfil rápido padrão e mantém `qwen3.5:9b` como opção de qualidade. Permanecem a transcrição Parakeet incremental, a voz Supertonic em DirectML com fallback para CPU e a visão local de múltiplos monitores. Durante o beta, controles observados de baixo risco executam diretamente; somente abrir ou controlar o Antigravity exibe confirmação. Ações perigosas continuam bloqueadas. O instalador continua sem assinatura pública e deve ser tratado como prévia para testadores.
+> **Estado atual:** a candidata `0.2.0-beta.8` usa `qwen3:4b-instruct` como perfil rápido padrão e mantém `qwen3.5:9b` como opção de qualidade. Permanecem a transcrição Parakeet incremental, a voz Supertonic em DirectML com fallback para CPU e a visão local de múltiplos monitores. Durante o beta, controles observados de baixo risco executam diretamente; somente abrir ou controlar o Antigravity exibe confirmação. Ações perigosas continuam bloqueadas. O instalador continua sem assinatura pública e deve ser tratado como prévia para testadores.
 > **Escopo desta iteração:** não implementamos ainda `TITI-MEET-001` (modo reunião) nem `TITI-REMOTE-001` (cliente remoto).
 
 ## O que está implementado no código atual
@@ -42,7 +42,7 @@ Titi é um assistente local para Windows com interface gráfica, conversa por te
 - standby conservador durante jogos conhecidos ou executáveis adicionados pelo usuário; ele cancela tarefas, pausa voz, oculta o mascote e verifica a descarga do modelo pela API local;
 - gravações de conversas e configurações são serializadas para não perder atualizações concorrentes.
 
-O código passa por `pnpm typecheck` e por **419 testes em 48 arquivos**. `pnpm package:dir` também verifica a integridade do ASAR, os fuses restritivos do Electron, os workers, os módulos nativos e todos os recursos externos por SHA-256, além de rejeitar rotas de QA proibidas em produção. Essa evidência ainda não substitui a validação do instalador assinado em uma máquina limpa.
+O código passa por `pnpm typecheck` e por **415 testes em 47 arquivos**. `pnpm package:dir` também verifica a integridade do ASAR, os fuses restritivos do Electron, os workers, os módulos nativos e todos os recursos externos por SHA-256, além de rejeitar rotas de QA proibidas em produção. Essa evidência ainda não substitui a validação do instalador em uma máquina limpa.
 
 ## Limites desta versão
 

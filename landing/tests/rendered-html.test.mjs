@@ -24,13 +24,13 @@ test("server-renders the Titi landing page", async () => {
   assert.match(html, /Fale do/);
   assert.match(html, /O PC faz/);
   assert.match(html, /Baixar Titi Beta/);
-  assert.match(html, /V0\.2\.0 BETA\.7/);
-  assert.match(html, /v0\.2\.0-beta\.7\/Titi-Setup-0\.2\.0-beta\.7\.exe/);
+  assert.match(html, /V0\.2\.0 BETA\.8/);
+  assert.match(html, /v0\.2\.0-beta\.8\/Titi-Setup-0\.2\.0-beta\.8\.exe/);
   assert.match(html, /Perguntas frequentes/i);
   assert.match(html, /Seu navegador/);
   assert.match(html, /aplicativo de música/i);
   assert.match(html, /Antigravity/);
-  assert.match(html, /851,32 MiB/);
+  assert.match(html, /Cerca de 852 MiB/i);
   assert.match(html, /Sem assinatura · o SmartScreen pode avisar/);
   assert.match(html, /Política de privacidade/);
   assert.match(html, /Diga “parar” ou pressione Esc/);

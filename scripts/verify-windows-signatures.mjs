@@ -36,6 +36,9 @@ if (process.env.TITI_WINDOWS_SIGNER_SUBJECT?.trim()) {
 const verification = spawnSync('powershell.exe', verifierArguments, {
   cwd: projectRoot,
   encoding: 'utf8',
+  env: Object.fromEntries(
+    Object.entries(process.env).filter(([key]) => key.toLowerCase() !== 'psmodulepath')
+  ),
   windowsHide: true
 })
 

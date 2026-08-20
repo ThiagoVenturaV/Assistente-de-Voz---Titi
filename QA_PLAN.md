@@ -1,12 +1,43 @@
-# Gate de QA — Titi `0.2.0-beta.7`
+# Gate de QA — Titi `0.2.0-beta.8`
 
-Auditoria atualizada em 19/08/2026. Este documento define o que precisa estar comprovado antes de orientar o usuário a instalar a nova versão ou publicar o download como beta público.
+Auditoria atualizada em 20/08/2026. Este documento define o que precisa estar comprovado antes de orientar o usuário a instalar a nova versão ou publicar o download como beta público.
 
 Esta rodada mantém escopo deliberado: **não inclui** `TITI-MEET-001` (modo reunião) nem `TITI-REMOTE-001` (cliente remoto). Eles seguem em `Later`, após aprovação dos alvos atuais.
 
-## Veredito atual
+## Veredito do candidato beta 8
 
-**A PRÉ-RELEASE PÚBLICA `0.2.0-beta.7` ESTÁ PUBLICADA, INSTALADA E SINCRONIZADA ENTRE GITHUB, LANDING E ESTA MÁQUINA.** No candidato publicado passaram 331 testes, typecheck, build, NSIS, verificação do pacote, smokes de Parakeet e Supertonic DirectML, instalação sobre o perfil preservado e o teste real do botão de fechar do mascote. A tag aponta para `b48fb76`, a CI da `main` terminou verde, os três ativos foram publicados e o download anônimo respondeu HTTP 200 com 892.673.907 bytes. A landing Sites versão 21 também respondeu HTTP 200 com a beta.7, transparência de download, política de privacidade, suporte, SEO técnico e alvos móveis ampliados. A branch em preparação passa 419 testes em 48 arquivos, incluindo autoteste guiado, diagnóstico seguro, perda de microfone, política beta e acessibilidade. O Qwen 4B passou em 18/19 cenários do contrato e em 4/4 fluxos do provider, com a correção “Chrome → Brave” registrada como regressão conhecida; o Qwen 3.5 9B permanece selecionável e passou em 19/19. Como o instalador continua `NotSigned`, pode acionar o SmartScreen e não deve ser tratado como versão estável.
+**NO-GO PARA TAG E LANDING BETA 8 ATÉ A INSTALAÇÃO DO CANDIDATO PASSAR.** A fonte candidata declara `0.2.0-beta.8`; 415 testes em 47 arquivos, typecheck, build, landing, auditorias, NSIS, Parakeet e Supertonic empacotados passam. O instalador local foi conferido, mas ainda faltam instalá-lo sobre os dados preservados, executar o autoteste real, criar a tag imutável e validar os cinco ativos públicos. A landing pública permanece apontando para a beta 7 até esses gates fecharem.
+
+## Evidência já aprovada no código candidato
+
+| Verificação | Estado | Evidência de 20/08/2026 |
+|---|---|---|
+| Versão e metadados | Aprovado na fonte | `package.json`, landing, notas, QA, backlog e marketing declaram `0.2.0-beta.8`; `qa:release-sync` deve passar após o NSIS gerar o novo `latest.yml` |
+| Typecheck e testes | Aprovado | `pnpm typecheck`; 47 arquivos e 415 testes, incluindo autoteste guiado, release, segurança, diagnóstico, voz, microfone e acessibilidade |
+| Build, pacote e NSIS | Aprovado localmente | `package:win` e `verify:package`; ASAR, fuses, módulos nativos e runtimes verificados no candidato beta 8 |
+| Landing candidata | Aprovada localmente | build e 5 testes renderizados; link beta 8 preparado, mas proibido publicar antes do ativo responder |
+| Transcrição empacotada | Aprovada no NSIS local | 10 parciais em 15 s, frase final correta, 6,736 s no smoke desta rodada |
+| Voz neural empacotada | Aprovada no NSIS local | DirectML, 4,9 s de áudio, 0,76 s fria e 0,20 s aquecida |
+| Integridade local | Aprovada | 892.692.865 bytes; SHA-256 `A9852D70EE90C54534662B07691C9AC50D20F3439E743D4BFD764EF4DFCCEFFC`; ASAR SHA-256 `B8368259F85792588551AC2E7F13E8359D3016E14CB072B896344DF2C28109D0`; Authenticode `NotSigned` permitido apenas por ser pré-release |
+| CI da preparação | Aprovada | PR #12 verde em Windows limpo, com dependências, auditorias, testes e `package:dir` |
+
+## Gates específicos da beta 8
+
+- [x] Integrar a preparação na `main` somente após CI verde.
+- [x] Atualizar todas as réplicas de versão sem copiar hash ou tamanho exato da beta 7.
+- [x] Gerar `Titi-Setup-0.2.0-beta.8.exe`, blockmap e `latest.yml` do candidato local.
+- [x] Passar `verify:package`, `qa:release-sync`, assinatura com política de pré-release e os smokes empacotados no NSIS beta 8.
+- [x] Registrar tamanho, SHA-256, SHA-512 do `latest.yml` e hash do ASAR do candidato local; manifesto final será gerado pelo commit da tag.
+- [ ] Instalar o NSIS beta 8 sobre o perfil preservado e provar que configurações, conversas e ações permanecem.
+- [ ] Executar o autoteste guiado real: microfone, transcrição, modelo, tool calling e áudio audível.
+- [ ] Confirmar que o modal aparece somente no Antigravity e que ações perigosas falham fechadas.
+- [ ] Criar a tag `v0.2.0-beta.8` no SHA aprovado e aguardar o workflow `Release verificável`.
+- [ ] Baixar e comparar os cinco ativos públicos; validar acesso anônimo.
+- [ ] Só então publicar a landing beta 8 e atualizar este veredito com evidência real.
+
+## Histórico congelado da beta 7
+
+**A PRÉ-RELEASE PÚBLICA `0.2.0-beta.7` FOI PUBLICADA, INSTALADA E SINCRONIZADA ENTRE GITHUB, LANDING E ESTA MÁQUINA.** No candidato publicado passaram 331 testes, typecheck, build, NSIS, verificação do pacote, smokes de Parakeet e Supertonic DirectML, instalação sobre o perfil preservado e o teste real do botão de fechar do mascote. A tag aponta para `b48fb76`, a CI da `main` terminou verde, os três ativos foram publicados e o download anônimo respondeu HTTP 200 com 892.673.907 bytes. A landing Sites versão 21 respondeu HTTP 200 com a beta.7. Este bloco é histórico e nenhuma evidência de artefato abaixo deve ser reutilizada para a beta 8.
 
 Antes do teste, o usuário havia desinstalado a versão anterior: a pasta de instalação foi removida, enquanto configurações e conversas permaneceram em `%APPDATA%\titi-desktop`. A instalação foi executada sobre esse perfil e reabriu os dados existentes.
 
@@ -17,7 +48,7 @@ Antes do teste, o usuário havia desinstalado a versão anterior: a pasta de ins
 | Versão declarada na fonte | Aprovado | `package.json` declara `0.2.0-beta.7` |
 | Sincronização de metadados de versão | Aprovado | `pnpm qa:release-sync` confirmou coerência entre `package.json`, `landing`, `latest.yml` e nota de versão |
 | Typecheck | Aprovado | `pnpm typecheck`, código 0 |
-| Testes automatizados | Aprovado na branch | `pnpm test`: 48 arquivos e 419 testes aprovados, incluindo release, autoteste guiado, diagnóstico seguro, perda de microfone, política beta, acessibilidade, privacidade, standby e o controle de fechar do mascote |
+| Testes automatizados | Aprovado na beta.7 | `pnpm test`: 34 arquivos e 331 testes aprovados na fonte publicada daquela versão |
 | Build de produção | Aprovado | `pnpm build`: main, preload e renderer compilados |
 | Linguagem natural e seleção de ferramentas | Parcial documentado | `qwen3:4b-instruct`: 18/19, média de 1,05 s nesta rodada; `qwen3.5:9b`: 19/19; o caso 4B “Chrome → Brave” permanece conhecido e nenhum efeito externo é executado pelo script |
 | Conversa real do provider | Aprovado sem efeitos externos | 4/4 fluxos sequenciais no `OllamaProvider` real com Qwen 4B e 4/4 com Qwen 3.5 9B, definições reais das ferramentas e executor gravador; detalhes em `docs/OLLAMA_AGENT_MODEL_BENCHMARK.md` |
@@ -89,7 +120,7 @@ Só orientar o usuário a instalar quando **todos** estes itens forem verdadeiro
 
 1. existe um instalador final `Titi-Setup-0.2.0-beta.7.exe`, com estado de assinatura e hash publicados;
 2. a versão interna, `latest.yml`, tag, notas e link de download são `0.2.0-beta.7`;
-3. typecheck, 419 testes, build, QA do modelo, empacotamento e verificação do pacote passam no mesmo candidato;
+3. typecheck, 331 testes, build, QA do modelo, empacotamento e verificação do pacote passam no mesmo candidato;
 4. a instalação real sobre os dados preservados passa sem perda de nome, configurações ou conversas;
 5. Spotify, Brave e Codex/ChatGPT abrem direto; Antigravity pede confirmação; a UI do Spotify passa no ciclo observar → agir → verificar;
 6. modo ao vivo, aperte-para-falar, microfone e mascote passam no Windows real;
