@@ -4,12 +4,18 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag imutável já existente que deve ser retomada"
+        required: true
+        type: string
 
 permissions:
   contents: write
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
   cancel-in-progress: false
 
 jobs:
@@ -22,12 +28,14 @@ jobs:
       CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}
       CSC_IDENTITY_AUTO_DISCOVERY: "false"
       TITI_WINDOWS_SIGNER_SUBJECT: ${{ vars.WINDOWS_SIGNER_SUBJECT }}
+      TITI_RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
       GH_TOKEN: ${{ github.token }}
 
     steps:
       - name: Baixar o commit exato da tag
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
+          ref: ${{ env.TITI_RELEASE_TAG }}
           persist-credentials: false
 
       - name: Preparar pnpm
@@ -46,9 +54,16 @@ jobs:
         run: |
           $version = (Get-Content -LiteralPath package.json -Raw | ConvertFrom-Json).version
           $expectedTag = "v$version"
-          if ($env:GITHUB_REF_NAME -ne $expectedTag) {
-            throw "A tag $env:GITHUB_REF_NAME não corresponde à versão $version (esperado: $expectedTag)."
+          if ($env:TITI_RELEASE_TAG -ne $expectedTag) {
+            throw "A tag $env:TITI_RELEASE_TAG não corresponde à versão $version (esperado: $expectedTag)."
           }
+
+          $headCommit = (& git rev-parse HEAD).Trim()
+          $tagCommit = (& git rev-parse "$($env:TITI_RELEASE_TAG)^{commit}").Trim()
+          if ($LASTEXITCODE -ne 0 -or $headCommit -ne $tagCommit) {
+            throw "O checkout não corresponde ao commit imutável de $env:TITI_RELEASE_TAG."
+          }
+          "TITI_RELEASE_COMMIT=$headCommit" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
           $hasCertificate = -not [string]::IsNullOrWhiteSpace($env:CSC_LINK)
           $hasPassword = -not [string]::IsNullOrWhiteSpace($env:CSC_KEY_PASSWORD)
@@ -121,9 +136,9 @@ jobs:
       - name: Gerar manifesto e checksums dos ativos exatos
         shell: pwsh
         run: >-
-          pnpm release:assets --
-          --tag "$env:GITHUB_REF_NAME"
-          --commit "$env:GITHUB_SHA"
+          node scripts/prepare-release-assets.mjs
+          --tag "$env:TITI_RELEASE_TAG"
+          --commit "$env:TITI_RELEASE_COMMIT"
           --signing "$env:TITI_RELEASE_SIGNING"
 
       - name: Enviar ativos para uma release ainda não pública
@@ -139,16 +154,16 @@ jobs:
             'release/release-manifest.json'
           )
 
-          $existingJson = & gh release view $env:GITHUB_REF_NAME --json isDraft,tagName 2>$null
+          $existingJson = & gh release view $env:TITI_RELEASE_TAG --json isDraft,tagName 2>$null
           $releaseExists = $LASTEXITCODE -eq 0
           if ($releaseExists) {
             $existing = $existingJson | ConvertFrom-Json
             if (-not $existing.isDraft) {
-              throw "A release $env:GITHUB_REF_NAME já está pública; tags publicadas não podem ser reutilizadas."
+              throw "A release $env:TITI_RELEASE_TAG já está pública; tags publicadas não podem ser reutilizadas."
             }
 
             $editArguments = @(
-              'release', 'edit', $env:GITHUB_REF_NAME,
+              'release', 'edit', $env:TITI_RELEASE_TAG,
               '--title', "Titi $version",
               '--notes-file', 'RELEASE_NOTES.md',
               '--draft=true'
@@ -160,17 +175,17 @@ jobs:
             }
             & gh @editArguments
             if ($LASTEXITCODE -ne 0) {
-              throw "Falha ao atualizar o rascunho retomável de $env:GITHUB_REF_NAME."
+              throw "Falha ao atualizar o rascunho retomável de $env:TITI_RELEASE_TAG."
             }
-            & gh release upload $env:GITHUB_REF_NAME @assets --clobber
+            & gh release upload $env:TITI_RELEASE_TAG @assets --clobber
             if ($LASTEXITCODE -ne 0) {
-              throw "Falha ao substituir os ativos do rascunho retomável de $env:GITHUB_REF_NAME."
+              throw "Falha ao substituir os ativos do rascunho retomável de $env:TITI_RELEASE_TAG."
             }
             "Rascunho existente retomado com segurança; nenhuma release pública foi sobrescrita." |
               Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
           } else {
             $arguments = @(
-              'release', 'create', $env:GITHUB_REF_NAME,
+              'release', 'create', $env:TITI_RELEASE_TAG,
               '--verify-tag', '--title', "Titi $version",
               '--notes-file', 'RELEASE_NOTES.md', '--draft'
             )
@@ -180,7 +195,7 @@ jobs:
             $arguments += $assets
             & gh @arguments
             if ($LASTEXITCODE -ne 0) {
-              throw "Falha ao criar o rascunho da release $env:GITHUB_REF_NAME."
+              throw "Falha ao criar o rascunho da release $env:TITI_RELEASE_TAG."
             }
           }
 
@@ -199,7 +214,7 @@ jobs:
           New-Item -ItemType Directory -Path $downloadRoot | Out-Null
 
           foreach ($assetName in $assetNames) {
-            gh release download $env:GITHUB_REF_NAME --dir $downloadRoot --pattern $assetName
+            gh release download $env:TITI_RELEASE_TAG --dir $downloadRoot --pattern $assetName
             if ($LASTEXITCODE -ne 0) {
               throw "Falha ao baixar novamente $assetName."
             }
@@ -217,7 +232,7 @@ jobs:
         shell: pwsh
         run: |
           $version = (Get-Content -LiteralPath package.json -Raw | ConvertFrom-Json).version
-          $arguments = @('release', 'edit', $env:GITHUB_REF_NAME, '--draft=false')
+          $arguments = @('release', 'edit', $env:TITI_RELEASE_TAG, '--draft=false')
           if ($version.Contains('-')) {
             $arguments += '--prerelease=true'
           } else {
@@ -225,5 +240,5 @@ jobs:
           }
           & gh @arguments
           if ($LASTEXITCODE -ne 0) {
-            throw "Os ativos foram validados, mas não foi possível publicar a release $env:GITHUB_REF_NAME."
+            throw "Os ativos foram validados, mas não foi possível publicar a release $env:TITI_RELEASE_TAG."
           }

@@ -24,10 +24,11 @@ export async function hashFile(path, algorithm, encoding = 'hex') {
 }
 
 function parseArguments(args) {
+  const normalizedArgs = args[0] === '--' ? args.slice(1) : args
   const values = new Map()
-  for (let index = 0; index < args.length; index += 2) {
-    const key = args[index]
-    const value = args[index + 1]
+  for (let index = 0; index < normalizedArgs.length; index += 2) {
+    const key = normalizedArgs[index]
+    const value = normalizedArgs[index + 1]
     expect(key?.startsWith('--') && value, `argumento incompleto: ${key ?? '(ausente)'}`)
     values.set(key.slice(2), value)
   }
