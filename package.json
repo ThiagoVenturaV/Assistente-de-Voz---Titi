@@ -149,7 +149,7 @@
     "sherpa-onnx-win-x64": "1.13.5"
   },
   "devDependencies": {
-    "@electron/asar": "3.4.1",
+    "@electron/asar": "4.2.1",
     "@electron/fuses": "1.8.0",
     "@types/node": "^26.2.0",
     "@types/react": "^19.2.18",
