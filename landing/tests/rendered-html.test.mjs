@@ -119,6 +119,10 @@ test("keeps product metadata, motion fallbacks and accessible landmarks", async 
   assert.match(layout, /og-brand\.png/);
   assert.match(layout, /favicon\.ico/);
   assert.match(css, /prefers-reduced-motion/);
+  assert.match(css, /\.footer-main > div a \{ min-height: 44px/);
+  assert.match(css, /\.hero-disclosure \{[^}]*font-size: 10px/);
+  assert.match(css, /\.download-trust \{[^}]*font-size: 11px/);
+  assert.match(css, /\.masthead a,[^}]*min-height: 44px/);
   assert.match(css, /@keyframes signal-scroll/);
   assert.match(css, /\.signal-line \.signal-track\{animation:none\}/);
   assert.match(motion, /IntersectionObserver/);
