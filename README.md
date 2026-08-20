@@ -12,6 +12,7 @@ Titi é um assistente local para Windows com interface gráfica, conversa por te
 ## O que está implementado no código atual
 
 - aplicativo Electron/React com onboarding, chat, configurações e mascote flutuante;
+- renderer empacotado servido somente pelo protocolo interno `titi://app`, com contenção de caminho, CSP restritiva, sandbox e acesso genérico a `file://` desativado;
 - chat local com Ollama e `qwen3:4b-instruct` por padrão; o `qwen3.5:9b` permanece como perfil de qualidade opcional;
 - transcrição local com NVIDIA Parakeet TDT 0.6B v3 Q8 mantido em memória por um worker CPU; o texto parcial aparece e é revisado enquanto a pessoa fala, sem recarregar o modelo a cada frase;
 - correção contextual fechada: aliases conhecidos são determinísticos e, para aplicativos novos, o Ollama só pode sugerir a troca de um trecho literal por um nome do catálogo; verbos, negações, números, baixa confiança e nomes distantes são rejeitados pelo código;
@@ -42,7 +43,7 @@ Titi é um assistente local para Windows com interface gráfica, conversa por te
 - standby conservador durante jogos conhecidos ou executáveis adicionados pelo usuário; ele cancela tarefas, pausa voz, oculta o mascote e verifica a descarga do modelo pela API local;
 - gravações de conversas e configurações são serializadas para não perder atualizações concorrentes.
 
-O código passa por `pnpm typecheck` e por **415 testes em 47 arquivos**. `pnpm package:dir` também verifica a integridade do ASAR, os fuses restritivos do Electron, os workers, os módulos nativos e todos os recursos externos por SHA-256, além de rejeitar rotas de QA proibidas em produção. Essa evidência ainda não substitui a validação do instalador em uma máquina limpa.
+O código passa por `pnpm typecheck` e por **423 testes em 48 arquivos**. `pnpm package:dir` também verifica a integridade do ASAR, os fuses restritivos do Electron, o protocolo interno do renderer, os workers, os módulos nativos e todos os recursos externos por SHA-256, além de rejeitar rotas de QA proibidas em produção. Essa evidência ainda não substitui a validação do instalador em uma máquina limpa.
 
 ## Limites desta versão
 

@@ -36,10 +36,10 @@ Auditoria atualizada em 20/08/2026 por frentes de Produto/QA, PO, marketing e co
 | Área | Estado atual | Evidência | Lacuna prioritária |
 | --- | --- | --- | --- |
 | Release e instalação | Candidata · beta.8 não publicada | workflow validado, retomada segura de rascunho, manifesto/checksums e bloqueio de estável não assinada possuem testes | Gerar, instalar e publicar o NSIS beta 8; Authenticode continua `NotSigned`; Windows 10/11 e rollback permanecem |
-| Código e CI | Saudável com flake sob carga registrado | typecheck, build e 47 arquivos/415 testes passam; PR #12 e `main` verdes em checkout Windows limpo | O timeout isolado do `ConversationStore` sob contenção permanece registrado |
+| Código e CI | Saudável com flake sob carga registrado | typecheck, build e 48 arquivos/423 testes passam; PRs #12/#25 e `main` verdes em checkout Windows limpo | A correção final de inicialização ainda precisa passar pela CI antes da tag; o timeout isolado do `ConversationStore` permanece registrado |
 | Linguagem natural e ferramentas | Parcial avançado | Qwen 4B fez 18/19 no corpus e 4/4 no provider; autoteste prova tool calling; alvos perigosos falham fechados e somente Antigravity confirma | Repetir corpus contextual atualizado e ampliar automação observar → agir → verificar |
 | Voz local | Parcial avançado | Parakeet incremental e Supertonic DirectML passam no pacote; autoteste guiado percorre a cadeia e pede confirmação humana do áudio | Faltam 20 turnos reais, dispositivos distintos, eco/recaptura e “pare” em todas as fases no instalado |
-| App instalado | Beta.7 aprovada; beta.8 pendente | NSIS beta.8 local passou integridade, Parakeet e Supertonic DirectML; beta.7 preservou perfil e fechamento do mascote | Instalar beta.8 sobre o perfil, rodar autoteste e repetir ações reais |
+| App instalado | Beta.8 local aprovada | NSIS beta.8 corrigido preservou ações, conversas e configurações; ASAR instalado coincide; janela, histórico, 2 telas, autoteste e X do mascote foram verificados | Falta confirmação humana de microfone/áudio no autoteste e repetir ações externas reais |
 | Landing | Beta.7 pública · política v22 | Sites v22 está pública com política correta do beta; candidata beta.8 compila e passa 5 testes, mas não será publicada antes da release | Publicar link beta.8 só após validar o ativo anônimo; contraste manual e prova real permanecem |
 | Governança | Pronto no código | README, release, QA, backlog e marketing são conferidos pelo script; Issues #9/#10/#11 espelham Now/Next/Later | Atualizar evidências finais após NSIS/tag e adicionar donos quando houver equipe fixa |
 
@@ -387,7 +387,7 @@ Objetivo: fazer as promessas já visíveis na interface funcionarem de verdade e
 ### TITI-SEC-002 — Validar IPC, argumentos e origem
 
 - **Prioridade/estado/trilha:** P0 · Parcial · Segurança + Desktop
-- **Evidência atual:** origem de janela verificada no processo principal, validadores para chat/configurações/áudio/IDs/estados e testes negativos de ferramentas e argumentos.
+- **Evidência atual:** origem de janela verificada no processo principal, protocolo empacotado `titi://app` limitado à raiz do renderer, acesso genérico a `file://` desligado, validadores para chat/configurações/áudio/IDs/estados e testes negativos de ferramentas e argumentos.
 - **Resultado:** dados do renderer e do modelo não são confiados apenas pela tipagem TypeScript.
 - **Aceite:**
   - [x] handlers IPC principais validam origem, formato, tamanho e enums em runtime;
@@ -506,7 +506,7 @@ Objetivo: fazer as promessas já visíveis na interface funcionarem de verdade e
 ### TITI-QA-001 — Harness de QA do executável real
 
 - **Prioridade/estado/trilha:** P0 · Parcial · QA
-- **Evidência atual:** typecheck, build e 47 arquivos/415 testes passam na branch; CIs anteriores da `main` estão verdes; verificador e smokes do pacote beta.8 local passam. A auditoria anterior encontrou um timeout isolado do `ConversationStore` sob contenção, registrado em `TITI-QA-FLAKE-001`.
+- **Evidência atual:** typecheck, build e 48 arquivos/423 testes passam na branch; CIs anteriores da `main` estão verdes; verificador, abertura real, instalação e smokes do pacote beta.8 local passam. A auditoria anterior encontrou um timeout isolado do `ConversationStore` sob contenção, registrado em `TITI-QA-FLAKE-001`.
 - **Resultado:** testes cobrem o produto instalado, não apenas funções isoladas.
 - **Aceite:**
   - [x] unitários cobrem política, storage, ferramentas, runtime Ollama e partes da voz;

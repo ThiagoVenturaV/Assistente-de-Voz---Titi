@@ -1,4 +1,4 @@
-import { pathToFileURL } from 'node:url'
+import { TITI_RENDERER_BASE_URL } from './renderer-protocol'
 
 export interface TrustedRendererLocation {
   baseUrl: string
@@ -9,12 +9,11 @@ const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '[::1]'])
 
 export function resolveTrustedRendererLocation(
   packaged: boolean,
-  configuredUrl: string | undefined,
-  rendererFilePath: string
+  configuredUrl: string | undefined
 ): TrustedRendererLocation {
   if (packaged || !configuredUrl) {
     return {
-      baseUrl: pathToFileURL(rendererFilePath).href,
+      baseUrl: TITI_RENDERER_BASE_URL,
       kind: 'packaged'
     }
   }

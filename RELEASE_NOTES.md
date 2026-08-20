@@ -15,22 +15,24 @@ A beta 8 aproxima o comportamento real da decisão de produto desta fase: açõe
 - O diagnóstico seguro resume ambiente, exporta somente dados redigidos e declara ausência de upload automático.
 - Acessibilidade ganhou alvos essenciais de 44 × 44 px, estados ao vivo concisos, redução de movimento e recuperação legível quando o microfone some.
 - CI e release preparam Electron de forma serial, verificam os runtimes de voz por hash, bloqueiam versão estável não assinada, geram manifesto/checksums e retomam somente rascunhos de release.
+- A inicialização empacotada foi corrigida: o fuse de snapshot específico do processo principal permanece desligado e o renderer deixou `file://` por um protocolo interno `titi://app` limitado aos assets do aplicativo.
 - Permanecem a transcrição Parakeet incremental, a voz Supertonic acelerada por DirectML, a visão local multimonitor, a navegação direta e o cronômetro de atividade.
 
 ## Evidência do candidato
 
 - `pnpm typecheck`: aprovado.
-- `pnpm test`: 47 arquivos e 415 testes aprovados.
+- `pnpm test`: 48 arquivos e 423 testes aprovados.
 - Landing: build e 5 testes renderizados aprovados.
 - Auditorias do aplicativo e da landing: zero vulnerabilidades conhecidas no nível alto; scanner de segredos aprovado.
 - `pnpm package:win` e `pnpm verify:package`: aprovados para o candidato local beta 8.
-- Transcrição empacotada: 10 atualizações parciais em 15 s, frase final correta e processamento final em 6,736 s nesta rodada.
-- TTS empacotado: backend `directml`, 4,9 s de áudio; primeira síntese em 0,76 s e síntese aquecida em 0,20 s nesta rodada.
+- Transcrição empacotada: 10 atualizações parciais em 15 s, frase final correta e processamento final em 7,170 s nesta rodada.
+- TTS empacotado: backend `directml`, 4,9 s de áudio; primeira síntese em 0,80 s e síntese aquecida em 0,21 s nesta rodada.
+- Instalação local: código 0 em modo usuário atual, ASAR instalado idêntico, dados preservados, janela principal e histórico renderizados, duas telas detectadas, autoteste presente e fechamento do mascote comprovado.
 - CI da PR de preparação: verde em checkout Windows limpo, incluindo pacote de produção.
 
 ## Integridade do instalador
 
-O candidato local `Titi-Setup-0.2.0-beta.8.exe` tem 892.692.865 bytes (851,34 MiB), SHA-256 `A9852D70EE90C54534662B07691C9AC50D20F3439E743D4BFD764EF4DFCCEFFC` e estado Authenticode `NotSigned`. O ASAR local tem SHA-256 `B8368259F85792588551AC2E7F13E8359D3016E14CB072B896344DF2C28109D0`. Esses valores identificam somente o candidato local; tamanho, checksums e manifesto públicos serão registrados depois que o workflow da tag gerar e publicar os bytes definitivos. Nenhum hash da beta 7 é reutilizado.
+O candidato local `Titi-Setup-0.2.0-beta.8.exe` tem 892.693.188 bytes (851,34 MiB), SHA-256 `5B7E743A1E7A0B546F38E7BC98CE09918FC85A88062542576FC9292701C2A0BB` e estado Authenticode `NotSigned`. O ASAR local tem SHA-256 `0CF70F3B0F1A8BDF09A0B5253C6B09805C1C644C1D53691EBD432C89ED6292F3`. Esses valores identificam somente o candidato local; tamanho, checksums e manifesto públicos serão registrados depois que o workflow da tag gerar e publicar os bytes definitivos. Nenhum hash da beta 7 nem do candidato que falhou ao iniciar é reutilizado.
 
 ## Instalação e dados
 

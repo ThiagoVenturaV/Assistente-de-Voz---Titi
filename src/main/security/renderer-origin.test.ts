@@ -1,4 +1,3 @@
-import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   isTrustedRendererFrameUrl,
@@ -7,13 +6,11 @@ import {
   safeExternalHttpsUrl
 } from './renderer-origin'
 
-const rendererFile = resolve('out/renderer/index.html')
-
 describe('renderer origin policy', () => {
   it('ignores the development URL in packaged builds', () => {
-    const location = resolveTrustedRendererLocation(true, 'https://attacker.example', rendererFile)
+    const location = resolveTrustedRendererLocation(true, 'https://attacker.example')
     expect(location.kind).toBe('packaged')
-    expect(location.baseUrl).toMatch(/^file:/)
+    expect(location.baseUrl).toBe('titi://app/index.html')
   })
 
   it.each([
@@ -23,11 +20,11 @@ describe('renderer origin policy', () => {
     'http://localhost:5173/?token=secret',
     'not-a-url'
   ])('rejects an unsafe development renderer URL: %s', (value) => {
-    expect(() => resolveTrustedRendererLocation(false, value, rendererFile)).toThrow()
+    expect(() => resolveTrustedRendererLocation(false, value)).toThrow()
   })
 
   it('allows only the configured loopback document and its hash', () => {
-    const location = resolveTrustedRendererLocation(false, 'http://127.0.0.1:5173/', rendererFile)
+    const location = resolveTrustedRendererLocation(false, 'http://127.0.0.1:5173/')
     expect(rendererUrlWithHash(location, 'app')).toBe('http://127.0.0.1:5173/#app')
     expect(isTrustedRendererFrameUrl('http://127.0.0.1:5173/#mascot', location)).toBe(true)
     expect(isTrustedRendererFrameUrl('http://localhost:5173/#app', location)).toBe(false)
@@ -35,10 +32,9 @@ describe('renderer origin policy', () => {
     expect(isTrustedRendererFrameUrl('http://127.0.0.1:5173/?x=1#app', location)).toBe(false)
   })
 
-  it('rejects a file URL with a different host even when the path matches', () => {
-    const location = resolveTrustedRendererLocation(true, undefined, rendererFile)
-    const expected = new URL(location.baseUrl)
-    expect(isTrustedRendererFrameUrl(`file://attacker${expected.pathname}#app`, location)).toBe(false)
+  it('rejects another custom-protocol host even when the path matches', () => {
+    const location = resolveTrustedRendererLocation(true, undefined)
+    expect(isTrustedRendererFrameUrl('titi://attacker/index.html#app', location)).toBe(false)
   })
 
   it('normalizes safe external HTTPS links', () => {
