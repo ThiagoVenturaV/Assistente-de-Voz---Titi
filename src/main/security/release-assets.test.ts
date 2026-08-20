@@ -1,13 +1,14 @@
 import { createHash } from 'node:crypto'
+import { execFile } from 'node:child_process'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
+import { promisify } from 'node:util'
 import { afterEach, describe, expect, it } from 'vitest'
-// The release helper is intentionally executable JavaScript used by CI.
-// @ts-expect-error JavaScript release scripts do not publish TypeScript declarations.
-import { expectedTagForVersion, prepareReleaseAssets } from '../../../scripts/prepare-release-assets.mjs'
 
 const temporaryRoots: string[] = []
+const execFileAsync = promisify(execFile)
+const releaseScript = resolve('scripts/prepare-release-assets.mjs')
 
 afterEach(async () => {
   await Promise.all(temporaryRoots.splice(0).map((path) => rm(path, {
@@ -20,12 +21,11 @@ describe('prepareReleaseAssets', () => {
   it('gera manifesto e checksums apenas para os ativos da versão exata', async () => {
     const root = await releaseFixture('0.2.0-beta.8')
 
-    const manifest = await prepareReleaseAssets({
-      projectRoot: root,
-      tag: 'v0.2.0-beta.8',
-      commit: '0123456789abcdef0123456789abcdef01234567',
-      signing: 'unsigned-prerelease'
-    })
+    await runReleaseScript(root, 'v0.2.0-beta.8', 'unsigned-prerelease')
+    const manifest = JSON.parse(await readFile(
+      join(root, 'release', 'release-manifest.json'),
+      'utf8'
+    ))
 
     expect(manifest).toMatchObject({
       version: '0.2.0-beta.8',
@@ -47,30 +47,38 @@ describe('prepareReleaseAssets', () => {
   it('recusa tag de outra versão', async () => {
     const root = await releaseFixture('0.2.0-beta.8')
 
-    await expect(prepareReleaseAssets({
-      projectRoot: root,
-      tag: 'v0.2.0-beta.7',
-      commit: '0123456',
-      signing: 'unsigned-prerelease'
-    })).rejects.toThrow('não corresponde')
+    await expect(runReleaseScript(root, 'v0.2.0-beta.7', 'unsigned-prerelease'))
+      .rejects.toMatchObject({ stderr: expect.stringContaining('não corresponde') })
   })
 
   it('recusa versão estável não assinada', async () => {
     const root = await releaseFixture('0.2.0')
 
-    await expect(prepareReleaseAssets({
-      projectRoot: root,
-      tag: 'v0.2.0',
-      commit: '0123456',
-      signing: 'unsigned-prerelease'
-    })).rejects.toThrow('versão estável')
+    await expect(runReleaseScript(root, 'v0.2.0', 'unsigned-prerelease'))
+      .rejects.toMatchObject({ stderr: expect.stringContaining('versão estável') })
   })
 
-  it('deriva a tag somente de versões semver válidas', () => {
-    expect(expectedTagForVersion('0.2.0-beta.8')).toBe('v0.2.0-beta.8')
-    expect(() => expectedTagForVersion('beta 8')).toThrow('versão inválida')
+  it('recusa versão fora do formato semver', async () => {
+    const root = await releaseFixture('beta 8')
+
+    await expect(runReleaseScript(root, 'vbeta 8', 'unsigned-prerelease'))
+      .rejects.toMatchObject({ stderr: expect.stringContaining('versão inválida') })
   })
 })
+
+async function runReleaseScript(
+  projectRoot: string,
+  tag: string,
+  signing: 'signed' | 'unsigned-prerelease'
+): Promise<{ stdout: string; stderr: string }> {
+  return execFileAsync(process.execPath, [
+    releaseScript,
+    '--project-root', projectRoot,
+    '--tag', tag,
+    '--commit', '0123456789abcdef0123456789abcdef01234567',
+    '--signing', signing
+  ], { encoding: 'utf8', windowsHide: true })
+}
 
 async function releaseFixture(version: string): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), 'titi-release-assets-'))

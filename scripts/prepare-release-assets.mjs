@@ -106,7 +106,7 @@ const isMainModule = process.argv[1] && resolve(process.argv[1]) === resolve(imp
 if (isMainModule) {
   const args = parseArguments(process.argv.slice(2))
   const manifest = await prepareReleaseAssets({
-    projectRoot: resolve(import.meta.dirname, '..'),
+    projectRoot: resolve(args.get('project-root') ?? resolve(import.meta.dirname, '..')),
     tag: args.get('tag'),
     commit: args.get('commit'),
     signing: args.get('signing')
