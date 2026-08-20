@@ -16,4 +16,6 @@ npm run build
 node --test tests/rendered-html.test.mjs
 ```
 
+Em produção, configure `NEXT_PUBLIC_SITE_URL` com a origem HTTPS canônica do site. Metadados absolutos não usam cabeçalhos `Host` enviados pelo cliente.
+
 O botão principal aponta ao instalador público `Titi-Setup-0.2.0-beta.7.exe` da versão `v0.2.0-beta.7`. A landing só deve ser publicada com essa versão depois que o release e o hash final existirem.

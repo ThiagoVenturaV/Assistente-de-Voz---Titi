@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import { headers } from "next/headers";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -13,15 +12,13 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export async function generateMetadata(): Promise<Metadata> {
-  const incoming = await headers();
-  const host = incoming.get("x-forwarded-host") ?? incoming.get("host") ?? "localhost:3000";
-  const protocol = incoming.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
-  const base = new URL(`${protocol}://${host}`);
+export function generateMetadata(): Metadata {
+  const base = configuredSiteBase();
+  const socialImage = base ? new URL("/og-brand.png", base).href : undefined;
   const title = "Titi — Fale do seu jeito. O PC entende e faz.";
   const description = "IA local para Windows que entende linguagem natural, acompanha o contexto e transforma sua voz em ações no computador.";
   return {
-    metadataBase: base,
+    ...(base ? { metadataBase: base } : {}),
     title,
     description,
     openGraph: {
@@ -29,9 +26,9 @@ export async function generateMetadata(): Promise<Metadata> {
       description,
       type: "website",
       locale: "pt_BR",
-      images: [{ url: "/og-brand.png", width: 1731, height: 909, alt: "Titi — Fale do seu jeito. O PC entende e faz." }],
+      ...(socialImage ? { images: [{ url: socialImage, width: 1731, height: 909, alt: "Titi — Fale do seu jeito. O PC entende e faz." }] } : {}),
     },
-    twitter: { card: "summary_large_image", title, description, images: ["/og-brand.png"] },
+    twitter: { card: "summary_large_image", title, description, ...(socialImage ? { images: [socialImage] } : {}) },
     icons: {
       icon: [
         { url: "/favicon.ico", sizes: "any" },
@@ -42,6 +39,17 @@ export async function generateMetadata(): Promise<Metadata> {
       apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
     },
   };
+}
+
+function configuredSiteBase(): URL | undefined {
+  const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (!configured) return undefined;
+  const url = new URL(configured);
+  if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash) {
+    throw new Error("NEXT_PUBLIC_SITE_URL deve ser uma origem HTTPS canônica.");
+  }
+  url.pathname = "/";
+  return url;
 }
 
 export const viewport: Viewport = {
