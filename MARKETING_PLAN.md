@@ -1,24 +1,19 @@
 # Plano de marketing e lançamento do Titi
 
-Atualizado em 17/08/2026 para o estado público da `v0.2.0-beta.7`. Este documento governa aquisição, mensagem, feedback e promoção. O princípio central é: **nenhuma campanha pode avançar mais rápido que a evidência do produto instalado**.
+Atualizado em 20/08/2026 para a candidata `v0.2.0-beta.8`. Este documento governa aquisição, mensagem, feedback e promoção. O princípio central é: **nenhuma campanha pode avançar mais rápido que a evidência do produto instalado**.
 
 ## Decisão executiva
 
-A `v0.2.0-beta.7` está publicada como pré-release, com código, instalador, hash e landing acessíveis. Ela comprovou em ambiente empacotado a interface, as confirmações e a abertura de alguns aplicativos. Depois da publicação, a auditoria encontrou P0/P1 que exigem uma **beta corretiva progressiva** antes de qualquer promoção ampla:
+A `v0.2.0-beta.8` está integrada como candidata de confiança, mas ainda não está publicada. Ela adiciona autoteste guiado, diagnóstico privado, política beta sem confirmação genérica, acessibilidade e release verificável. Antes de promoção, o NSIS exato precisa ser gerado, instalado sobre o perfil preservado e validado com microfone, tool calling e áudio audível.
 
-- um recurso interno de QA encontrado em ciclos antigos foi removido do pacote de produção;
-- o instalador continua sem assinatura pública;
-- o instalador NSIS e o fluxo completo de voz ainda não foram validados do começo ao fim na máquina real com os dados preservados;
-- cliente remoto e modo reunião foram intencionalmente excluídos nesta fase.
-
-Não há evidência conhecida de exploração ou perda de dados. Ainda assim, esses itens contradizem pilares da marca — consentimento, transparência e confiança — e devem ser tratados publicamente como motivo de uma corretiva, não escondidos como “melhorias internas”.
+O instalador continua sem assinatura pública; cliente remoto e modo reunião foram intencionalmente excluídos. Não há evidência conhecida de exploração ou perda de dados.
 
 ### Estado de comunicação
 
-- **Agora:** manutenção transparente; não iniciar campanha, anúncio patrocinado, Product Hunt, imprensa, influenciadores ou postagem de aquisição em comunidades.
-- **Beta atual:** disponível como registro público de pré-release, mas sem recomendação de campanha ativa enquanto os gates técnicos estiverem abertos.
-- **Próxima beta corretiva:** distribuição primeiro para teste privado e depois para pequenos grupos, somente após os gates deste plano.
-- **Promoção ampla:** bloqueada enquanto hook de QA, URL/redação, assinatura e voz permanecerem abertos.
+- **Agora:** concluir NSIS, instalação e ativos públicos da beta 8; não publicar seu CTA antes do download existir.
+- **Beta atual:** a beta 7 permanece como registro público até ser substituída pelo ativo beta 8 validado.
+- **Beta 8:** distribuir primeiro para testadores e pequenos grupos somente após fechar o gate do `QA_PLAN.md`.
+- **Promoção ampla:** bloqueada enquanto assinatura, matriz de voz/jogos, Windows limpo e rollback permanecerem abertos.
 
 Se surgir evidência de execução sem consentimento, exposição de credenciais ou perda de dados, retirar imediatamente o link principal de download e publicar orientação objetiva. Não minimizar o problema nem usar linguagem alarmista sem evidência.
 
@@ -29,11 +24,11 @@ Se surgir evidência de execução sem consentimento, exposição de credenciais
 - aplicativo gráfico para Windows com onboarding, chat, configurações e mascote flutuante;
 - conversa local por texto usando Ollama e modelo separado;
 - pacote com Whisper local, mascote e interface;
-- confirmação visual antes de abrir aplicativos;
+- execução direta de ações permitidas no beta e confirmação exclusiva ao abrir/controlar Antigravity;
 - abertura empacotada de Brave, Spotify, ChatGPT/Codex e Antigravity na máquina de desenvolvimento;
 - descoberta local de aplicativos em fontes confiáveis do Windows;
 - histórico, memória explícita e painel local de atividade implementados e cobertos por testes automatizados;
-- release público com hash, notas, manifesto e link correto na landing.
+- release público beta 7 com hash e notas; workflow beta 8 preparado para cinco ativos verificados.
 
 ### O que ainda não pode ser prometido
 
@@ -62,7 +57,11 @@ O README está tecnicamente detalhado e reconhece limites importantes; ainda des
 4. limites e riscos conhecidos;
 5. como atualizar, voltar ou relatar um problema sem dados pessoais.
 
-### Notas da `v0.2.0-beta.7`
+### Candidata `v0.2.0-beta.8`
+
+As notas da beta 8 explicam a mudança de política, o autoteste, o tamanho correto do modelo rápido e os limites do produto. Hash, tamanho exato e instalação permanecem explicitamente pendentes até o NSIS final.
+
+### Histórico das notas da `v0.2.0-beta.7`
 
 As notas acertam ao informar que a versão é beta, que o instalador não é assinado e que automação interna, voz neural e jogos ainda têm limites. Porém, algumas frases são mais fortes que a evidência:
 

@@ -78,7 +78,7 @@ export async function checkReleaseSync(projectRoot) {
   }
   if (readme.includes('Estado atual:')) {
     expect(
-      readme.includes(`pré-release \`${version}\``) || readme.includes(`pré-release ${version}`),
+      readme.slice(0, 1_500).includes(`\`${version}\``) || readme.slice(0, 1_500).includes(version),
       'README não declara versão atual compatível com o package.json'
     )
   }

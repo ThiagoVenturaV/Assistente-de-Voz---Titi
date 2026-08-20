@@ -3,7 +3,7 @@ import type { DiagnosticSummary, TitiSettings, ToolActionLogEntry } from '../../
 import { buildDiagnosticReport } from './diagnostic-report'
 
 const summary: DiagnosticSummary = {
-  appVersion: '0.2.0-beta.7',
+  appVersion: '0.2.0-beta.test',
   system: {
     platform: 'win32',
     release: '10.0.26100',
