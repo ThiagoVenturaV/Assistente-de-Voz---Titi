@@ -45,7 +45,9 @@ export function MascotOverlay(): React.JSX.Element {
           title="Ocultar mascote"
           aria-label="Ocultar mascote"
           style={{ display: 'grid' }}
-          onClick={() => window.titi.mascot.hide()}
+          onClick={() => {
+            void window.titi.mascot.hide()
+          }}
         >
           <CloseIcon />
         </button>

@@ -16,12 +16,17 @@
     "qa:ollama-tools": "node scripts/check-ollama-tool-calling.mjs",
     "qa:transcription-refiners": "node scripts/benchmark-transcription-refiners.mjs",
     "qa:streaming-transcription": "node scripts/check-parakeet-streaming-worker.mjs",
+    "qa:release-sync": "node scripts/check-release-sync.mjs",
     "qa:packaged-transcription": "cmd.exe /d /c \"set ELECTRON_RUN_AS_NODE=1&& node_modules\\electron\\dist\\electron.exe scripts\\check-parakeet-streaming-worker.mjs %TEMP%\\titi-voice-long-qa.wav 15 release\\win-unpacked\\resources\"",
     "qa:packaged-tts": "cmd.exe /d /c \"set ELECTRON_RUN_AS_NODE=1&& node_modules\\electron\\dist\\electron.exe scripts\\check-packaged-supertonic.cjs release\\win-unpacked\\resources\"",
-    "build": "pnpm typecheck && electron-vite build",
+    "build": "npm run typecheck && electron-vite build",
+    "security:audit": "corepack pnpm audit --audit-level high && npm --prefix landing audit --audit-level high",
+    "security:secrets": "node scripts/check-secrets.mjs",
     "verify:package": "node scripts/verify-package.mjs",
-    "package:dir": "pnpm build && electron-builder --dir --win && pnpm verify:package",
-    "package:win": "pnpm build && electron-builder --win nsis && pnpm verify:package"
+    "verify:signatures": "node scripts/verify-windows-signatures.mjs",
+    "release:assets": "node scripts/prepare-release-assets.mjs",
+    "package:dir": "npm run build && electron-builder --dir --win && npm run verify:package",
+    "package:win": "npm run build && electron-builder --win nsis && npm run verify:package"
   },
   "build": {
     "appId": "com.thiagoventura.titi",
@@ -34,8 +39,17 @@
       "out/**/*",
       "package.json"
     ],
+    "electronFuses": {
+      "runAsNode": false,
+      "enableCookieEncryption": true,
+      "enableNodeOptionsEnvironmentVariable": false,
+      "enableNodeCliInspectArguments": false,
+      "enableEmbeddedAsarIntegrityValidation": true,
+      "onlyLoadAppFromAsar": true,
+      "loadBrowserProcessSpecificV8Snapshot": true,
+      "grantFileProtocolExtraPrivileges": false
+    },
     "asarUnpack": [
-      "out/main/**/*",
       "node_modules/koffi/**/*",
       "node_modules/@koromix/koffi-win32-x64/**/*",
       "node_modules/sherpa-onnx-node/**/*",
@@ -104,6 +118,11 @@
     ],
     "win": {
       "icon": "build/icon.ico",
+      "signtoolOptions": {
+        "signingHashAlgorithms": [
+          "sha256"
+        ]
+      },
       "target": [
         {
           "target": "nsis",
@@ -131,6 +150,7 @@
   },
   "devDependencies": {
     "@electron/asar": "3.4.1",
+    "@electron/fuses": "1.8.0",
     "@types/node": "^26.2.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",

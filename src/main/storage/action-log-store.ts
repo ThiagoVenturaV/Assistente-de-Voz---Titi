@@ -10,6 +10,7 @@ interface ActionLogDatabase {
 interface ActionLogPersistence {
   read(): Promise<ActionLogDatabase>
   write(value: ActionLogDatabase): Promise<void>
+  purgeAndWrite?(value: ActionLogDatabase): Promise<void>
 }
 
 const EMPTY_DATABASE: ActionLogDatabase = { entries: [] }
@@ -48,7 +49,9 @@ export class ActionLogStore {
 
   async clear(): Promise<void> {
     const operation = this.writeQueue.catch(() => undefined)
-      .then(() => this.store.write(structuredClone(EMPTY_DATABASE)))
+      .then(() => this.store.purgeAndWrite
+        ? this.store.purgeAndWrite(structuredClone(EMPTY_DATABASE))
+        : this.store.write(structuredClone(EMPTY_DATABASE)))
     this.writeQueue = operation
     return operation
   }

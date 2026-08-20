@@ -18,11 +18,14 @@ export class PcmRecorder {
   private noiseFloor = 0.003
   private calibrationEndsAt = 0
   private consecutiveSpeechFrames = 0
+  private detachDeviceEnded: (() => void) | null = null
+  private endingIntentionally = false
 
   constructor(
     private readonly onSilence?: (reason: 'silence' | 'timeout') => void,
     private readonly inputDeviceId = '',
-    private readonly onLiveChunk?: (pcmAudio: ArrayBuffer) => void
+    private readonly onLiveChunk?: (pcmAudio: ArrayBuffer) => void,
+    private readonly onDeviceEnded?: () => void
   ) {}
 
   async start(): Promise<void> {
@@ -32,6 +35,10 @@ export class PcmRecorder {
     this.stream = await navigator.mediaDevices.getUserMedia(
       microphoneConstraints(this.inputDeviceId)
     )
+    this.detachDeviceEnded = observeMicrophoneEnded(this.stream, () => {
+      if (this.endingIntentionally) return
+      this.onDeviceEnded?.()
+    })
     this.context = new AudioContext()
     await this.context.resume()
     this.startedAt = performance.now()
@@ -94,6 +101,8 @@ export class PcmRecorder {
   }
 
   async stop(): Promise<ArrayBuffer> {
+    this.endingIntentionally = true
+    this.detachDeviceEnded?.()
     this.emitLiveChunk(true)
     this.processor?.disconnect()
     this.highPass?.disconnect()
@@ -111,6 +120,8 @@ export class PcmRecorder {
   }
 
   cancel(): void {
+    this.endingIntentionally = true
+    this.detachDeviceEnded?.()
     this.processor?.disconnect()
     this.highPass?.disconnect()
     this.lowPass?.disconnect()
@@ -140,6 +151,8 @@ export class PcmRecorder {
     this.noiseFloor = 0.003
     this.calibrationEndsAt = 0
     this.consecutiveSpeechFrames = 0
+    this.detachDeviceEnded = null
+    this.endingIntentionally = false
   }
 
   private emitLiveChunk(final = false): void {
@@ -154,6 +167,18 @@ export class PcmRecorder {
     copy.set(resampled)
     this.onLiveChunk(copy.buffer)
   }
+}
+
+export function observeMicrophoneEnded(stream: MediaStream, onEnded: () => void): () => void {
+  const tracks = stream.getAudioTracks()
+  let notified = false
+  const handleEnded = (): void => {
+    if (notified) return
+    notified = true
+    onEnded()
+  }
+  tracks.forEach((track) => track.addEventListener('ended', handleEnded))
+  return () => tracks.forEach((track) => track.removeEventListener('ended', handleEnded))
 }
 
 export function microphoneConstraints(inputDeviceId = ''): MediaStreamConstraints {

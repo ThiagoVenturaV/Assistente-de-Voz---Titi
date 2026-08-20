@@ -11,11 +11,40 @@ import type {
   ToolExecutor
 } from '../tools/contracts'
 import { executeToolWithControl } from '../tools/tool-execution-controller'
+import { readLimitedJsonResponse } from '../security/limited-json-response'
 
 const MAX_TOOL_ROUNDS = 5
 const MAX_TOOL_CALLS_PER_ROUND = 8
 const NO_TOOL_NEEDED_PREFIX = '[SEM_FERRAMENTA]'
 const TOOL_RECOVERY_CONFIDENCE = 0.55
+const CORRECTION_MARKERS = [
+  'na verdade',
+  'na real',
+  'quer dizer',
+  'queria dizer',
+  'ao invés',
+  'ao inves',
+  'em vez de',
+  'em vez disso',
+  'esquece',
+  'melhor',
+  'troca',
+  'muda'
+]
+const CORRECTION_APPLICATION_HINTS = [
+  ['brave', 'Brave'],
+  ['chrome', 'Chrome'],
+  ['spotify', 'Spotify'],
+  ['calculadora', 'Calculadora'],
+  ['antigravity', 'Antigravity'],
+  ['notepad', 'Notepad'],
+  ['terminal', 'Terminal'],
+  ['powershell', 'PowerShell'],
+  ['vscode', 'Visual Studio Code'],
+  ['visual studio code', 'Visual Studio Code'],
+  ['microsoft edge', 'Microsoft Edge'],
+  ['edge', 'Edge']
+].map(([normalized, canonical]) => ({ normalized, canonical }))
 
 const TOOL_NEED_FORMAT = {
   type: 'object',
@@ -213,6 +242,29 @@ export class OllamaProvider implements AssistantProvider {
         }
 
         if (forcedToolRound || toolRecoveryAttempted) {
+          const correctionFallback = inferCorrectiveOpenApplicationFallback(
+            latestUserRequest,
+            messageContent
+          )
+          if (correctionFallback) {
+            const callAttempt = await executeCorrectiveTool(
+              correctionFallback.tool,
+              correctionFallback.arguments,
+              this.tools,
+              chainId,
+              requestId,
+              turn + 1,
+              toolRuns.length + 1
+            )
+            const entry = callAttempt.result
+            toolRuns.push({
+              tool: correctionFallback.tool,
+              arguments: correctionFallback.arguments,
+              executed: callAttempt.executed,
+              result: entry
+            })
+            return renderToolLedger(toolRuns)
+          }
           return 'Entendi o pedido como uma ação no computador, mas o modelo não produziu uma chamada de ferramenta válida. Nenhuma ação foi executada.'
         }
 
@@ -602,7 +654,7 @@ function systemPrompt(mascotName: string): string {
     'Depois de computer_action, observe novamente quando isso puder verificar o efeito sem repetir a ação.',
     'Quando uma ação ficar apenas como dispatched ou puder ter aberto em outro monitor, use computer_look com um objetivo visual concreto para verificar todas as telas antes de responder.',
     'Só execute uma ferramenta quando a solicitação do usuário deixar a ação clara.',
-    'Durante a beta, as ferramentas permitidas executam pedidos diretos sem confirmação; abrir ou controlar o Antigravity é a única exceção e a própria ferramenta solicitará permissão.',
+    'Ações genéricas em controles de interface e outras ferramentas sensíveis sempre exigem confirmação explícita; nunca tente contornar ou antecipar essa confirmação.',
     'Ações destrutivas, compras, mensagens e operações fora das ferramentas disponíveis não devem ser improvisadas.'
   ].join(' ')
 }
@@ -615,6 +667,89 @@ function looksConversationalRequest(value: string): boolean {
     .replace(/\s+/g, ' ')
     .trim()
   return /^(?:(?:oi|ei) titi[,!:; -]*)?(?:me (?:explique|explica)|explique|explica|fale sobre|o que (?:e|sao)|qual (?:e|seria|a diferenca|o significado)|quais (?:sao|as diferencas)|como funciona|por que|porque|voce acha|o que voce acha)\b/u.test(request)
+}
+
+function normalizeForInference(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase('pt-BR')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function isCorrectionMarkerPresent(value: string): boolean {
+  const normalized = normalizeForInference(value)
+  return CORRECTION_MARKERS.some((marker) => normalized.includes(marker))
+}
+
+function inferCorrectiveOpenApplicationFallback(
+  userRequest: string,
+  modelContent: string
+): { tool: 'open_application'; arguments: { application: string } } | null {
+  if (!isCorrectionMarkerPresent(userRequest)) return null
+  if (modelContent.trim()) return null
+
+  const normalized = normalizeForInference(userRequest)
+  const directOpenMatch = normalized.match(/\b(?:abre|abrir|abr[aê]|abra|abre(o)?|abre a|quero|vai|usa|use|usa o|usa a|muda|troca)\b.*?\b([a-z0-9]+(?:\s+[a-z0-9]+){0,2})\b/u)
+  const candidates = [
+    ...CORRECTION_APPLICATION_HINTS.map(({ normalized: hint }) => hint)
+  ]
+  const normalizedText = directOpenMatch ? directOpenMatch[1] : normalized
+
+  for (const hint of candidates) {
+    const escaped = hint.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const matcher = new RegExp(`\\b${escaped}\\b`, 'u')
+    if (matcher.test(normalizedText)) {
+      const matchedHint = CORRECTION_APPLICATION_HINTS.find((entry) => entry.normalized === hint)
+      if (!matchedHint) continue
+      return { tool: 'open_application', arguments: { application: matchedHint.canonical } }
+    }
+  }
+
+  const matchedExplicitBrowser = normalized.match(/\b(google chrome|brave|chrome|edge|mozilla firefox|spotify|calculadora)\b/u)
+  if (matchedExplicitBrowser) {
+    const canonical = CORRECTION_APPLICATION_HINTS.find(
+      ({ normalized: key }) => key === matchedExplicitBrowser[1].toLocaleLowerCase('en-US')
+    )
+    if (!canonical) {
+      const fallbackApp = matchedExplicitBrowser[1]
+      return { tool: 'open_application', arguments: { application: toTitleCase(fallbackApp) } }
+    }
+    return { tool: 'open_application', arguments: { application: canonical.canonical } }
+  }
+
+  return null
+}
+
+function toTitleCase(value: string): string {
+  const normalized = value.toLocaleLowerCase('pt-BR')
+  return normalized
+    .split(' ')
+    .filter(Boolean)
+    .map((word) => word[0]?.toLocaleUpperCase('pt-BR') + word.slice(1))
+    .join(' ')
+}
+
+async function executeCorrectiveTool(
+  tool: string,
+  args: { application: string },
+  tools: ToolExecutor,
+  chainId: string,
+  requestId: string | undefined,
+  round: number,
+  attempt: number
+): Promise<{ result: ToolExecutionResult; executed: boolean }> {
+  return {
+    executed: true,
+    result: await executeToolWithControl(tools, tool, args, {
+      chainId,
+      runId: randomUUID(),
+      ...(requestId ? { requestId } : {}),
+      round,
+      attempt
+    })
+  }
 }
 
 async function requestChat(
@@ -671,8 +806,19 @@ async function requestRequiredToolChat(
       body: JSON.stringify({
         model: settings.provider.model,
         stream: false,
-        messages: messages.map(({ role, content }) => ({ role, content: content ?? '' })),
+        messages: [
+          {
+            role: 'system',
+            content: [
+              'MODO OBRIGATÓRIO: devolva uma chamada de ferramenta válida em tool_calls.',
+              'Não responda com texto livre.',
+              'Se houver correção de turno anterior, use o novo alvo e não repita ferramenta anterior.'
+            ].join(' ')
+          },
+          ...messages.map(({ role, content }) => ({ role, content: content ?? '' }))
+        ],
         tools: publicTools,
+        parallel_tool_calls: false,
         tool_choice: 'required',
         temperature: 0
       })
@@ -835,7 +981,7 @@ async function fetchJsonWithTimeout<T>(
   const timer = setTimeout(() => controller.abort(timeoutError()), timeout)
   try {
     const response = await fetch(url, { ...init, signal: controller.signal })
-    const payload = await response.json() as T
+    const payload = await readLimitedJsonResponse<T>(response)
     return { response, payload }
   } finally {
     clearTimeout(timer)

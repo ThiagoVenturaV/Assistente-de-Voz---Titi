@@ -79,6 +79,66 @@ describe('AssistantHarness deterministic tools', () => {
     release()
   })
 
+  it('interrompe durante a preparação do runtime e mantém só a mensagem do usuário', async () => {
+    const directory = await createTemporaryDirectory()
+    const settings = new SettingsStore(directory)
+    const conversations = new ConversationStore(directory)
+    const conversation = await conversations.create({ persist: true })
+    const tools = fakeTools()
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      if (String(input).endsWith('/api/tags')) {
+        return new Promise<Response>(() => {})
+      }
+      return jsonResponse({ message: { role: 'assistant', content: '[SEM_FERRAMENTA] resposta.' } })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const controller = new AbortController()
+    const harness = new AssistantHarness(settings, conversations, tools)
+
+    const sending = harness.send(
+      { conversationId: conversation.id, content: 'fala algo' },
+      controller.signal
+    )
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringMatching('/api/tags$'),
+      expect.anything()
+    ))
+    const beforeCancel = await conversations.get(conversation.id)
+    expect(beforeCancel?.messages.map(({ role }) => role)).toEqual(['user'])
+    controller.abort()
+    await expect(sending).rejects.toMatchObject({ name: 'AbortError' })
+    const finalConversation = await conversations.get(conversation.id)
+    expect(finalConversation?.messages.map(({ role }) => role)).toEqual(['user'])
+  })
+
+  it('interrompe enquanto o modelo responde e não grava resposta tardia', async () => {
+    const directory = await createTemporaryDirectory()
+    const settings = new SettingsStore(directory)
+    const conversations = new ConversationStore(directory)
+    const conversation = await conversations.create({ persist: true })
+    const tools = fakeTools()
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input)
+      if (url.endsWith('/api/tags')) {
+        return jsonResponse({ models: [{ name: 'qwen3:4b-instruct' }] })
+      }
+      return new Promise<Response>(() => {})
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const controller = new AbortController()
+    const harness = new AssistantHarness(settings, conversations, tools)
+
+    const sending = harness.send(
+      { conversationId: conversation.id, content: 'pergunte sobre mim' },
+      controller.signal
+    )
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+    controller.abort()
+    await expect(sending).rejects.toMatchObject({ name: 'AbortError' })
+    const finalConversation = await conversations.get(conversation.id)
+    expect(finalConversation?.messages.map(({ role }) => role)).toEqual(['user'])
+  })
+
   it('executa um comando explícito mesmo quando o modelo local está offline', async () => {
     const directory = await createTemporaryDirectory()
     const settings = new SettingsStore(directory)

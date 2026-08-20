@@ -161,7 +161,7 @@ export class ConversationStore {
       database.conversations = database.conversations.filter(
         (conversation) => conversation.id !== id
       )
-      await this.store.write(database)
+      await this.store.purgeAndWrite(database)
     })
   }
 
@@ -173,7 +173,7 @@ export class ConversationStore {
         ...this.transientConversations.keys()
       ]).size
       this.transientConversations.clear()
-      await this.store.write(structuredClone(EMPTY_DATABASE))
+      await this.store.purgeAndWrite(structuredClone(EMPTY_DATABASE))
       return count
     })
   }

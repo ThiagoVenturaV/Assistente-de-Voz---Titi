@@ -1,4 +1,5 @@
 import type { TitiSettings } from '../../shared/contracts'
+import { readLimitedJsonResponse } from '../security/limited-json-response'
 
 const REFINEMENT_SCHEMA = {
   type: 'object',
@@ -322,7 +323,7 @@ async function fetchJsonWithTimeout<T>(
   const timer = setTimeout(() => controller.abort(new Error('O refinamento excedeu o tempo limite.')), timeoutMs)
   try {
     const response = await fetchImplementation(url, { ...init, signal: controller.signal })
-    return { response, payload: await response.json() as T }
+    return { response, payload: await readLimitedJsonResponse<T>(response) }
   } finally {
     clearTimeout(timer)
     externalSignal?.removeEventListener('abort', forwardAbort)

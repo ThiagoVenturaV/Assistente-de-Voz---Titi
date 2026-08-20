@@ -48,7 +48,14 @@ describe('OllamaVisualComputerAgent', () => {
       }
     })
     expect(controller.capture).toHaveBeenCalledTimes(3)
-    expect(controller.click).toHaveBeenCalledWith('spotify', 800, 844, undefined)
+    expect(controller.click).toHaveBeenCalledWith('spotify', 800, 844, {
+      processId: 4242,
+      windowHandle: '123456',
+      windowTitle: 'Spotify Premium',
+      processName: 'Spotify',
+      width: 1600,
+      height: 900
+    }, undefined)
     const request = JSON.parse(String(fetcher.mock.calls[0][1]?.body)) as {
       messages: Array<{ images?: string[] }>
     }
@@ -72,7 +79,14 @@ describe('OllamaVisualComputerAgent', () => {
     )
 
     await expect(agent.act('play')).resolves.toMatchObject({ status: 'confirmed' })
-    expect(controller.click).toHaveBeenCalledWith('spotify', 800, 844, undefined)
+    expect(controller.click).toHaveBeenCalledWith('spotify', 800, 844, {
+      processId: 4242,
+      windowHandle: '123456',
+      windowTitle: 'Spotify Premium',
+      processName: 'Spotify',
+      width: 1600,
+      height: 900
+    }, undefined)
   })
 
   it('confirms Pause only when the enlarged player crop is classified as paused', async () => {
@@ -200,30 +214,39 @@ function makeController(): ComputerController & {
 } {
   return {
     observe: vi.fn(async () => ({
-      application: 'spotify', windowTitle: 'Spotify', processName: 'Spotify', controls: []
+      application: 'spotify', processId: 4242, windowHandle: '123456', windowTitle: 'Spotify', processName: 'Spotify', controls: []
     })),
     invoke: vi.fn(async () => ({
       application: 'spotify',
+      processId: 4242,
+      windowHandle: '123456',
       windowTitle: 'Spotify',
       processName: 'Spotify',
       invoked: true as const,
-      control: { name: 'Play', controlType: 'Button', automationId: '', enabled: true }
+      control: { name: 'Play', controlType: 'Button', automationId: '', runtimeId: '42.1', enabled: true }
     })),
     capture: vi.fn(async () => spotifyCapture(1600, 900)),
     click: vi.fn(async (_application: string, x: number, y: number) => ({
       application: 'spotify',
+      processId: 4242,
+      windowHandle: '123456',
       windowTitle: 'Spotify Premium',
       processName: 'Spotify',
       clicked: true as const,
       x,
       y
-    }))
+    })),
+    focusWindow: vi.fn(),
+    minimizeWindow: vi.fn(),
+    closeWindow: vi.fn()
   }
 }
 
 function spotifyCapture(width: number, height: number) {
   return {
     application: 'spotify',
+    processId: 4242,
+    windowHandle: '123456',
     windowTitle: 'Spotify Premium',
     processName: 'Spotify',
     width,

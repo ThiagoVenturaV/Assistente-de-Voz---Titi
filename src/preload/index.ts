@@ -1,6 +1,8 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type {
   ChatRequest,
+  GameStandbyDecisionResponse,
+  GameStandbyRequest,
   MascotState,
   RuntimeSetupProgress,
   TitiDesktopApi,
@@ -43,6 +45,10 @@ const api: TitiDesktopApi = {
     list: () => ipcRenderer.invoke('activity:list'),
     clear: () => ipcRenderer.invoke('activity:clear')
   },
+  diagnostics: {
+    summary: () => ipcRenderer.invoke('diagnostics:summary'),
+    export: () => ipcRenderer.invoke('diagnostics:export')
+  },
   memory: {
     list: () => ipcRenderer.invoke('memory:list'),
     remove: (id: string) => ipcRenderer.invoke('memory:remove', id),
@@ -68,12 +74,22 @@ const api: TitiDesktopApi = {
   },
   game: {
     isStandby: () => ipcRenderer.invoke('game:is-standby'),
+    onStandbyRequested: (callback) => {
+      const listener = (
+        _event: Electron.IpcRendererEvent,
+        request: GameStandbyRequest
+      ): void => callback(request)
+      ipcRenderer.on('game:standby-requested', listener)
+      return () => ipcRenderer.removeListener('game:standby-requested', listener)
+    },
     onStandbyChanged: (callback) => {
       const listener = (_event: Electron.IpcRendererEvent, enabled: boolean): void =>
         callback(enabled)
       ipcRenderer.on('game:standby-changed', listener)
       return () => ipcRenderer.removeListener('game:standby-changed', listener)
-    }
+    },
+    respondToStandbyDecision: (response: GameStandbyDecisionResponse) =>
+      ipcRenderer.invoke('game:standby-decision', response)
   },
   voice: {
     transcribe: (wavAudio: ArrayBuffer) =>

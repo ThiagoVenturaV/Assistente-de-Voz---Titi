@@ -1,6 +1,12 @@
 export type LiveVoiceCommand = 'stop'
 
 const STOP_PHRASES = new Set([
+  'para',
+  'pare',
+  'parar',
+  'para a live',
+  'pare a live',
+  'parar a live',
   'para a conversa',
   'pare a conversa',
   'parar a conversa',
@@ -18,6 +24,13 @@ const STOP_PHRASES = new Set([
   'desligue o modo ao vivo',
   'desativar o modo ao vivo',
   'desative o modo ao vivo',
+  'desliga o vivo',
+  'desligue o vivo',
+  'encerra o vivo',
+  'encerre o vivo',
+  'encerrar o vivo',
+  'corta a conversa',
+  'corta o vivo',
   'encerra o modo ao vivo',
   'encerre o modo ao vivo',
   'fim da conversa',

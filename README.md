@@ -6,7 +6,8 @@
 
 Titi é um assistente local para Windows com interface gráfica, conversa por texto e voz, mascote 2D animado e ferramentas controladas para agir no computador. O objetivo é permitir que a pessoa use seus aplicativos por voz sem entregar um terminal irrestrito ao modelo.
 
-> **Estado atual:** a pré-release `0.2.0-beta.7` usa `qwen3:4b-instruct` como perfil rápido padrão e mantém `qwen3.5:9b` como opção de qualidade. O botão de fechar do mascote flutuante agora permanece visível, com área de clique ampliada. Permanecem a transcrição Parakeet incremental, a voz Supertonic em DirectML com fallback para CPU, a visão local de múltiplos monitores e a execução direta dos comandos compatíveis durante a beta; somente abrir ou controlar o Antigravity pede confirmação. O instalador não possui assinatura pública e deve ser tratado como uma prévia para testadores; consulte `QA_PLAN.md`.
+> **Estado atual:** a pré-release `0.2.0-beta.7` usa `qwen3:4b-instruct` como perfil rápido padrão e mantém `qwen3.5:9b` como opção de qualidade. Permanecem a transcrição Parakeet incremental, a voz Supertonic em DirectML com fallback para CPU e a visão local de múltiplos monitores. Toda ação genérica de interface pede confirmação explícita e fica vinculada à janela e ao controle recém-observados. O instalador continua sem assinatura pública e deve ser tratado como prévia para testadores.
+> **Escopo desta iteração:** não implementamos ainda `TITI-MEET-001` (modo reunião) nem `TITI-REMOTE-001` (cliente remoto).
 
 ## O que está implementado no código atual
 
@@ -33,15 +34,15 @@ Titi é um assistente local para Windows com interface gráfica, conversa por te
 - a ferramenta `computer_look` captura até oito monitores, analisa as imagens somente no Ollama local, devolve um resumo estruturado e não persiste nem envia as capturas para a nuvem;
 - controle opt-in de aplicativos visíveis pela acessibilidade do Windows: o Titi observa controles, exige que o alvo tenha sido visto na mesma interação e bloqueia nomes ambíguos;
 - `play` e `pause` são ações distintas: no Spotify, o Titi tenta o botão acessível e, quando o aplicativo não expõe controles, captura a região visível da janela, envia somente um recorte ampliado do player ao Ollama local, clica dentro da própria janela e verifica visualmente o novo estado;
-- durante a beta, ferramentas permitidas, navegação e aplicativos executam direto; somente abrir ou controlar o Antigravity pede confirmação;
+- ferramentas de leitura e ações reversíveis permitidas continuam diretas; cliques genéricos, fechamento de janela e abertura do Antigravity exigem confirmação explícita;
 - histórico local, modo privado em memória, exportação e exclusão de conversas;
 - memória curada de fatos e preferências que o usuário pediu explicitamente para guardar;
-- painel local de atividade com resultado, duração e confirmação das ferramentas;
+- painel local de atividade com resultado, duração e confirmação das ferramentas, além de resumo e exportação manual de diagnóstico sem conversas, argumentos, caminhos ou identificadores de dispositivos;
 - inicialização oculta do Ollama, sem shell e com proteção contra partidas duplicadas;
 - standby conservador durante jogos conhecidos ou executáveis adicionados pelo usuário; ele cancela tarefas, pausa voz, oculta o mascote e verifica a descarga do modelo pela API local;
 - gravações de conversas e configurações são serializadas para não perder atualizações concorrentes.
 
-O código passa por `pnpm typecheck` e por **331 testes em 34 arquivos**. `pnpm package:dir` também verifica o ASAR, os workers, os módulos nativos, o runtime de automação, o CSP necessário para reproduzir a voz, o Parakeet e os binários DirectML do Supertonic por SHA-256, além de rejeitar rotas de QA proibidas em produção. Essa evidência ainda não substitui a validação do instalador em uma máquina limpa.
+O código passa por `pnpm typecheck` e por **402 testes em 42 arquivos**. `pnpm package:dir` também verifica a integridade do ASAR, os fuses restritivos do Electron, os workers, os módulos nativos e todos os recursos externos por SHA-256, além de rejeitar rotas de QA proibidas em produção. Essa evidência ainda não substitui a validação do instalador assinado em uma máquina limpa.
 
 ## Limites desta versão
 
@@ -50,9 +51,10 @@ O código passa por `pnpm typecheck` e por **331 testes em 34 arquivos**. `pnpm 
 - a observação visual genérica cobre todos os monitores, mas ainda é somente leitura; a automação genérica continua usando controles expostos pela acessibilidade do Windows, e a única exceção visual de clique é Play/Pause do Spotify, limitada à própria janela. Digitação livre, arrastar e menus de contexto ainda não estão cobertos;
 - o standby inclui uma lista segura editável, mas ainda precisa ser testado com jogos reais, tela cheia, múltiplos monitores, downloads e tarefas em andamento;
 - somente Ollama está implementado; API e OAuth ainda não fazem parte do produto;
+- cliente remoto e modo reunião foram propositadamente adiados para esta fase;
 - o perfil rápido 4B passou em 18/19 cenários do corpus local; a correção contextual “Chrome → Brave” continua como regressão conhecida, enquanto o perfil de qualidade 9B passou em 19/19;
 - seleção e interrupção estão implementadas, mas ainda faltam microfone real, vinte turnos ao vivo e cancelamento exercitado em todas as fases do aplicativo instalado;
-- ainda não há atualização dentro do aplicativo, assinatura do instalador ou rollback automático;
+- ainda não há atualização dentro do aplicativo, assinatura Authenticode pública nem rollback automático;
 - a voz neural já é local, mas o timbre e a expressividade ainda podem evoluir em versões futuras.
 
 Consulte [BACKLOG.md](./BACKLOG.md) para os critérios de aceite e os bloqueios do beta completo.
@@ -61,7 +63,7 @@ Consulte [BACKLOG.md](./BACKLOG.md) para os critérios de aceite e os bloqueios 
 
 O modelo informa apenas o nome comum do aplicativo. Caminhos, executáveis e identificadores são resolvidos pelo catálogo local em fontes confiáveis do Windows. Nomes de terminal, caminhos livres, scripts, protocolos perigosos e ferramentas desconhecidas são bloqueados.
 
-Por decisão explícita para a fase beta, ações permitidas como abrir aplicativos, navegar, pesquisar e acionar um controle observado executam sem confirmação. Abrir ou controlar o Antigravity continua pedindo permissão, e recusar ou deixar essa confirmação expirar impede o efeito. Compras, mensagens, publicação, exclusões externas e comandos arbitrários não estão disponíveis.
+Por decisão explícita para a fase beta, ações reversíveis permitidas como abrir aplicativos, navegar e pesquisar podem executar sem confirmação. Cliques genéricos, fechamento de janela e abertura do Antigravity pedem permissão; recusar ou deixar a confirmação expirar impede o efeito. Compras, mensagens, publicação, exclusões externas e comandos arbitrários não estão disponíveis.
 
 ## Histórico privado, memória e aprendizado
 
@@ -130,6 +132,7 @@ Validações:
 pnpm typecheck
 pnpm test
 pnpm build
+pnpm qa:release-sync
 pnpm qa:ollama-tools
 pnpm qa:streaming-transcription -- <arquivo.wav> 15
 pnpm qa:packaged-tts
@@ -143,7 +146,7 @@ Empacotamento:
 pnpm package:win
 ```
 
-O pacote é gerado em `release/`. Depois da build, o verificador confere se o `app.asar` contém o nome e a versão esperados e os marcadores essenciais de ferramentas e processos ocultos. Um arquivo local correto ainda precisa passar pela matriz de instalação descrita em [QA_PLAN.md](./QA_PLAN.md) antes de ser publicado em GitHub Releases.
+O pacote é gerado em `release/`. Sem certificado configurado, `package:win` gera uma prévia não assinada; quando houver Authenticode, `npm run verify:signatures` valida o instalador, o executável e o SHA-512 de `latest.yml`. Releases novas são produzidas pelo workflow da tag, que publica ativos exatos, manifesto de proveniência e checksums, baixa tudo novamente e compara os hashes. Um arquivo local correto ainda precisa passar pela matriz de instalação descrita em [QA_PLAN.md](./QA_PLAN.md) antes de ser publicado. O processo completo e o rollback estão em [docs/RELEASE_PROCESS.md](./docs/RELEASE_PROCESS.md).
 
 ## Arquitetura
 

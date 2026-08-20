@@ -1,5 +1,25 @@
-import { describe, expect, it } from 'vitest'
-import { microphoneConstraints, resampleForSpeechRecognition, resamplePcm } from './pcm-recorder'
+import { describe, expect, it, vi } from 'vitest'
+import { microphoneConstraints, observeMicrophoneEnded, resampleForSpeechRecognition, resamplePcm } from './pcm-recorder'
+
+describe('observeMicrophoneEnded', () => {
+  it('avisa uma vez quando o dispositivo some e permite remover o listener', () => {
+    const first = new EventTarget()
+    const second = new EventTarget()
+    const stream = {
+      getAudioTracks: () => [first, second]
+    } as unknown as MediaStream
+    const ended = vi.fn()
+    const detach = observeMicrophoneEnded(stream, ended)
+
+    first.dispatchEvent(new Event('ended'))
+    second.dispatchEvent(new Event('ended'))
+    expect(ended).toHaveBeenCalledTimes(1)
+
+    detach()
+    first.dispatchEvent(new Event('ended'))
+    expect(ended).toHaveBeenCalledTimes(1)
+  })
+})
 
 describe('microphoneConstraints', () => {
   it('usa o microfone padrão quando nenhum dispositivo foi escolhido', () => {

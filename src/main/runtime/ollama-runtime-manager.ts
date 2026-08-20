@@ -8,6 +8,7 @@ import type {
   TitiSettings
 } from '../../shared/contracts'
 import { SettingsStore } from '../storage/settings-store'
+import { readLimitedJsonResponse } from '../security/limited-json-response'
 
 type StatusReader = () => Promise<RuntimeStatus>
 type ProgressReporter = (progress: RuntimeSetupProgress) => void
@@ -157,9 +158,9 @@ export class OllamaRuntimeManager {
           signal: AbortSignal.timeout(2_000)
         })
         if (!processes.ok) return false
-        const payload = await processes.json() as {
+        const payload = await readLimitedJsonResponse<{
           models?: Array<{ name?: string; model?: string }>
-        }
+        }>(processes)
         const stillLoaded = (payload.models ?? []).some(({ name, model }) =>
           (name ?? model) === settings.provider.model
         )

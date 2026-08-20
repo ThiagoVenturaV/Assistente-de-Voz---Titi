@@ -88,7 +88,21 @@ describe('DesktopToolkit security boundaries', () => {
         verification: 'verified_after_action'
       }
     })
-    expect(controller.invoke).toHaveBeenCalledWith('spotify', 'Play', 'Button', undefined)
+    expect(controller.invoke).toHaveBeenCalledWith(
+      'spotify',
+      'Play',
+      'Button',
+      {
+        window: {
+          processId: 4242,
+          windowHandle: '123456',
+          windowTitle: 'Spotify Premium',
+          processName: 'Spotify'
+        },
+        control: { automationId: 'play', runtimeId: '42.1' }
+      },
+      undefined
+    )
   })
 
   it('does not toggle playback when Spotify already shows the requested state', async () => {
@@ -134,6 +148,51 @@ describe('DesktopToolkit security boundaries', () => {
       details: { method: 'local_visual_model' }
     })
     expect(visualAgent.act).toHaveBeenCalledWith('play', undefined)
+  })
+
+  it('executa foco e minimizar janela quando controlado', async () => {
+    const controller = makeComputerController([spotifyObservation('Play')])
+    const toolkit = new DesktopToolkit(makeAppCatalog(), controller, async () => true)
+
+    await expect(toolkit.execute('focus_window', { application: 'Spotify' })).resolves.toMatchObject({
+      ok: true,
+      status: 'confirmed',
+      details: {
+        action: 'focus',
+        effectState: 'confirmed'
+      }
+    })
+    await expect(toolkit.execute('minimize_window', {
+      application: 'Spotify',
+      windowTitle: 'Spotify'
+    })).resolves.toMatchObject({
+      ok: true,
+      status: 'confirmed',
+      details: {
+        action: 'minimize',
+        effectState: 'confirmed'
+      }
+    })
+    expect(controller.focusWindow).toHaveBeenCalledWith('Spotify', undefined, undefined)
+    expect(controller.minimizeWindow).toHaveBeenCalledWith('Spotify', 'Spotify', undefined)
+  })
+
+  it('reporta fechamento de janela como despachado', async () => {
+    const controller = makeComputerController([spotifyObservation('Play')])
+    const toolkit = new DesktopToolkit(makeAppCatalog(), controller, async () => true)
+
+    await expect(toolkit.execute('close_window', {
+      application: 'Spotify',
+      windowTitle: 'Spotify Premium'
+    })).resolves.toMatchObject({
+      ok: false,
+      status: 'dispatched',
+      details: {
+        action: 'close',
+        effectState: 'dispatched_unverified'
+      }
+    })
+    expect(controller.closeWindow).toHaveBeenCalledWith('Spotify', 'Spotify Premium', undefined)
   })
 
   it('opens Spotify before the unverified media-key fallback when interface control is off', async () => {
@@ -218,13 +277,23 @@ function makeComputerController(observations: ComputerObservation[]): ComputerCo
     observe: vi.fn(async () => observations[Math.min(observationIndex++, observations.length - 1)]),
     invoke: vi.fn(async (application: string, target: string, controlType?: string) => ({
       application,
+      processId: 4242,
+      windowHandle: '123456',
       windowTitle: 'Spotify Premium',
       processName: 'Spotify',
       invoked: true as const,
-      control: { name: target, controlType: controlType ?? 'Button', automationId: 'play', enabled: true }
+      control: {
+        name: target,
+        controlType: controlType ?? 'Button',
+        automationId: 'play',
+        runtimeId: '42.1',
+        enabled: true
+      }
     })),
     capture: vi.fn(async (application: string) => ({
       application,
+      processId: 4242,
+      windowHandle: '123456',
       windowTitle: 'Spotify Premium',
       processName: 'Spotify',
       width: 1600,
@@ -233,11 +302,37 @@ function makeComputerController(observations: ComputerObservation[]): ComputerCo
     })),
     click: vi.fn(async (application: string, x: number, y: number) => ({
       application,
+      processId: 4242,
+      windowHandle: '123456',
       windowTitle: 'Spotify Premium',
       processName: 'Spotify',
       clicked: true as const,
       x,
       y
+    })),
+    focusWindow: vi.fn(async (application: string, windowTitle?: string) => ({
+      application,
+      processId: 4242,
+      windowHandle: '123456',
+      windowTitle: windowTitle ?? 'Spotify Premium',
+      processName: 'Spotify',
+      action: 'focus' as const
+    })),
+    minimizeWindow: vi.fn(async (application: string, windowTitle?: string) => ({
+      application,
+      processId: 4242,
+      windowHandle: '123456',
+      windowTitle: windowTitle ?? 'Spotify Premium',
+      processName: 'Spotify',
+      action: 'minimize' as const
+    })),
+    closeWindow: vi.fn(async (application: string, windowTitle?: string) => ({
+      application,
+      processId: 4242,
+      windowHandle: '123456',
+      windowTitle: windowTitle ?? 'Spotify Premium',
+      processName: 'Spotify',
+      action: 'close' as const
     }))
   }
 }
@@ -245,12 +340,15 @@ function makeComputerController(observations: ComputerObservation[]): ComputerCo
 function spotifyObservation(controlName: 'Play' | 'Pause'): ComputerObservation {
   return {
     application: 'spotify',
+    processId: 4242,
+    windowHandle: '123456',
     windowTitle: 'Spotify Premium',
     processName: 'Spotify',
     controls: [{
       name: controlName,
       controlType: 'Button',
       automationId: controlName.toLocaleLowerCase(),
+      runtimeId: '42.1',
       enabled: true
     }]
   }

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { RuntimeStatus, TitiSettings } from '../../../shared/contracts'
 import { TitiSprite } from './TitiSprite'
 import { CheckIcon, CpuIcon, ShieldIcon, SparklesIcon } from './icons'
+import { PUBLIC_PRIVACY_URL } from '../product-links'
 
 interface OnboardingProps {
   settings: TitiSettings
@@ -83,6 +84,7 @@ export function Onboarding({
               </>
             )}
             <button className="text-button" onClick={() => setStep(0)}>Voltar</button>
+            <a className="text-button onboarding-policy" href={PUBLIC_PRIVACY_URL} target="_blank" rel="noreferrer">Como o Titi trata seus dados</a>
           </>
         )}
       </div>

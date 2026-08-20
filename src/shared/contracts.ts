@@ -38,7 +38,6 @@ export interface TitiSettings {
   showFloatingMascot: boolean
   computerControlEnabled: boolean
   keepHistory: boolean
-  confirmSensitiveActions: boolean
   provider: {
     kind: ProviderKind
     endpoint: string
@@ -104,6 +103,32 @@ export interface VoiceSynthesis {
   backend: 'directml' | 'cpu'
 }
 
+export interface DiagnosticSummary {
+  appVersion: string
+  system: {
+    platform: string
+    release: string
+    arch: string
+    logicalCpuCount: number
+    totalMemoryBytes: number
+    displayCount: number
+  }
+  audio: {
+    enabled: boolean
+    liveMode: boolean
+    inputDeviceSelected: boolean
+  }
+  storage: {
+    freeBytes: number | null
+  }
+  runtime: {
+    provider: ProviderKind
+    model: string
+    health: 'ready' | 'engine-missing' | 'engine-stopped' | 'model-missing' | 'unavailable'
+  }
+  automaticUpload: false
+}
+
 export interface ToolActionLogEntry {
   id: string
   tool: string
@@ -149,6 +174,21 @@ export interface ToolConfirmationResponse {
   approved: boolean
 }
 
+export type GameStandbyDecision = 'complete' | 'cancel' | 'defer'
+
+export interface GameStandbyRequest {
+  id: string
+  processId: number
+  executable: string
+  fullscreen: boolean
+  expiresAt: string
+}
+
+export interface GameStandbyDecisionResponse {
+  requestId: string
+  decision: GameStandbyDecision
+}
+
 export interface TitiDesktopApi {
   settings: {
     get(): Promise<TitiSettings>
@@ -189,6 +229,12 @@ export interface TitiDesktopApi {
   game: {
     isStandby(): Promise<boolean>
     onStandbyChanged(callback: (enabled: boolean) => void): () => void
+    onStandbyRequested(callback: (request: GameStandbyRequest) => void): () => void
+    respondToStandbyDecision(response: GameStandbyDecisionResponse): Promise<boolean>
+  }
+  diagnostics: {
+    summary(): Promise<DiagnosticSummary>
+    export(): Promise<string | null>
   }
   voice: {
     transcribe(wavAudio: ArrayBuffer): Promise<VoiceTranscription>

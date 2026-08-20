@@ -3,7 +3,7 @@ import {
   access,
   opendir
 } from 'node:fs/promises'
-import { basename, dirname, extname, join, normalize, resolve } from 'node:path'
+import { basename, dirname, extname, isAbsolute, join, normalize, resolve } from 'node:path'
 import { shell } from 'electron'
 import { JsonStore } from '../storage/json-store'
 import type { ToolExecutionStatus } from '../tools/contracts'
@@ -107,8 +107,48 @@ const UNSAFE_EXECUTABLE_STEMS = new Set([
   'mshta',
   'rundll32'
 ])
-const BLOCKED_REQUESTED_APPLICATIONS = new Set([
+const UNSAFE_LAUNCH_TARGET_STEMS = new Set([
   ...UNSAFE_EXECUTABLE_STEMS,
+  'bash',
+  'bitsadmin',
+  'certutil',
+  'cmstp',
+  'conhost',
+  'control',
+  'csi',
+  'deno',
+  'dfsvc',
+  'diskshadow',
+  'eventvwr',
+  'explorer',
+  'forfiles',
+  'hh',
+  'installutil',
+  'jsc',
+  'mavinject',
+  'mmc',
+  'msbuild',
+  'msiexec',
+  'msdt',
+  'node',
+  'perl',
+  'presentationhost',
+  'python',
+  'pythonw',
+  'regasm',
+  'regsvcs',
+  'regsvr32',
+  'ruby',
+  'sc',
+  'schtasks',
+  'sh',
+  'wmic',
+  'windowsterminal',
+  'wsl',
+  'wt'
+])
+const BLOCKED_REQUESTED_APPLICATIONS = new Set([
+  ...UNSAFE_LAUNCH_TARGET_STEMS,
   'command prompt',
   'prompt de comando',
   'terminal',
@@ -204,6 +244,14 @@ export class WindowsAppCatalog implements ApplicationCatalog {
         ok: false,
         status: 'failed',
         message: `Não encontrei “${requestedName.trim()}” entre os aplicativos instalados. Atualizei o catálogo, mas não executei nenhum caminho ou comando informado pelo modelo.`
+      }
+    }
+
+    if (match.ambiguous) {
+      return {
+        ok: false,
+        status: 'failed',
+        message: `Encontrei mais de um aplicativo compatível com “${requestedName.trim()}”. Nenhum foi aberto para evitar escolher o alvo errado.`
       }
     }
 
@@ -385,7 +433,10 @@ export class WindowsAppCatalog implements ApplicationCatalog {
 }
 
 export class WindowsAppLauncher implements AppRecipeLauncher {
-  constructor(private readonly platform: NodeJS.Platform = process.platform) {}
+  constructor(
+    private readonly platform: NodeJS.Platform = process.platform,
+    private readonly inspectShortcut: (path: string) => Promise<string | null> = inspectWindowsShortcut
+  ) {}
 
   async launch(recipe: AppLaunchRecipe, signal?: AbortSignal): Promise<AppLaunchEvidence> {
     throwIfAborted(signal)
@@ -395,6 +446,13 @@ export class WindowsAppLauncher implements AppRecipeLauncher {
 
     switch (recipe.kind) {
       case 'shortcut': {
+        if (extname(recipe.path).toLocaleLowerCase() !== '.lnk') {
+          throw new Error('Atalhos ClickOnce não são executados nesta versão por segurança.')
+        }
+        const targetPath = await this.inspectShortcut(recipe.path)
+        if (!isSafeShortcutTarget(targetPath)) {
+          throw new Error('O atalho aponta para um executor ou destino que não é permitido.')
+        }
         throwIfAborted(signal)
         const failure = await shell.openPath(recipe.path)
         throwIfAborted(signal)
@@ -487,7 +545,7 @@ async function discoverStartMenuShortcuts(
   if (platform !== 'win32') return []
   const files = await collectFiles(roots, 8, MAX_SCAN_ENTRIES)
   return files
-    .filter((path) => ['.lnk', '.appref-ms'].includes(extname(path).toLocaleLowerCase()))
+    .filter((path) => extname(path).toLocaleLowerCase() === '.lnk')
     .map((path) => {
       const displayName = basename(path, extname(path))
       return createEntry(displayName, { kind: 'shortcut', path }, 'start-menu')
@@ -609,23 +667,32 @@ function aliasesFor(normalizedName: string): string[] {
 function isUnsafeExecutableName(name: string, recipe: AppLaunchRecipe): boolean {
   if (recipe.kind !== 'executable') return false
   const stem = normalizeAppName(basename(name, extname(name)))
-  return UNSAFE_EXECUTABLE_STEMS.has(stem)
+  return UNSAFE_LAUNCH_TARGET_STEMS.has(stem)
 }
 
 function bestMatch(
   entries: CatalogEntry[],
   query: string
-): { entry: CatalogEntry; score: number } | null {
-  let best: { entry: CatalogEntry; score: number } | null = null
+): { entry: CatalogEntry; score: number; ambiguous: boolean } | null {
+  let bestScore = -1
+  const bestEntries: CatalogEntry[] = []
   const knownQuery = isKnownApplicationAlias(query)
   for (const entry of entries) {
     const score = knownQuery && !matchesKnownIdentity(entry, query)
       ? 0
       : similarityScore(entry.aliases, query)
       + (entry.source === 'learned' ? 5 : 0)
-    if (!best || score > best.score) best = { entry, score }
+    if (score > bestScore) {
+      bestScore = score
+      bestEntries.length = 0
+      bestEntries.push(entry)
+    } else if (score === bestScore) {
+      bestEntries.push(entry)
+    }
   }
-  return best
+  return bestEntries.length > 0
+    ? { entry: bestEntries[0], score: bestScore, ambiguous: bestEntries.length > 1 }
+    : null
 }
 
 function isKnownApplicationAlias(query: string): boolean {
@@ -733,7 +800,7 @@ async function isRecipeStillTrusted(
   if (recipe.kind === 'protocol') return SAFE_PROTOCOLS.has(recipe.uri)
   const extension = extname(recipe.path).toLocaleLowerCase()
   const extensionAllowed = recipe.kind === 'shortcut'
-    ? ['.lnk', '.appref-ms'].includes(extension)
+    ? extension === '.lnk'
     : extension === '.exe'
   if (!extensionAllowed || !isInsideRoots(recipe.path, trustedRoots)) return false
   try {
@@ -932,6 +999,29 @@ async function findRunningExecutableProcess(path: string): Promise<number | null
   ])
   const processId = Number(output.trim())
   return Number.isInteger(processId) && processId > 0 ? processId : null
+}
+
+async function inspectWindowsShortcut(path: string): Promise<string | null> {
+  const script = [
+    '$shortcut=(New-Object -ComObject WScript.Shell).CreateShortcut($args[0])',
+    'if ($shortcut.TargetPath) { Write-Output $shortcut.TargetPath }'
+  ].join('; ')
+  const output = await captureProcess('powershell.exe', [
+    '-NoProfile',
+    '-NonInteractive',
+    '-WindowStyle',
+    'Hidden',
+    '-Command',
+    script,
+    path
+  ])
+  return output.trim() || null
+}
+
+function isSafeShortcutTarget(value: string | null): boolean {
+  if (!value || !isAbsolute(value) || extname(value).toLocaleLowerCase() !== '.exe') return false
+  const stem = normalizeAppName(basename(value, extname(value)))
+  return Boolean(stem) && !UNSAFE_LAUNCH_TARGET_STEMS.has(stem)
 }
 
 function errorMessage(error: unknown): string {

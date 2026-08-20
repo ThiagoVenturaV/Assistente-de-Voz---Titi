@@ -1,5 +1,6 @@
 export interface ToolDefinition {
   type: 'function'
+  risk?: 'read' | 'reversible' | 'sensitive' | 'destructive'
   execution?: {
     timeoutMs: number
     sideEffect: 'none' | 'external'

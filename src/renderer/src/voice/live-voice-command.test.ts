@@ -6,7 +6,11 @@ describe('resolveLiveVoiceCommand', () => {
     'Para a conversa.',
     'Titi, pare de ouvir!',
     'Encerre o modo ao vivo, por favor.',
-    'chega por hoje'
+    'chega por hoje',
+    'parar',
+    'para',
+    'corta a conversa',
+    'encerrar o vivo'
   ])('encerra o modo ao vivo sem enviar %j ao modelo', (phrase) => {
     expect(resolveLiveVoiceCommand(phrase)).toBe('stop')
   })

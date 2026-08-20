@@ -1,0 +1,203 @@
+name: Release verificável
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  package-and-publish:
+    name: Empacotar, verificar e publicar
+    runs-on: windows-latest
+    timeout-minutes: 90
+    env:
+      CSC_LINK: ${{ secrets.WINDOWS_CSC_LINK }}
+      CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CSC_KEY_PASSWORD }}
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      TITI_WINDOWS_SIGNER_SUBJECT: ${{ vars.WINDOWS_SIGNER_SUBJECT }}
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Baixar o commit exato da tag
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Preparar pnpm
+        uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+        with:
+          version: 10.22.0
+
+      - name: Preparar Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Validar tag e política de assinatura
+        shell: pwsh
+        run: |
+          $version = (Get-Content -LiteralPath package.json -Raw | ConvertFrom-Json).version
+          $expectedTag = "v$version"
+          if ($env:GITHUB_REF_NAME -ne $expectedTag) {
+            throw "A tag $env:GITHUB_REF_NAME não corresponde à versão $version (esperado: $expectedTag)."
+          }
+
+          $hasCertificate = -not [string]::IsNullOrWhiteSpace($env:CSC_LINK)
+          $hasPassword = -not [string]::IsNullOrWhiteSpace($env:CSC_KEY_PASSWORD)
+          if ($hasCertificate -ne $hasPassword) {
+            throw "WINDOWS_CSC_LINK e WINDOWS_CSC_KEY_PASSWORD devem ser configurados juntos."
+          }
+
+          $isPrerelease = $version.Contains('-')
+          if (-not $hasCertificate -and -not $isPrerelease) {
+            throw "Uma versão estável não pode ser publicada sem certificado Authenticode."
+          }
+
+          $signing = if ($hasCertificate) { 'signed' } else { 'unsigned-prerelease' }
+          "TITI_RELEASE_SIGNING=$signing" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Instalar dependências
+        run: pnpm install --frozen-lockfile
+
+      - name: Procurar segredos versionados
+        run: pnpm security:secrets
+
+      - name: Auditar dependências do aplicativo
+        run: pnpm audit --audit-level high
+
+      - name: Instalar e validar a landing page
+        run: |
+          npm ci --prefix landing
+          npm audit --prefix landing --audit-level high
+          npm test --prefix landing
+
+      - name: Preparar Electron sem corrida entre testes
+        run: pnpm setup:electron
+
+      - name: Validar tipos e testes
+        run: |
+          pnpm typecheck
+          pnpm test
+
+      - name: Restaurar cache do runtime de voz
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: runtime/whisper
+          key: whisper-win-v1.9.2-parakeet-tdt-v3-q8-4d64e9e96c2792186d072fde0034df0ad670cf680a2f53069052ead827fd600e
+
+      - name: Preparar runtime de transcrição verificado
+        run: pnpm setup:whisper
+
+      - name: Restaurar cache da voz neural
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: runtime/supertonic/model-extracted
+          key: supertonic-3-int8-82fa96f91c4ef8abaa3a14a3f4153facf88bed821d1f7331cec2700f432c427
+
+      - name: Preparar voz neural local verificada
+        run: pnpm setup:tts
+
+      - name: Gerar instalador NSIS do commit da tag
+        run: pnpm package:win
+
+      - name: Validar metadados e assinatura
+        shell: pwsh
+        run: |
+          pnpm qa:release-sync
+          if ($env:TITI_RELEASE_SIGNING -eq 'signed') {
+            pnpm verify:signatures
+          } else {
+            pnpm verify:signatures -- --allow-unsigned-prerelease
+          }
+
+      - name: Gerar manifesto e checksums dos ativos exatos
+        shell: pwsh
+        run: >-
+          pnpm release:assets --
+          --tag "$env:GITHUB_REF_NAME"
+          --commit "$env:GITHUB_SHA"
+          --signing "$env:TITI_RELEASE_SIGNING"
+
+      - name: Enviar ativos para uma release ainda não pública
+        shell: pwsh
+        run: |
+          $version = (Get-Content -LiteralPath package.json -Raw | ConvertFrom-Json).version
+          $installer = "release/Titi-Setup-$version.exe"
+          $assets = @(
+            $installer,
+            "$installer.blockmap",
+            'release/latest.yml',
+            'release/SHA256SUMS.txt',
+            'release/release-manifest.json'
+          )
+
+          gh release view $env:GITHUB_REF_NAME *> $null
+          if ($LASTEXITCODE -eq 0) {
+            throw "A release $env:GITHUB_REF_NAME já existe; tags publicadas não podem ser reutilizadas."
+          }
+
+          $arguments = @(
+            'release', 'create', $env:GITHUB_REF_NAME,
+            '--verify-tag', '--title', "Titi $version",
+            '--notes-file', 'RELEASE_NOTES.md', '--draft'
+          )
+          if ($version.Contains('-')) {
+            $arguments += '--prerelease'
+          }
+          $arguments += $assets
+          & gh @arguments
+          if ($LASTEXITCODE -ne 0) {
+            throw "Falha ao criar o rascunho da release $env:GITHUB_REF_NAME."
+          }
+
+      - name: Baixar novamente e comparar todos os ativos
+        shell: pwsh
+        run: |
+          $version = (Get-Content -LiteralPath package.json -Raw | ConvertFrom-Json).version
+          $assetNames = @(
+            "Titi-Setup-$version.exe",
+            "Titi-Setup-$version.exe.blockmap",
+            'latest.yml',
+            'SHA256SUMS.txt',
+            'release-manifest.json'
+          )
+          $downloadRoot = Join-Path $env:RUNNER_TEMP "titi-release-$env:GITHUB_RUN_ID"
+          New-Item -ItemType Directory -Path $downloadRoot | Out-Null
+
+          foreach ($assetName in $assetNames) {
+            gh release download $env:GITHUB_REF_NAME --dir $downloadRoot --pattern $assetName
+            if ($LASTEXITCODE -ne 0) {
+              throw "Falha ao baixar novamente $assetName."
+            }
+
+            $localHash = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path 'release' $assetName)).Hash
+            $publishedHash = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $downloadRoot $assetName)).Hash
+            if ($localHash -ne $publishedHash) {
+              throw "O ativo publicado $assetName não corresponde ao arquivo verificado."
+            }
+          }
+
+          Get-Content -LiteralPath release/SHA256SUMS.txt | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+
+      - name: Tornar pública somente a release já conferida
+        shell: pwsh
+        run: |
+          $version = (Get-Content -LiteralPath package.json -Raw | ConvertFrom-Json).version
+          $arguments = @('release', 'edit', $env:GITHUB_REF_NAME, '--draft=false')
+          if ($version.Contains('-')) {
+            $arguments += '--prerelease=true'
+          } else {
+            $arguments += '--prerelease=false'
+          }
+          & gh @arguments
+          if ($LASTEXITCODE -ne 0) {
+            throw "Os ativos foram validados, mas não foi possível publicar a release $env:GITHUB_REF_NAME."
+          }

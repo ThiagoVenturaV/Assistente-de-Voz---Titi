@@ -4,6 +4,7 @@ import {
   validatedChatRequest,
   validatedConversationId,
   validatedPcmAudio,
+  validatedGameStandbyDecisionResponse,
   validatedRequestId,
   validatedSettingsPatch,
   validatedVoiceSynthesisRequest,
@@ -76,6 +77,9 @@ describe('IPC validation', () => {
     expect(validatedPcmAudio(new Float32Array(16_000).buffer).byteLength).toBe(64_000)
     expect(() => validatedPcmAudio(new ArrayBuffer(3))).toThrow('Bloco PCM inválido')
     expect(() => validatedPcmAudio(new Float32Array(16_000 * 16).buffer)).toThrow('15 segundos')
+    expect(() => validatedPcmAudio(new Float32Array([Number.NaN]).buffer)).toThrow('amostras inválidas')
+    expect(() => validatedPcmAudio(new Float32Array([Number.POSITIVE_INFINITY]).buffer)).toThrow('amostras inválidas')
+    expect(() => validatedPcmAudio(new Float32Array([1.1]).buffer)).toThrow('amostras inválidas')
   })
 
   it('valida texto, identificador e velocidade antes da síntese local', () => {
@@ -88,5 +92,17 @@ describe('IPC validation', () => {
     expect(() => validatedVoiceSynthesisRequest('../voz', 'olá', 1)).toThrow()
     expect(() => validatedVoiceSynthesisRequest(requestId, '', 1)).toThrow('Texto de síntese')
     expect(() => validatedVoiceSynthesisRequest(requestId, 'olá', 2)).toThrow('Velocidade')
+  })
+
+  it('valida decisão de standby enviada pelo cliente', () => {
+    const requestId = '5599faba-382a-4b73-849f-47ac40bcca36'
+    expect(validatedGameStandbyDecisionResponse({
+      requestId,
+      decision: 'defer'
+    })).toEqual({ requestId, decision: 'defer' })
+    expect(() => validatedGameStandbyDecisionResponse({
+      requestId,
+      decision: 'other'
+    })).toThrow('Decisão do modo standby inválida')
   })
 })

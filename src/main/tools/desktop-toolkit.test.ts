@@ -44,13 +44,24 @@ describe('DesktopToolkit application discovery', () => {
     const controller = {
       observe: vi.fn(async () => ({
         application: 'brave',
+        processId: 4242,
+        windowHandle: '123456',
         windowTitle: 'YouTube - Brave',
         processName: 'brave',
-        controls: [{ name: 'Aba pessoal', controlType: 'TabItem', automationId: 'tab-1', enabled: true }]
+        controls: [{
+          name: 'Aba pessoal',
+          controlType: 'TabItem',
+          automationId: 'tab-1',
+          runtimeId: '42.1',
+          enabled: true
+        }]
       })),
       invoke: vi.fn(),
       capture: vi.fn(),
-      click: vi.fn()
+      click: vi.fn(),
+      focusWindow: vi.fn(),
+      minimizeWindow: vi.fn(),
+      closeWindow: vi.fn()
     }
     const toolkit = new DesktopToolkit(
       { open },

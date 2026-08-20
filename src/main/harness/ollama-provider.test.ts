@@ -32,14 +32,22 @@ describe('OllamaProvider tool calling', () => {
 
   it('mantém cancelamento ativo enquanto o corpo JSON ainda está pendente', async () => {
     let bodyStarted = false
-    vi.stubGlobal('fetch', vi.fn((_input: unknown, init?: RequestInit) => Promise.resolve({
-      ok: true,
-      status: 200,
-      json: () => new Promise((_resolve, reject) => {
-        bodyStarted = true
-        init?.signal?.addEventListener('abort', () => reject(init.signal?.reason), { once: true })
+    vi.stubGlobal('fetch', vi.fn((_input: unknown, init?: RequestInit) => {
+      const body = new ReadableStream<Uint8Array>({
+        start(streamController) {
+          bodyStarted = true
+          init?.signal?.addEventListener(
+            'abort',
+            () => streamController.error(init.signal?.reason),
+            { once: true }
+          )
+        }
       })
-    } as Response)))
+      return Promise.resolve(new Response(body, {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      }))
+    }))
     const controller = new AbortController()
     const provider = new OllamaProvider(fakeTools(vi.fn()))
 
@@ -191,6 +199,73 @@ describe('OllamaProvider tool calling', () => {
     }
     expect(forcedBody.tool_choice).toBe('required')
     expect(forcedBody.messages.at(-1)?.content).toContain('AUDITORIA INTERNA')
+  })
+
+  it('recupera uma correção natural na segunda rodada mesmo quando o modelo não retorna chamada', async () => {
+    const correctionMessages: ChatMessage[] = [
+      {
+        id: 'open-chrome',
+        role: 'user',
+        content: 'Abra o Chrome.',
+        createdAt: new Date(0).toISOString()
+      },
+      {
+        id: 'chrome-opened',
+        role: 'assistant',
+        content: 'Chrome aberto.',
+        createdAt: new Date(0).toISOString()
+      },
+      {
+        id: 'correct-to-brave',
+        role: 'user',
+        content: 'Na verdade, abre o Brave.',
+        createdAt: new Date(0).toISOString()
+      }
+    ]
+    const execute = vi.fn(async () => ({
+      ok: true,
+      status: 'confirmed' as const,
+      message: 'Brave aberto.'
+    }))
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({
+        message: {
+          role: 'assistant',
+          content: 'Vou fazer isso.'
+        }
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        message: {
+          role: 'assistant',
+          content: JSON.stringify({
+            decision: 'needs_tool',
+            confidence: 0.99,
+            reason: 'Correção de ação no turno anterior.'
+          })
+        }
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        choices: [{
+          message: {
+            role: 'assistant',
+            content: '',
+            tool_calls: []
+          }
+        }]
+      }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const provider = new OllamaProvider(fakeTools(execute))
+    const answer = await provider.complete(correctionMessages, DEFAULT_SETTINGS)
+
+    expect(answer).toBe('Brave aberto.')
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    expect(execute).toHaveBeenCalledOnce()
+    expect(execute).toHaveBeenCalledWith(
+      'open_application',
+      { application: 'Brave' },
+      expect.objectContaining({ round: 2 })
+    )
   })
 
   it('recovers a tool call when the first native model response is completely empty', async () => {

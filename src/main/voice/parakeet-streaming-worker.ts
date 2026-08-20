@@ -142,7 +142,8 @@ let state = initState(context)
 if (!state) throw new Error('Não foi possível criar o estado persistente do Parakeet.')
 
 let activeSessionId: string | null = null
-let chunks: Float32Array[] = []
+const MAX_STREAM_SAMPLES = 16_000 * 120
+const accumulatedSamples = new Float32Array(MAX_STREAM_SAMPLES)
 let sampleCount = 0
 let currentPass = ''
 let lastText = ''
@@ -175,7 +176,6 @@ port.on('message', (command: WorkerCommand) => {
     if (command.sessionId !== activeSessionId) return
     if (command.type === 'cancel') {
       activeSessionId = null
-      chunks = []
       sampleCount = 0
       return
     }
@@ -186,18 +186,27 @@ port.on('message', (command: WorkerCommand) => {
         text: lastText,
         processingTimeMs: accumulatedProcessingTimeMs
       })
+      activeSessionId = null
+      sampleCount = 0
       return
     }
 
     const samples = new Float32Array(command.samples)
     if (samples.length === 0) return
-    chunks.push(samples)
+    if (sampleCount + samples.length > MAX_STREAM_SAMPLES) {
+      throw new Error('A sessão incremental atingiu o limite de 120 segundos.')
+    }
+    for (const sample of samples) {
+      if (!Number.isFinite(sample) || sample < -1 || sample > 1) {
+        throw new Error('O bloco incremental contém amostras inválidas.')
+      }
+    }
+    accumulatedSamples.set(samples, sampleCount)
     sampleCount += samples.length
-    const accumulated = joinChunks(chunks, sampleCount)
     currentPass = ''
     firstToken = true
     const startedAt = performance.now()
-    const result = transcribeAccumulated(context, state, fullParams, accumulated, accumulated.length) as number
+    const result = transcribeAccumulated(context, state, fullParams, accumulatedSamples, sampleCount) as number
     const processingTimeMs = Math.round(performance.now() - startedAt)
     accumulatedProcessingTimeMs += processingTimeMs
     if (result !== 0) throw new Error(`Parakeet falhou ao revisar o áudio acumulado (${result}).`)
@@ -210,6 +219,8 @@ port.on('message', (command: WorkerCommand) => {
       processingTimeMs
     })
   } catch (error) {
+    activeSessionId = null
+    sampleCount = 0
     port.postMessage({
       type: 'error',
       sessionId: command.sessionId,
@@ -225,22 +236,11 @@ function resetSession(sessionId: string): void {
   state = initState(context)
   if (!state) throw new Error('Não foi possível reiniciar o estado persistente do Parakeet.')
   activeSessionId = sessionId
-  chunks = []
   sampleCount = 0
   currentPass = ''
   lastText = ''
   firstToken = true
   accumulatedProcessingTimeMs = 0
-}
-
-function joinChunks(values: Float32Array[], length: number): Float32Array {
-  const joined = new Float32Array(length)
-  let offset = 0
-  for (const value of values) {
-    joined.set(value, offset)
-    offset += value.length
-  }
-  return joined
 }
 
 process.once('exit', () => {

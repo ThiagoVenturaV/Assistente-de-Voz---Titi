@@ -4,18 +4,32 @@ import {
   type UiAutomationProcessRunner
 } from './windows-ui-automation'
 
+const windowIdentity = {
+  processId: 4242,
+  windowHandle: '123456',
+  windowTitle: 'Spotify Premium',
+  processName: 'Spotify'
+}
+
+const invocationIdentity = {
+  window: windowIdentity,
+  control: { automationId: 'play-button', runtimeId: '42.1' }
+}
+
+const visualIdentity = { ...windowIdentity, width: 1600, height: 900 }
+
 describe('WindowsUiAutomationController', () => {
   it('passes UI values as separate PowerShell arguments and validates the observation', async () => {
     const runner = vi.fn<UiAutomationProcessRunner>(async () => ({
       exitCode: 0,
       stdout: JSON.stringify({
         application: 'Spotify',
-        windowTitle: 'Spotify Premium',
-        processName: 'Spotify',
+        ...windowIdentity,
         controls: [{
           name: 'Play',
           controlType: 'Button',
           automationId: 'play-button',
+          runtimeId: '42.1',
           enabled: true
         }]
       }),
@@ -40,21 +54,28 @@ describe('WindowsUiAutomationController', () => {
       exitCode: 0,
       stdout: JSON.stringify({
         application: 'Spotify',
-        windowTitle: 'Spotify',
-        processName: 'Spotify',
+        ...windowIdentity,
         invoked: true,
-        control: { name: 'Play', controlType: 'Button', automationId: 'play', enabled: true }
+        control: {
+          name: 'Play',
+          controlType: 'Button',
+          automationId: 'play-button',
+          runtimeId: '42.1',
+          enabled: true
+        }
       }),
       stderr: ''
     }))
     const controller = new WindowsUiAutomationController('ui.ps1', runner)
 
-    await expect(controller.invoke('Spotify', 'Play', 'Button')).resolves.toMatchObject({
+    await expect(controller.invoke('Spotify', 'Play', 'Button', invocationIdentity)).resolves.toMatchObject({
       invoked: true,
       control: { name: 'Play' }
     })
     expect(runner.mock.calls[0][0]).toEqual(expect.arrayContaining([
-      '-Target', 'Play', '-ControlType', 'Button'
+      '-Target', 'Play', '-ControlType', 'Button',
+      '-ExpectedProcessId', '4242', '-ExpectedWindowHandle', '123456',
+      '-ExpectedAutomationId', 'play-button', '-ExpectedRuntimeId', '42.1'
     ]))
   })
 
@@ -72,6 +93,67 @@ describe('WindowsUiAutomationController', () => {
     expect(runner).toHaveBeenCalledTimes(1)
   })
 
+  it('controls janela por foco, minimizar e fechar com validação de título opcional', async () => {
+    const runner = vi.fn<UiAutomationProcessRunner>()
+      .mockResolvedValueOnce({
+        exitCode: 0,
+        stdout: JSON.stringify({
+          application: 'Spotify',
+          ...windowIdentity,
+          action: 'focus'
+        }),
+        stderr: ''
+      })
+      .mockResolvedValueOnce({
+        exitCode: 0,
+        stdout: JSON.stringify({
+          application: 'Spotify',
+          ...windowIdentity,
+          action: 'minimize'
+        }),
+        stderr: ''
+      })
+      .mockResolvedValueOnce({
+        exitCode: 0,
+        stdout: JSON.stringify({
+          application: 'Spotify',
+          ...windowIdentity,
+          action: 'close'
+        }),
+        stderr: ''
+      })
+    const controller = new WindowsUiAutomationController('ui.ps1', runner)
+
+    await expect(controller.focusWindow('Spotify', 'Premium')).resolves.toMatchObject({
+      action: 'focus',
+      windowTitle: 'Spotify Premium'
+    })
+    await expect(controller.minimizeWindow('Spotify')).resolves.toMatchObject({
+      action: 'minimize'
+    })
+    await expect(controller.closeWindow('Spotify', 'Spotify Premium')).resolves.toMatchObject({
+      action: 'close'
+    })
+
+    expect(runner.mock.calls[0][0]).toEqual(expect.arrayContaining([
+      '-Operation', 'focus', '-Application', 'Spotify', '-WindowTitle', 'Premium'
+    ]))
+    expect(runner.mock.calls[1][0]).toEqual(expect.arrayContaining([
+      '-Operation', 'minimize', '-Application', 'Spotify'
+    ]))
+    expect(runner.mock.calls[2][0]).toEqual(expect.arrayContaining([
+      '-Operation', 'close', '-Application', 'Spotify', '-WindowTitle', 'Spotify Premium'
+    ]))
+  })
+
+  it('recusa títulos de janela não confiáveis antes de executar comando', async () => {
+    const runner = vi.fn<UiAutomationProcessRunner>()
+    const controller = new WindowsUiAutomationController('ui.ps1', runner)
+
+    await expect(controller.focusWindow('Spotify', 'Janela\nInjetada')).rejects.toThrow('Valor inválido para windowTitle')
+    expect(runner).not.toHaveBeenCalled()
+  })
+
   it('surfaces a bounded PowerShell failure without accepting stdout as success', async () => {
     const runner = vi.fn<UiAutomationProcessRunner>(async () => ({
       exitCode: 1,
@@ -80,7 +162,7 @@ describe('WindowsUiAutomationController', () => {
     }))
     const controller = new WindowsUiAutomationController('ui.ps1', runner)
 
-    await expect(controller.invoke('Spotify', 'Play', 'Button'))
+    await expect(controller.invoke('Spotify', 'Play', 'Button', invocationIdentity))
       .rejects.toThrow('controle ambíguo')
   })
 
@@ -90,8 +172,7 @@ describe('WindowsUiAutomationController', () => {
         exitCode: 0,
         stdout: JSON.stringify({
           application: 'Spotify',
-          windowTitle: 'Spotify Premium',
-          processName: 'Spotify',
+          ...windowIdentity,
           width: 1600,
           height: 900,
           imageBase64: '/9j/2Q==',
@@ -103,8 +184,7 @@ describe('WindowsUiAutomationController', () => {
         exitCode: 0,
         stdout: JSON.stringify({
           application: 'Spotify',
-          windowTitle: 'Spotify Premium',
-          processName: 'Spotify',
+          ...windowIdentity,
           clicked: true,
           x: 800,
           y: 840
@@ -119,13 +199,15 @@ describe('WindowsUiAutomationController', () => {
       imageBase64: '/9j/2Q==',
       focusImageBase64: '/9j/4A=='
     })
-    await expect(controller.click('Spotify', 800, 840)).resolves.toMatchObject({
+    await expect(controller.click('Spotify', 800, 840, visualIdentity)).resolves.toMatchObject({
       clicked: true,
       x: 800,
       y: 840
     })
     expect(runner.mock.calls[1][0]).toEqual(expect.arrayContaining([
-      '-Operation', 'click', '-X', '800', '-Y', '840'
+      '-Operation', 'click', '-X', '800', '-Y', '840',
+      '-ExpectedProcessId', '4242', '-ExpectedWindowHandle', '123456',
+      '-ExpectedWidth', '1600', '-ExpectedHeight', '900'
     ]))
   })
 

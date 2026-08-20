@@ -78,6 +78,22 @@ describe('WindowsAppCatalog', () => {
     )
   })
 
+  it('refuses to choose silently between equally matching applications', async () => {
+    const catalog = createCatalog({
+      startApps: [
+        { name: 'Nebula Editor', appId: 'Nebula.EditorStable!App' },
+        { name: 'Nebula Editor', appId: 'Nebula.EditorPreview!App' }
+      ]
+    })
+
+    await expect(catalog.open('Nebula Editor')).resolves.toMatchObject({
+      ok: false,
+      status: 'failed',
+      message: expect.stringMatching(/mais de um aplicativo/i)
+    })
+    expect(launch).not.toHaveBeenCalled()
+  })
+
   it.each<[
     string,
     string,

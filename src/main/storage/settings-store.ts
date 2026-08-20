@@ -82,7 +82,6 @@ function normalizeStoredSettings(value: unknown): TitiSettings {
     }
   }
 
-  result.confirmSensitiveActions = true
   return result
 }
 
@@ -93,8 +92,6 @@ function mergeSettings(
   return {
     ...current,
     ...patch,
-    // As proteções críticas não podem ser desativadas por configuração.
-    confirmSensitiveActions: true,
     provider: {
       ...current.provider,
       ...(patch.provider ?? {})

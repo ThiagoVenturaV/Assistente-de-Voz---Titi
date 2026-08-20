@@ -386,11 +386,12 @@ async function askModelWithRequiredToolsMessages(messages) {
       messages: [
         {
           role: 'system',
-          content: 'Interprete o pedido pela linguagem natural e pelo contexto anterior e chame todas as ferramentas necessárias. Quando o usuário corrigir ou substituir o pedido anterior, trate o turno mais recente como uma nova ação: use a ferramenta com o alvo corrigido e não repita o alvo anterior. Não narre nem prometa; uma ou mais chamadas são obrigatórias. No Spotify, action=open apenas abre sem reproduzir; se o pedido disser tocar, reproduzir ou dar Play, use action=play, que já abre o aplicativo. Nunca combine spotify com open_application para o mesmo pedido. Para apenas abrir um navegador sem página nem busca, use open_application; open_web exige url ou query. Para operar uma interface sem ferramenta específica, use computer_observe antes de computer_action.'
+      content: 'Interprete o pedido pela linguagem natural e pelo contexto anterior e chame todas as ferramentas necessárias. Quando o usuário corrigir ou substituir o pedido anterior, trate o turno mais recente como uma nova ação: use a ferramenta com o alvo corrigido e não repita o alvo anterior. Não narre nem prometa; uma ou mais chamadas são obrigatórias. No Spotify, action=open apenas abre sem reproduzir; se o pedido disser tocar, reproduzir ou dar Play, use action=play, que já abre o aplicativo. Nunca combine spotify com open_application para o mesmo pedido. Para apenas abrir um navegador sem página nem busca, use open_application; open_web exige url ou query. Para operar uma interface sem ferramenta específica, use computer_observe antes de computer_action. Modo obrigatório: use somente tool_calls e devolva content vazio.'
         },
         ...messages
       ],
       tools,
+      parallel_tool_calls: false,
       tool_choice: 'required',
       temperature: 0
     }),

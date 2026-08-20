@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type {
   CuratedMemorySummary,
+  DiagnosticSummary,
   RuntimeStatus,
   TitiSettings,
   ToolActionLogEntry
@@ -15,6 +16,7 @@ import {
   ShieldIcon
 } from './icons'
 import { MicrophoneSettings } from './MicrophoneSettings'
+import { PUBLIC_PRIVACY_URL } from '../product-links'
 
 type SettingsSection =
   | 'general'
@@ -69,11 +71,15 @@ export function SettingsPanel({
   const [privacyNotice, setPrivacyNotice] = useState<string | null>(null)
   const [activity, setActivity] = useState<ToolActionLogEntry[]>([])
   const [loadingActivity, setLoadingActivity] = useState(false)
+  const [diagnosticSummary, setDiagnosticSummary] = useState<DiagnosticSummary | null>(null)
+  const [diagnosticNotice, setDiagnosticNotice] = useState<string | null>(null)
+  const [exportingDiagnostic, setExportingDiagnostic] = useState(false)
   const [memory, setMemory] = useState<CuratedMemorySummary[]>([])
   const [loadingMemory, setLoadingMemory] = useState(false)
   const [gameExecutables, setGameExecutables] = useState(
     settings.games.executables.join(', ')
   )
+  const panelRef = useRef<HTMLElement>(null)
 
   useEffect(() => {
     setDraft(settings)
@@ -82,8 +88,12 @@ export function SettingsPanel({
   useEffect(() => {
     if (section !== 'activity') return
     setLoadingActivity(true)
-    void window.titi.activity.list()
-      .then(setActivity)
+    void Promise.all([window.titi.activity.list(), window.titi.diagnostics.summary()])
+      .then(([entries, summary]) => {
+        setActivity(entries)
+        setDiagnosticSummary(summary)
+      })
+      .catch(() => setDiagnosticNotice('Não foi possível carregar o resumo de diagnóstico.'))
       .finally(() => setLoadingActivity(false))
   }, [section])
   useEffect(() => {
@@ -115,9 +125,58 @@ export function SettingsPanel({
     }
   }
 
+  useEffect(() => {
+    const panel = panelRef.current
+    if (!panel) return
+    const focusHandle = window.requestAnimationFrame(() => {
+      const focusables = getFocusableElements(panel)
+      if (focusables.length > 0) {
+        focusables[0].focus()
+      } else {
+        panel.focus()
+      }
+    })
+    return () => window.cancelAnimationFrame(focusHandle)
+  }, [])
+
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-      <section className="settings-panel" role="dialog" aria-modal="true" aria-label="Configurações">
+      <section
+        ref={panelRef}
+        className="settings-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Configurações"
+        aria-labelledby="settings-panel-title"
+        tabIndex={-1}
+        onKeyDown={(event) => {
+          const panel = panelRef.current
+          if (!panel) return
+
+          if (event.key === 'Escape') {
+            event.preventDefault()
+            onClose()
+            return
+          }
+
+          if (event.key !== 'Tab') return
+
+          const focusables = getFocusableElements(panel)
+          if (!focusables.length) return
+
+          const first = focusables[0]
+          const last = focusables[focusables.length - 1]
+          const current = focusables.findIndex((candidate) => candidate === document.activeElement)
+
+          if (event.shiftKey && current <= 0) {
+            event.preventDefault()
+            last.focus()
+          } else if (!event.shiftKey && (current === -1 || current === focusables.length - 1)) {
+            event.preventDefault()
+            first.focus()
+          }
+        }}
+      >
         <aside className="settings-nav">
           <h2>Configurações</h2>
           {sections.map(({ id, label, icon: Icon }) => (
@@ -131,9 +190,9 @@ export function SettingsPanel({
           <header>
             <div>
               <p className="eyebrow">TITI DESKTOP</p>
-              <h2>{sections.find((item) => item.id === section)?.label}</h2>
+              <h2 id="settings-panel-title">{sections.find((item) => item.id === section)?.label}</h2>
             </div>
-            <button className="icon-button" title="Fechar" onClick={onClose}><CloseIcon /></button>
+            <button className="icon-button" title="Fechar" aria-label="Fechar configurações" onClick={onClose}><CloseIcon /></button>
           </header>
 
           <div className="settings-scroll">
@@ -313,6 +372,7 @@ export function SettingsPanel({
                   }}
                 />
                 <div className="privacy-actions">
+                  <a className="secondary-button privacy-link" href={PUBLIC_PRIVACY_URL} target="_blank" rel="noreferrer">Ler política de privacidade</a>
                   <button
                     className="secondary-button"
                     onClick={() => void window.titi.conversations.export().then((path) => {
@@ -391,18 +451,65 @@ export function SettingsPanel({
             )}
 
             {section === 'activity' && (
-              <SettingsGroup title="Ações no computador" description="Registro local das ferramentas usadas pelo Titi.">
+              <SettingsGroup title="Diagnóstico e ações" description="Resumo local para suporte e registro das ferramentas usadas pelo Titi.">
+                {diagnosticSummary && (
+                  <div className="diagnostic-summary">
+                    <DiagnosticItem label="Versão" value={diagnosticSummary.appVersion} />
+                    <DiagnosticItem
+                      label="Sistema"
+                      value={`${diagnosticSummary.system.arch} · Windows ${diagnosticSummary.system.release}`}
+                    />
+                    <DiagnosticItem
+                      label="Hardware"
+                      value={`${diagnosticSummary.system.logicalCpuCount} CPUs · ${formatBytes(diagnosticSummary.system.totalMemoryBytes)} RAM · ${diagnosticSummary.system.displayCount} tela(s)`}
+                    />
+                    <DiagnosticItem
+                      label="IA local"
+                      value={`${diagnosticSummary.runtime.model} · ${diagnosticHealthLabel(diagnosticSummary.runtime.health)}`}
+                    />
+                    <DiagnosticItem
+                      label="Áudio"
+                      value={diagnosticSummary.audio.enabled
+                        ? `${diagnosticSummary.audio.liveMode ? 'Ao vivo' : 'Apertar para falar'} · ${diagnosticSummary.audio.inputDeviceSelected ? 'microfone escolhido' : 'microfone padrão'}`
+                        : 'Desativado'}
+                    />
+                    <DiagnosticItem
+                      label="Espaço livre"
+                      value={diagnosticSummary.storage.freeBytes === null
+                        ? 'Não disponível'
+                        : formatBytes(diagnosticSummary.storage.freeBytes)}
+                    />
+                  </div>
+                )}
+                <p className="diagnostic-privacy">
+                  O relatório é criado só quando você pedir. Não inclui conversas, caminhos, argumentos de ferramentas, tokens nem identificadores de dispositivos e nunca é enviado automaticamente.
+                </p>
                 <div className="activity-toolbar">
                   <span>{activity.length} {activity.length === 1 ? 'ação registrada' : 'ações registradas'}</span>
-                  <button
-                    className="secondary-button"
-                    disabled={!activity.length}
-                    onClick={() => {
-                      if (!window.confirm('Apagar todo o histórico local de ações do Titi?')) return
-                      void window.titi.activity.clear().then(() => setActivity([]))
-                    }}
-                  >Limpar histórico</button>
+                  <div className="activity-toolbar-actions">
+                    <button
+                      className="secondary-button"
+                      disabled={exportingDiagnostic}
+                      onClick={() => {
+                        setExportingDiagnostic(true)
+                        setDiagnosticNotice(null)
+                        void window.titi.diagnostics.export()
+                          .then((path) => setDiagnosticNotice(path ? 'Diagnóstico seguro exportado.' : null))
+                          .catch(() => setDiagnosticNotice('Não foi possível exportar o diagnóstico.'))
+                          .finally(() => setExportingDiagnostic(false))
+                      }}
+                    >{exportingDiagnostic ? 'Exportando…' : 'Exportar diagnóstico'}</button>
+                    <button
+                      className="secondary-button"
+                      disabled={!activity.length}
+                      onClick={() => {
+                        if (!window.confirm('Apagar todo o histórico local de ações do Titi?')) return
+                        void window.titi.activity.clear().then(() => setActivity([]))
+                      }}
+                    >Limpar histórico</button>
+                  </div>
                 </div>
+                {diagnosticNotice && <p className="diagnostic-notice" role="status">{diagnosticNotice}</p>}
                 <div className="activity-list">
                   {loadingActivity ? <p className="activity-empty">Carregando atividade…</p> : activity.length ? activity.map((entry) => (
                     <article className={activityClass(entry)} key={entry.id}>
@@ -538,4 +645,39 @@ function parseExecutableList(value: string): string[] {
       .filter(Boolean)
       .map((item) => [item.toLocaleLowerCase(), item])
   ).values()]
+}
+
+function DiagnosticItem({ label, value }: { label: string; value: string }): React.JSX.Element {
+  return <div><span>{label}</span><strong>{value}</strong></div>
+}
+
+function formatBytes(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes < 0) return 'Não disponível'
+  const gibibytes = bytes / (1024 ** 3)
+  return `${new Intl.NumberFormat('pt-BR', { maximumFractionDigits: gibibytes < 10 ? 1 : 0 }).format(gibibytes)} GiB`
+}
+
+function diagnosticHealthLabel(health: DiagnosticSummary['runtime']['health']): string {
+  return ({
+    ready: 'pronta',
+    'engine-missing': 'Ollama ausente',
+    'engine-stopped': 'Ollama parado',
+    'model-missing': 'modelo ausente',
+    unavailable: 'não disponível'
+  })[health]
+}
+
+function getFocusableElements(root: HTMLElement): HTMLElement[] {
+  const elements = Array.from(root.querySelectorAll<HTMLElement>(
+    'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"]), [contenteditable="true"]'
+  ))
+
+  return elements.filter((candidate) => {
+    const style = window.getComputedStyle(candidate)
+    return (
+      style.display !== 'none'
+      && style.visibility !== 'hidden'
+      && !candidate.getAttribute('aria-hidden')
+    )
+  })
 }

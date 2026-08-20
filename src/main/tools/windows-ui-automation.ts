@@ -4,38 +4,53 @@ export interface UiControlSnapshot {
   name: string
   controlType: string
   automationId: string
+  runtimeId: string
   enabled: boolean
 }
 
-export interface ComputerObservation {
-  application: string
+export interface UiWindowIdentity {
+  processId: number
+  windowHandle: string
   windowTitle: string
   processName: string
+}
+
+export interface UiInvocationIdentity {
+  window: UiWindowIdentity
+  control: Pick<UiControlSnapshot, 'automationId' | 'runtimeId'>
+}
+
+export interface UiVisualCaptureIdentity extends UiWindowIdentity {
+  width: number
+  height: number
+}
+
+export interface ComputerObservation extends UiWindowIdentity {
+  application: string
   controls: UiControlSnapshot[]
 }
 
-export interface ComputerInvocation {
+export interface ComputerInvocation extends UiWindowIdentity {
   application: string
-  windowTitle: string
-  processName: string
   invoked: true
   control: UiControlSnapshot
 }
 
-export interface ComputerVisualCapture {
+export interface ComputerWindowActionResult extends UiWindowIdentity {
   application: string
-  windowTitle: string
-  processName: string
+  action: 'focus' | 'minimize' | 'close'
+}
+
+export interface ComputerVisualCapture extends UiWindowIdentity {
+  application: string
   width: number
   height: number
   imageBase64: string
   focusImageBase64?: string
 }
 
-export interface ComputerVisualClick {
+export interface ComputerVisualClick extends UiWindowIdentity {
   application: string
-  windowTitle: string
-  processName: string
   clicked: true
   x: number
   y: number
@@ -64,11 +79,21 @@ export interface ComputerController {
     application: string,
     target: string,
     controlType?: string,
+    expected?: UiInvocationIdentity,
     signal?: AbortSignal
   ): Promise<ComputerInvocation>
   capture(application: string, signal?: AbortSignal): Promise<ComputerVisualCapture>
   captureDesktop?(signal?: AbortSignal): Promise<ComputerDesktopCapture>
-  click(application: string, x: number, y: number, signal?: AbortSignal): Promise<ComputerVisualClick>
+  click(
+    application: string,
+    x: number,
+    y: number,
+    expected?: UiVisualCaptureIdentity,
+    signal?: AbortSignal
+  ): Promise<ComputerVisualClick>
+  focusWindow(application: string, windowTitle?: string, signal?: AbortSignal): Promise<ComputerWindowActionResult>
+  minimizeWindow(application: string, windowTitle?: string, signal?: AbortSignal): Promise<ComputerWindowActionResult>
+  closeWindow(application: string, windowTitle?: string, signal?: AbortSignal): Promise<ComputerWindowActionResult>
 }
 
 export interface UiAutomationProcessResult {
@@ -84,6 +109,7 @@ export type UiAutomationProcessRunner = (
 
 const MAX_APPLICATION_LENGTH = 80
 const MAX_TARGET_LENGTH = 120
+const MAX_WINDOW_TITLE_LENGTH = 160
 const ALLOWED_CONTROL_TYPES = new Set([
   'Button',
   'CheckBox',
@@ -121,6 +147,7 @@ export class WindowsUiAutomationController implements ComputerController {
     application: string,
     target: string,
     controlType?: string,
+    expected?: UiInvocationIdentity,
     signal?: AbortSignal
   ): Promise<ComputerInvocation> {
     const safeApplication = requiredUiLabel(application, 'application', MAX_APPLICATION_LENGTH)
@@ -145,6 +172,16 @@ export class WindowsUiAutomationController implements ComputerController {
       }
       args.push('-ControlType', controlType)
     }
+    if (!expected) {
+      throw new Error('A ação exige a identidade da janela e do controle observados.')
+    }
+    appendExpectedWindowIdentity(args, expected.window)
+    args.push(
+      '-ExpectedAutomationId',
+      safeIdentityText(expected.control.automationId, 'automationId', 120, true),
+      '-ExpectedRuntimeId',
+      requiredRuntimeId(expected.control.runtimeId)
+    )
     const result = await this.runner(args, signal)
     return parseInvocation(result)
   }
@@ -164,6 +201,81 @@ export class WindowsUiAutomationController implements ComputerController {
       safeApplication
     ], signal)
     return parseCapture(result)
+  }
+
+  async focusWindow(
+    application: string,
+    windowTitle?: string,
+    signal?: AbortSignal
+  ): Promise<ComputerWindowActionResult> {
+    const safeApplication = requiredUiLabel(application, 'application', MAX_APPLICATION_LENGTH)
+    const args = [
+      '-NoProfile',
+      '-NonInteractive',
+      '-ExecutionPolicy',
+      'Bypass',
+      '-File',
+      this.scriptPath,
+      '-Operation',
+      'focus',
+      '-Application',
+      safeApplication
+    ]
+    if (windowTitle) {
+      args.push('-WindowTitle', requiredUiLabel(windowTitle, 'windowTitle', MAX_WINDOW_TITLE_LENGTH))
+    }
+    const result = await this.runner(args, signal)
+    return parseWindowAction(result, 'focus')
+  }
+
+  async minimizeWindow(
+    application: string,
+    windowTitle?: string,
+    signal?: AbortSignal
+  ): Promise<ComputerWindowActionResult> {
+    const safeApplication = requiredUiLabel(application, 'application', MAX_APPLICATION_LENGTH)
+    const args = [
+      '-NoProfile',
+      '-NonInteractive',
+      '-ExecutionPolicy',
+      'Bypass',
+      '-File',
+      this.scriptPath,
+      '-Operation',
+      'minimize',
+      '-Application',
+      safeApplication
+    ]
+    if (windowTitle) {
+      args.push('-WindowTitle', requiredUiLabel(windowTitle, 'windowTitle', MAX_WINDOW_TITLE_LENGTH))
+    }
+    const result = await this.runner(args, signal)
+    return parseWindowAction(result, 'minimize')
+  }
+
+  async closeWindow(
+    application: string,
+    windowTitle?: string,
+    signal?: AbortSignal
+  ): Promise<ComputerWindowActionResult> {
+    const safeApplication = requiredUiLabel(application, 'application', MAX_APPLICATION_LENGTH)
+    const args = [
+      '-NoProfile',
+      '-NonInteractive',
+      '-ExecutionPolicy',
+      'Bypass',
+      '-File',
+      this.scriptPath,
+      '-Operation',
+      'close',
+      '-Application',
+      safeApplication
+    ]
+    if (windowTitle) {
+      args.push('-WindowTitle', requiredUiLabel(windowTitle, 'windowTitle', MAX_WINDOW_TITLE_LENGTH))
+    }
+    const result = await this.runner(args, signal)
+    return parseWindowAction(result, 'close')
   }
 
   async captureDesktop(signal?: AbortSignal): Promise<ComputerDesktopCapture> {
@@ -186,13 +298,15 @@ export class WindowsUiAutomationController implements ComputerController {
     application: string,
     x: number,
     y: number,
+    expected?: UiVisualCaptureIdentity,
     signal?: AbortSignal
   ): Promise<ComputerVisualClick> {
     const safeApplication = requiredUiLabel(application, 'application', MAX_APPLICATION_LENGTH)
     if (!Number.isInteger(x) || !Number.isInteger(y) || x < 0 || y < 0) {
       throw new Error('As coordenadas do clique são inválidas.')
     }
-    const result = await this.runner([
+    if (!expected) throw new Error('O clique exige a identidade da janela capturada.')
+    const args = [
       '-NoProfile',
       '-NonInteractive',
       '-ExecutionPolicy',
@@ -207,7 +321,18 @@ export class WindowsUiAutomationController implements ComputerController {
       String(x),
       '-Y',
       String(y)
-    ], signal)
+    ]
+    appendExpectedWindowIdentity(args, expected)
+    if (
+      !Number.isInteger(expected.width)
+      || !Number.isInteger(expected.height)
+      || expected.width < 100
+      || expected.height < 100
+      || expected.width > 10_000
+      || expected.height > 10_000
+    ) throw new Error('As dimensões da janela capturada são inválidas.')
+    args.push('-ExpectedWidth', String(expected.width), '-ExpectedHeight', String(expected.height))
+    const result = await this.runner(args, signal)
     return parseClick(result)
   }
 }
@@ -223,8 +348,7 @@ function parseObservation(result: UiAutomationProcessResult): ComputerObservatio
 
   return {
     application: safeOutput(value.application, MAX_APPLICATION_LENGTH),
-    windowTitle: safeOutput(value.windowTitle, 160),
-    processName: safeOutput(value.processName, 100),
+    ...parseWindowIdentity(value),
     controls: value.controls.slice(0, 120).map(parseControl)
   }
 }
@@ -240,8 +364,7 @@ function parseInvocation(result: UiAutomationProcessResult): ComputerInvocation 
 
   return {
     application: safeOutput(value.application, MAX_APPLICATION_LENGTH),
-    windowTitle: safeOutput(value.windowTitle, 160),
-    processName: safeOutput(value.processName, 100),
+    ...parseWindowIdentity(value),
     invoked: true,
     control: parseControl(value.control)
   }
@@ -264,12 +387,31 @@ function parseCapture(result: UiAutomationProcessResult): ComputerVisualCapture 
   const focusImageBase64 = optionalBase64(value.focusImageBase64, 1_000_000)
   return {
     application: safeOutput(value.application, MAX_APPLICATION_LENGTH),
-    windowTitle: safeOutput(value.windowTitle, 160),
-    processName: safeOutput(value.processName, 100),
+    ...parseWindowIdentity(value),
     width,
     height,
     imageBase64: value.imageBase64,
     ...(focusImageBase64 ? { focusImageBase64 } : {})
+  }
+}
+
+function parseWindowAction(
+  result: UiAutomationProcessResult,
+  action: ComputerWindowActionResult['action']
+): ComputerWindowActionResult {
+  const value = parseProcessJson(result)
+  if (
+    value.action !== action
+    || typeof value.application !== 'string'
+    || typeof value.windowTitle !== 'string'
+    || typeof value.processName !== 'string'
+  ) {
+    throw new Error('A automação de janelas retornou dados inválidos.')
+  }
+  return {
+    application: safeOutput(value.application, MAX_APPLICATION_LENGTH),
+    ...parseWindowIdentity(value),
+    action: value.action as ComputerWindowActionResult['action']
   }
 }
 
@@ -287,8 +429,7 @@ function parseClick(result: UiAutomationProcessResult): ComputerVisualClick {
   ) throw new Error('A automação visual não confirmou o clique.')
   return {
     application: safeOutput(value.application, MAX_APPLICATION_LENGTH),
-    windowTitle: safeOutput(value.windowTitle, 160),
-    processName: safeOutput(value.processName, 100),
+    ...parseWindowIdentity(value),
     clicked: true,
     x,
     y
@@ -347,8 +488,66 @@ function parseControl(value: unknown): UiControlSnapshot {
     name: safeOutput(value.name, MAX_TARGET_LENGTH),
     controlType: safeOutput(value.controlType, 40),
     automationId: typeof value.automationId === 'string' ? safeOutput(value.automationId, 120) : '',
+    runtimeId: requiredRuntimeId(value.runtimeId),
     enabled: value.enabled === true
   }
+}
+
+function parseWindowIdentity(value: Record<string, unknown>): UiWindowIdentity {
+  const processId = positiveInteger(value.processId)
+  const windowHandle = typeof value.windowHandle === 'string' && /^[1-9]\d{0,19}$/.test(value.windowHandle)
+    ? value.windowHandle
+    : null
+  if (
+    !processId
+    || !windowHandle
+    || typeof value.windowTitle !== 'string'
+    || typeof value.processName !== 'string'
+  ) throw new Error('A automação retornou uma identidade de janela inválida.')
+  return {
+    processId,
+    windowHandle,
+    windowTitle: safeOutput(value.windowTitle, 160),
+    processName: safeOutput(value.processName, 100)
+  }
+}
+
+function appendExpectedWindowIdentity(args: string[], identity: UiWindowIdentity): void {
+  if (!Number.isInteger(identity.processId) || identity.processId <= 0) {
+    throw new Error('A identidade do processo observado é inválida.')
+  }
+  if (!/^[1-9]\d{0,19}$/.test(identity.windowHandle)) {
+    throw new Error('A identidade da janela observada é inválida.')
+  }
+  args.push(
+    '-ExpectedProcessId', String(identity.processId),
+    '-ExpectedWindowHandle', identity.windowHandle,
+    '-ExpectedProcessName', safeIdentityText(identity.processName, 'processName', 100),
+    '-ExpectedWindowTitle', safeIdentityText(identity.windowTitle, 'windowTitle', 160)
+  )
+}
+
+function safeIdentityText(
+  value: unknown,
+  field: string,
+  maxLength: number,
+  allowEmpty = false
+): string {
+  if (typeof value !== 'string') throw new Error(`Valor inválido para ${field}.`)
+  const trimmed = value.trim()
+  if (
+    (!allowEmpty && !trimmed)
+    || trimmed.length > maxLength
+    || /[\u0000-\u001f\u007f\u202a-\u202e\u2066-\u2069]/.test(trimmed)
+  ) throw new Error(`Valor inválido para ${field}.`)
+  return trimmed
+}
+
+function requiredRuntimeId(value: unknown): string {
+  if (typeof value !== 'string' || !/^\d+(?:\.\d+){1,31}$/.test(value)) {
+    throw new Error('A identidade do controle observado é inválida.')
+  }
+  return value
 }
 
 function parseProcessJson(result: UiAutomationProcessResult): Record<string, unknown> {

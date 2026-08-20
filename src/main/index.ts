@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
-import { writeFile } from 'node:fs/promises'
+import { statfs, writeFile } from 'node:fs/promises'
+import { cpus, release as osRelease, totalmem } from 'node:os'
 import { join } from 'node:path'
 import {
   app,
@@ -10,17 +11,28 @@ import {
   screen,
   session,
   shell,
-  type IpcMainInvokeEvent
+  type IpcMainInvokeEvent,
+  type WebContents
 } from 'electron'
 import type {
   CuratedMemorySummary,
+  DiagnosticSummary,
   MascotState,
+  GameStandbyDecision,
+  GameStandbyDecisionResponse,
+  GameStandbyRequest,
   TitiSettings,
   ToolConfirmationRequest,
-  ToolConfirmationResponse
+  ToolConfirmationResponse,
+  RuntimeStatus
 } from '../shared/contracts'
 import { WindowsAppCatalog } from './apps/windows-app-catalog'
-import { GameStandbyMonitor } from './games/game-standby-monitor'
+import {
+  GameStandbyMonitor,
+  readForegroundApplication,
+  normalizeExecutable,
+  type ForegroundApplication
+} from './games/game-standby-monitor'
 import {
   validatedBoolean,
   validatedChatRequest,
@@ -28,16 +40,29 @@ import {
   validatedMascotState,
   validatedPcmAudio,
   validatedRequestId,
+  validatedGameStandbyDecisionResponse,
   validatedSettingsPatch,
   validatedVoiceSynthesisRequest,
   validatedWavAudio
 } from './ipc/validation'
 import { AssistantHarness } from './harness/assistant-harness'
+import { buildDiagnosticReport } from './diagnostics/diagnostic-report'
+import {
+  allowsAudioPermissionCheck,
+  allowsAudioPermissionRequest
+} from './security/media-permission'
 import { LocalMemoryStore, type MemoryEntry } from './memory'
 import { OllamaRuntimeManager } from './runtime/ollama-runtime-manager'
 import { ConversationStore } from './storage/conversation-store'
 import { ActionLogStore } from './storage/action-log-store'
 import { SettingsStore } from './storage/settings-store'
+import {
+  isTrustedRendererFrameUrl,
+  rendererUrlWithHash,
+  resolveTrustedRendererLocation,
+  safeExternalHttpsUrl,
+  type TrustedRendererLocation
+} from './security/renderer-origin'
 import { AuditedToolExecutor } from './tools/audited-tool-executor'
 import { ConfirmationToolExecutor } from './tools/confirmation-tool-executor'
 import { DesktopToolkit } from './tools/desktop-toolkit'
@@ -67,12 +92,17 @@ let speechSynthesizer: SupertonicSynthesizer
 let globalPushToTalk: GlobalPushToTalk
 let idleTimer: NodeJS.Timeout | null = null
 let gameStandbyTransitioning = false
+const GAME_STANDBY_DECISION_TIMEOUT_MS = 30_000
+const MAX_WAIT_FOR_INTERACTION_COMPLETE_MS = 30_000
 const activeChatRequests = new Map<string, { controller: AbortController; ownerId: number }>()
 const activeTranscriptions = new Map<number, AbortController>()
 const activeVoiceStreams = new Map<string, { ownerId: number }>()
 const activeSyntheses = new Map<string, { controller: AbortController; ownerId: number }>()
-
-const rendererUrl = process.env.ELECTRON_RENDERER_URL
+const pendingGameStandbyRequests = new Map<string, {
+  resolve: (decision: GameStandbyDecision) => void
+  timeout: NodeJS.Timeout
+}>()
+const trustedRendererLocations = new WeakMap<BrowserWindow, TrustedRendererLocation>()
 
 if (!app.requestSingleInstanceLock()) {
   app.quit()
@@ -212,32 +242,116 @@ app.on('before-quit', () => {
   void gameStandbyMonitor?.stop({ restore: false })
   runtimeManager?.cancelActiveWork(abortReason())
   runtimeManager?.shutdownOwnedEngine()
+  for (const pending of pendingGameStandbyRequests.values()) clearTimeout(pending.timeout)
+  pendingGameStandbyRequests.clear()
 })
 
-async function enterGameStandby(): Promise<void> {
+async function enterGameStandby(app: ForegroundApplication): Promise<boolean> {
+  const decision = await requestGameStandbyDecision(app)
+  if (decision === 'defer') return false
+  if (!(await isStillForeground(app))) return false
+
+  if (gameStandbyTransitioning) return false
   gameStandbyTransitioning = true
-  setMascotState('standby', true)
-  mascotWindow?.hide()
-  broadcast('game:standby-changed', true)
-  for (const { controller } of activeChatRequests.values()) {
-    controller.abort(gameStandbyReason())
-  }
-  for (const controller of activeTranscriptions.values()) {
-    controller.abort(gameStandbyReason())
-  }
-  for (const sessionId of activeVoiceStreams.keys()) streamingTranscriber.cancel(sessionId)
-  activeVoiceStreams.clear()
-  streamingTranscriber.dispose()
-  for (const { controller } of activeSyntheses.values()) controller.abort(gameStandbyReason())
-  activeSyntheses.clear()
-  speechSynthesizer.dispose()
-  confirmationBroker.cancelAll()
-  runtimeManager.cancelActiveWork(gameStandbyReason())
   try {
-    await runtimeManager.unloadSelectedModel()
+    if (decision === 'complete') {
+      await awaitCurrentInteractionCompletion()
+    } else {
+      abortAllRunningInteractions(gameStandbyReason())
+    }
+    if (!await isStillForeground(app)) return false
+    setMascotState('standby', true)
+    mascotWindow?.hide()
+    broadcast('game:standby-changed', true)
+    await runtimeManager.unloadSelectedModel().catch(() => undefined)
+    return true
   } finally {
     gameStandbyTransitioning = false
   }
+  return false
+}
+
+async function requestGameStandbyDecision(app: ForegroundApplication): Promise<GameStandbyDecision> {
+  const request: GameStandbyRequest = {
+    id: randomUUID(),
+    processId: app.processId,
+    executable: app.executable,
+    fullscreen: app.fullscreen,
+    expiresAt: new Date(Date.now() + GAME_STANDBY_DECISION_TIMEOUT_MS).toISOString()
+  }
+  if (!mainWindow || mainWindow.isDestroyed()) createMainWindow()
+  showMainWindow()
+  return new Promise<GameStandbyDecision>((resolve) => {
+    const timeout = setTimeout(() => {
+      resolveGameStandbyDecision({ requestId: request.id, decision: 'complete' })
+    }, GAME_STANDBY_DECISION_TIMEOUT_MS)
+    pendingGameStandbyRequests.set(request.id, { resolve, timeout })
+    broadcast('game:standby-requested', request)
+  })
+}
+
+function resolveGameStandbyDecision(response: GameStandbyDecisionResponse): boolean {
+  const pending = pendingGameStandbyRequests.get(response.requestId)
+  if (!pending) return false
+  clearTimeout(pending.timeout)
+  pending.resolve(response.decision)
+  pendingGameStandbyRequests.delete(response.requestId)
+  return true
+}
+
+async function awaitCurrentInteractionCompletion(): Promise<void> {
+  const deadline = performance.now() + MAX_WAIT_FOR_INTERACTION_COMPLETE_MS
+  while (performance.now() < deadline && hasRunningInteraction()) {
+    await new Promise<void>((resolve) => setTimeout(resolve, 250))
+  }
+  if (!hasRunningInteraction()) return
+  abortAllRunningInteractions(gameStandbyReason())
+  const hardStop = performance.now() + 4_000
+  while (performance.now() < hardStop && hasRunningInteraction()) {
+    await new Promise<void>((resolve) => setTimeout(resolve, 125))
+  }
+}
+
+function abortAllRunningInteractions(reason: Error): void {
+  for (const [id, active] of activeChatRequests) {
+    active.controller.abort(reason)
+    activeChatRequests.delete(id)
+  }
+  for (const [id, active] of activeTranscriptions) {
+    active.abort(reason)
+    activeTranscriptions.delete(id)
+  }
+  for (const [sessionId] of activeVoiceStreams) {
+    streamingTranscriber.cancel(sessionId)
+    activeVoiceStreams.delete(sessionId)
+  }
+  for (const [id, active] of activeSyntheses) {
+    active.controller.abort(reason)
+    activeSyntheses.delete(id)
+  }
+  runtimeManager.cancelActiveWork(reason)
+}
+
+async function isStillForeground(app: ForegroundApplication): Promise<boolean> {
+  try {
+    const foreground = await readForegroundApplication()
+    return Boolean(
+      foreground
+      && foreground.processId === app.processId
+      && normalizeExecutable(foreground.executable) === normalizeExecutable(app.executable)
+    )
+  } catch {
+    return false
+  }
+}
+
+function hasRunningInteraction(): boolean {
+  return (
+    activeChatRequests.size > 0
+    || activeTranscriptions.size > 0
+    || activeVoiceStreams.size > 0
+    || activeSyntheses.size > 0
+  )
 }
 
 async function exitGameStandby(): Promise<void> {
@@ -326,16 +440,19 @@ async function createMascotWindow(): Promise<void> {
 }
 
 function loadView(window: BrowserWindow, hash: 'app' | 'mascot'): void {
-  if (rendererUrl) {
-    void window.loadURL(`${rendererUrl}#${hash}`)
-  } else {
-    void window.loadFile(join(__dirname, '../renderer/index.html'), { hash })
-  }
+  const location = resolveTrustedRendererLocation(
+    app.isPackaged,
+    process.env.ELECTRON_RENDERER_URL,
+    join(__dirname, '../renderer/index.html')
+  )
+  trustedRendererLocations.set(window, location)
+  void window.loadURL(rendererUrlWithHash(location, hash))
 }
 
 function lockNavigation(window: BrowserWindow): void {
   window.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith('https://')) void shell.openExternal(url)
+    const externalUrl = safeExternalHttpsUrl(url)
+    if (externalUrl) void shell.openExternal(externalUrl)
     return { action: 'deny' }
   })
   window.webContents.on('will-navigate', (event) => event.preventDefault())
@@ -421,6 +538,40 @@ function registerIpcHandlers(): void {
     requireRenderer(event)
     return isGameStandbyEffective()
   })
+  ipcMain.handle('diagnostics:summary', async (event) => {
+    requireRenderer(event, 'main')
+    return createDiagnosticSummary()
+  })
+  ipcMain.handle('diagnostics:export', async (event) => {
+    requireRenderer(event, 'main')
+    if (!mainWindow) return null
+    const result = await dialog.showSaveDialog(mainWindow, {
+      title: 'Exportar diagnóstico seguro do Titi',
+      defaultPath: `diagnostico-titi-${new Date().toISOString().slice(0, 10)}.json`,
+      filters: [{ name: 'Arquivo JSON', extensions: ['json'] }]
+    })
+    if (result.canceled || !result.filePath) return null
+
+    const [settings, runtime, activity] = await Promise.all([
+      settingsStore.get(),
+      harness.status().catch(() => null),
+      actionLogStore.list(50)
+    ])
+    const summary = await createDiagnosticSummary({ settings, runtime })
+    const report = buildDiagnosticReport({ summary, settings, runtime, activity })
+    await writeFile(result.filePath, JSON.stringify(report, null, 2), 'utf8')
+    return result.filePath
+  })
+  ipcMain.handle('game:standby-decision', (event, value: unknown) => {
+    requireRenderer(event, 'main')
+    let response: GameStandbyDecisionResponse
+    try {
+      response = validatedGameStandbyDecisionResponse(value)
+    } catch {
+      return false
+    }
+    return resolveGameStandbyDecision(response)
+  })
   ipcMain.handle('memory:list', async (event) => {
     requireRenderer(event, 'main')
     return (await memoryStore.list()).map(memorySummary)
@@ -436,7 +587,8 @@ function registerIpcHandlers(): void {
   ipcMain.handle(
     'tools:confirmation-response',
     (event, response: ToolConfirmationResponse) => {
-      if (ownerWindow(event) !== mainWindow || !isToolConfirmationResponse(response)) return false
+      requireRenderer(event, 'main')
+      if (!isToolConfirmationResponse(response)) return false
       return confirmationBroker.respond(response)
     }
   )
@@ -675,19 +827,22 @@ function registerIpcHandlers(): void {
     requireRenderer(event)
     showMainWindow()
   })
-  ipcMain.handle('mascot:hide', (event) => {
+  ipcMain.handle('mascot:hide', async (event) => {
     requireRenderer(event)
+    const settings = await settingsStore.get()
+    if (settings.showFloatingMascot) {
+      await settingsStore.update({ showFloatingMascot: false })
+    }
     mascotWindow?.hide()
   })
 
-  ipcMain.handle('window:minimize', (event) => ownerWindow(event)?.minimize())
+  ipcMain.handle('window:minimize', (event) => requireRenderer(event).minimize())
   ipcMain.handle('window:toggle-maximize', (event) => {
-    const window = ownerWindow(event)
-    if (!window) return false
+    const window = requireRenderer(event)
     window.isMaximized() ? window.unmaximize() : window.maximize()
     return window.isMaximized()
   })
-  ipcMain.handle('window:close', (event) => ownerWindow(event)?.close())
+  ipcMain.handle('window:close', (event) => requireRenderer(event).close())
 }
 
 function abortReason(): Error {
@@ -720,21 +875,35 @@ function isAbortError(error: unknown): boolean {
 }
 
 function configureMediaPermissions(): void {
-  session.defaultSession.setPermissionCheckHandler((webContents, permission) =>
-    permission === 'media'
-      && webContents !== null
-      && BrowserWindow.fromWebContents(webContents) === mainWindow
-  )
+  session.defaultSession.setPermissionCheckHandler((webContents, permission, _origin, details) => {
+    const trustedRenderer = webContents !== null && isTrustedMainWindowContents(webContents)
+    return allowsAudioPermissionCheck(
+      permission,
+      details.isMainFrame,
+      details.mediaType,
+      trustedRenderer
+    )
+  })
   session.defaultSession.setPermissionRequestHandler(
     (webContents, permission, callback, details) => {
-      const fromMainWindow = BrowserWindow.fromWebContents(webContents) === mainWindow
-      const wantsAudio = permission === 'media'
-        && fromMainWindow
-        && 'mediaTypes' in details
-        && details.mediaTypes?.includes('audio')
+      const mediaTypes = 'mediaTypes' in details ? details.mediaTypes : undefined
+      const wantsAudio = allowsAudioPermissionRequest(
+        permission,
+        mediaTypes,
+        isTrustedMainWindowContents(webContents)
+      )
       callback(Boolean(wantsAudio))
     }
   )
+}
+
+function isTrustedMainWindowContents(webContents: WebContents): boolean {
+  const owner = BrowserWindow.fromWebContents(webContents)
+  const location = owner ? trustedRendererLocations.get(owner) : undefined
+  return owner !== null
+    && owner === mainWindow
+    && !owner.isDestroyed()
+    && Boolean(location && isTrustedRendererFrameUrl(webContents.mainFrame.url, location))
 }
 
 function ownerWindow(event: IpcMainInvokeEvent): BrowserWindow | null {
@@ -746,10 +915,20 @@ function requireRenderer(
   scope: 'main' | 'any' = 'any'
 ): BrowserWindow {
   const owner = ownerWindow(event)
+  const frame = event.senderFrame
   const allowed = scope === 'main'
     ? owner === mainWindow
     : owner === mainWindow || owner === mascotWindow
-  if (!owner || !allowed || owner.isDestroyed()) {
+  const location = owner ? trustedRendererLocations.get(owner) : undefined
+  if (
+    !owner
+    || !allowed
+    || owner.isDestroyed()
+    || !frame
+    || frame.parent !== null
+    || !location
+    || !isTrustedRendererFrameUrl(frame.url, location)
+  ) {
     throw new Error('Origem da solicitação não autorizada.')
   }
   return owner
@@ -777,9 +956,13 @@ function dispatchToolConfirmation(request: ToolConfirmationRequest): void {
 function isToolConfirmationResponse(value: unknown): value is ToolConfirmationResponse {
   if (typeof value !== 'object' || value === null) return false
   const candidate = value as Partial<ToolConfirmationResponse>
-  return typeof candidate.requestId === 'string'
-    && candidate.requestId.length > 0
-    && typeof candidate.approved === 'boolean'
+  if (typeof candidate.approved !== 'boolean') return false
+  try {
+    validatedRequestId(candidate.requestId)
+    return true
+  } catch {
+    return false
+  }
 }
 
 function memorySummary(entry: MemoryEntry): CuratedMemorySummary {
@@ -811,6 +994,55 @@ function memorySourceLabel(source: MemoryEntry['source']['kind']): string {
     'assistant-curation': 'Curadoria local',
     import: 'Importação'
   })[source]
+}
+
+async function createDiagnosticSummary(context?: {
+  settings: TitiSettings
+  runtime: RuntimeStatus | null
+}): Promise<DiagnosticSummary> {
+  const [settings, runtime, storage] = await Promise.all([
+    context?.settings ?? settingsStore.get(),
+    context ? Promise.resolve(context.runtime) : harness.status().catch(() => null),
+    statfs(app.getPath('userData')).catch(() => null)
+  ])
+  const freeBytes = storage
+    ? Number(storage.bavail) * Number(storage.bsize)
+    : null
+
+  return {
+    appVersion: app.getVersion(),
+    system: {
+      platform: process.platform,
+      release: osRelease(),
+      arch: process.arch,
+      logicalCpuCount: cpus().length,
+      totalMemoryBytes: totalmem(),
+      displayCount: screen.getAllDisplays().length
+    },
+    audio: {
+      enabled: settings.voice.enabled,
+      liveMode: settings.voice.liveMode,
+      inputDeviceSelected: Boolean(settings.voice.inputDeviceId)
+    },
+    storage: {
+      freeBytes: Number.isFinite(freeBytes) ? freeBytes : null
+    },
+    runtime: {
+      provider: settings.provider.kind,
+      model: settings.provider.model,
+      health: diagnosticRuntimeHealth(runtime)
+    },
+    automaticUpload: false
+  }
+}
+
+function diagnosticRuntimeHealth(runtime: RuntimeStatus | null): DiagnosticSummary['runtime']['health'] {
+  if (!runtime) return 'unavailable'
+  if (runtime.engineInstalled === false) return 'engine-missing'
+  if (runtime.engineInstalled && !runtime.connected) return 'engine-stopped'
+  if (runtime.connected && runtime.modelInstalled === false) return 'model-missing'
+  if (runtime.connected && runtime.modelInstalled !== false) return 'ready'
+  return 'unavailable'
 }
 
 function notifyLiveModeChanged(enabled: boolean): void {
