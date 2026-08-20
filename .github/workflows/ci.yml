@@ -64,7 +64,7 @@ jobs:
         run: pnpm test
 
       - name: Restaurar cache do runtime de voz
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: runtime/whisper
           key: whisper-win-v1.9.2-parakeet-tdt-v3-q8-4d64e9e96c2792186d072fde0034df0ad670cf680a2f53069052ead827fd600e
@@ -73,7 +73,7 @@ jobs:
         run: pnpm setup:whisper
 
       - name: Restaurar cache da voz neural
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: runtime/supertonic/model-extracted
           key: supertonic-3-int8-82fa96f91c4ef8abaa3a14a3f4153facf88bed821d1f7331cec2700f432c427
