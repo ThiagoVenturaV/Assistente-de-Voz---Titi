@@ -311,11 +311,20 @@ export function App(): React.JSX.Element {
       setActivityStartedAt(null)
       const activeSettings = settingsRef.current
       if (activeSettings?.voice.enabled) {
-        await speakText(
-          response.assistantMessage.content,
-          activeSettings.voice.speechRate,
-          speechController.signal
-        )
+        try {
+          await speakText(
+            response.assistantMessage.content,
+            activeSettings.voice.speechRate,
+            speechController.signal
+          )
+        } catch (speechError) {
+          if (!speechController.signal.aborted) {
+            const reason = speechError instanceof Error
+              ? speechError.message
+              : 'A voz local não conseguiu reproduzir a resposta.'
+            setNotice(`A resposta chegou normalmente, mas não consegui falá-la. ${reason}`)
+          }
+        }
       }
     } catch (error) {
       if (generation !== interactionGeneration.current) return

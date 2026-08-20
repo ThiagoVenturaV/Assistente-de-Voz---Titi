@@ -702,8 +702,9 @@ function registerIpcHandlers(): void {
       throwIfAborted(controller.signal)
       response.runtime = await runtimeManager.enrich(response.runtime, controller.signal)
       throwIfAborted(controller.signal)
-      setMascotState('speaking')
-      scheduleIdle(Math.min(6000, Math.max(1800, response.assistantMessage.content.length * 18)))
+      // The renderer owns the real speaking state through HTMLAudioElement.onplay.
+      // A completed text response must not look like audible speech when voice is disabled.
+      setMascotState('idle')
       return response
     } catch (error) {
       if (isAbortError(error) || controller.signal.aborted) {

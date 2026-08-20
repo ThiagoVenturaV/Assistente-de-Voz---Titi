@@ -2,8 +2,8 @@ import { CommandDeck, MotionRuntime } from "./motion-runtime";
 import Image from "next/image";
 import { SITE_DESCRIPTION, SITE_ORIGIN } from "./site";
 
-const DOWNLOAD_URL = "https://github.com/ThiagoVenturaV/Assistente-de-Voz---Titi/releases/download/v0.2.0-beta.8/Titi-Setup-0.2.0-beta.8.exe";
-const RELEASE_URL = "https://github.com/ThiagoVenturaV/Assistente-de-Voz---Titi/releases/tag/v0.2.0-beta.8";
+const DOWNLOAD_URL = "https://github.com/ThiagoVenturaV/Assistente-de-Voz---Titi/releases/download/v0.2.0-beta.9/Titi-Setup-0.2.0-beta.9.exe";
+const RELEASE_URL = "https://github.com/ThiagoVenturaV/Assistente-de-Voz---Titi/releases/tag/v0.2.0-beta.9";
 const SUPPORT_URL = "/suporte";
 
 const softwareApplication = {
@@ -13,7 +13,7 @@ const softwareApplication = {
   description: SITE_DESCRIPTION,
   url: SITE_ORIGIN,
   downloadUrl: DOWNLOAD_URL,
-  softwareVersion: "0.2.0-beta.8",
+  softwareVersion: "0.2.0-beta.9",
   applicationCategory: "UtilitiesApplication",
   operatingSystem: "Windows 10, Windows 11",
   offers: { "@type": "Offer", price: "0", priceCurrency: "BRL" },
@@ -54,7 +54,7 @@ export default function Home() {
           <h1 id="hero-title">Fale do<br />seu jeito.<br /><em>O PC faz.</em></h1>
           <p className="hero-lead">O Titi entende pedidos em linguagem natural, acompanha o contexto da conversa e transforma sua voz em ações compatíveis — no seu computador.</p>
           <div className="hero-disclosure" aria-label="Informações importantes antes do download">
-            <span>Beta 0.2.0-beta.8</span><span>Cerca de 852 MiB</span><span>Windows 10/11 x64</span><span>+ ~2,5 GB para a IA</span><strong>Sem assinatura · o SmartScreen pode avisar</strong><a href="/privacidade">Privacidade</a><a href={RELEASE_URL}>Notas e integridade</a>
+            <span>Beta 0.2.0-beta.9</span><span>Cerca de 852 MiB</span><span>Windows 10/11 x64</span><span>+ ~2,5 GB para a IA</span><strong>Sem assinatura · o SmartScreen pode avisar</strong><a href="/privacidade">Privacidade</a><a href={RELEASE_URL}>Notas e integridade</a>
           </div>
           <div className="hero-actions">
             <a className="primary-button" href={DOWNLOAD_URL}><span className="windows-glyph">⊞</span><span><strong>Baixar para Windows</strong><small>Grátis durante o beta</small></span><b>↓</b></a>
@@ -133,7 +133,7 @@ export default function Home() {
       </section>
 
       <section className="download-section shell" id="download">
-        <div className="download-poster" data-reveal><div className="download-copy"><p><span>BETA PÚBLICO</span> V0.2.0 BETA.8</p><h2>Seu PC<br />já pode<br /><em>entender.</em></h2><p className="download-lead">Instale o Titi, fale naturalmente e descubra uma maneira mais humana de usar o Windows.</p><div className="download-trust"><b>Cerca de 852 MiB · Windows 10/11 x64</b><span>O modelo padrão adiciona aproximadamente 2,5 GB.</span><span>Pré-release sem assinatura Authenticode: o SmartScreen pode exibir um aviso.</span><span><a href={RELEASE_URL}>Notas e integridade</a> · <a href="/privacidade">Política de privacidade</a></span></div><a className="primary-button primary-button--mint" href={DOWNLOAD_URL}><span className="windows-glyph">⊞</span><span><strong>Baixar Titi Beta</strong><small>Pré-release de teste não assinada</small></span><b>↓</b></a></div><div className="download-art" data-parallax="0.06"><span className="download-orbit download-orbit--one" /><span className="download-orbit download-orbit--two" /><div className="titi-sprite download-titi" role="img" aria-label="Mascote Titi" /><p>OLÁ,<br />HUMANO.</p></div></div>
+        <div className="download-poster" data-reveal><div className="download-copy"><p><span>BETA PÚBLICO</span> V0.2.0 BETA.9</p><h2>Seu PC<br />já pode<br /><em>entender.</em></h2><p className="download-lead">Instale o Titi, fale naturalmente e descubra uma maneira mais humana de usar o Windows.</p><div className="download-trust"><b>Cerca de 852 MiB · Windows 10/11 x64</b><span>O modelo padrão adiciona aproximadamente 2,5 GB.</span><span>Pré-release sem assinatura Authenticode: o SmartScreen pode exibir um aviso.</span><span><a href={RELEASE_URL}>Notas e integridade</a> · <a href="/privacidade">Política de privacidade</a></span></div><a className="primary-button primary-button--mint" href={DOWNLOAD_URL}><span className="windows-glyph">⊞</span><span><strong>Baixar Titi Beta</strong><small>Pré-release de teste não assinada</small></span><b>↓</b></a></div><div className="download-art" data-parallax="0.06"><span className="download-orbit download-orbit--one" /><span className="download-orbit download-orbit--two" /><div className="titi-sprite download-titi" role="img" aria-label="Mascote Titi" /><p>OLÁ,<br />HUMANO.</p></div></div>
         <div className="requirements"><article><span>01</span><p><b>Windows 10 ou 11</b>Em um computador recente</p></article><article><span>02</span><p><b>16 GB de memória</b>Recomendados para conversar bem</p></article><article><span>03</span><p><b>Cerca de 8 GB livres</b>Para o aplicativo e o modelo local</p></article><article><span>04</span><p><b>GPU recomendada</b>Para voz e respostas mais rápidas</p></article></div>
         <p className="setup-note">Na primeira configuração, o Titi explica tudo antes de baixar o modelo padrão de aproximadamente 2,5 GB.</p>
       </section>

@@ -351,11 +351,22 @@ describe('OllamaProvider tool calling', () => {
           content: JSON.stringify({ decision: 'respond', confidence: 0.95, reason: 'Pergunta conceitual.' })
         }
       }))
+      .mockResolvedValueOnce(jsonResponse({
+        message: { role: 'assistant', content: 'Uma explicação regenerada no modo de conversa.' }
+      }))
     vi.stubGlobal('fetch', fetchMock)
 
     const provider = new OllamaProvider(fakeTools(execute))
-    await expect(provider.complete(messages, DEFAULT_SETTINGS)).resolves.toBe('Uma explicação normal.')
-    expect(fetchMock).toHaveBeenCalledTimes(2)
+    await expect(provider.complete(messages, DEFAULT_SETTINGS)).resolves.toBe(
+      'Uma explicação regenerada no modo de conversa.'
+    )
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    const conversationBody = JSON.parse(String(fetchMock.mock.calls[2][1]?.body)) as {
+      tools?: unknown[]
+      options: { temperature: number }
+    }
+    expect(conversationBody.tools).toBeUndefined()
+    expect(conversationBody.options.temperature).toBeGreaterThan(0)
     expect(execute).not.toHaveBeenCalled()
   })
 
@@ -377,14 +388,63 @@ describe('OllamaProvider tool calling', () => {
       'O Spotify é um serviço de música e podcasts.'
     )
     expect(fetchMock).toHaveBeenCalledOnce()
+    const body = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as {
+      tools?: unknown[]
+      options: { temperature: number; top_p: number; repeat_penalty: number }
+      messages: Array<{ role: string; content: string }>
+    }
+    expect(body.tools).toBeUndefined()
+    expect(body.options).toMatchObject({
+      temperature: 0.3,
+      top_p: 0.9,
+      repeat_penalty: 1.05
+    })
+    expect(body.messages[0].content).toContain('português brasileiro natural')
+    expect(body.messages[0].content).not.toContain('[SEM_FERRAMENTA]')
     expect(execute).not.toHaveBeenCalled()
+  })
+
+  it('mantém um pedido composto de explicação e ação no fluxo de ferramentas', async () => {
+    const compoundMessages: ChatMessage[] = [{
+      id: 'conversation-plus-action',
+      role: 'user',
+      content: 'Me explica em uma frase e depois abre o Spotify.',
+      createdAt: new Date(0).toISOString()
+    }]
+    const execute = vi.fn(async () => ({
+      ok: true,
+      status: 'confirmed' as const,
+      message: 'Spotify aberto.'
+    }))
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({
+        message: {
+          role: 'assistant',
+          tool_calls: [{
+            type: 'function',
+            function: { name: 'open_application', arguments: { application: 'spotify' } }
+          }]
+        }
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        message: { role: 'assistant', content: 'O Spotify foi aberto.' }
+      }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const provider = new OllamaProvider(fakeTools(execute))
+    await expect(provider.complete(compoundMessages, DEFAULT_SETTINGS)).resolves.toBe(
+      'Spotify aberto.'
+    )
+    const body = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as { tools?: unknown[] }
+    expect(body.tools).toHaveLength(6)
+    expect(execute).toHaveBeenCalledOnce()
   })
 
   it('blocks an unnecessary tool call when the semantic classifier identifies conversation', async () => {
     const conceptualMessages: ChatMessage[] = [{
       id: 'conceptual-question',
       role: 'user',
-      content: 'Me explica o que é o Spotify.',
+      content: 'Estou pensando no Spotify e queria entender melhor o que ele é.',
       createdAt: new Date(0).toISOString()
     }]
     const execute = vi.fn()
@@ -405,20 +465,24 @@ describe('OllamaProvider tool calling', () => {
           content: JSON.stringify({ decision: 'respond', confidence: 0.97, reason: 'Explicação.' })
         }
       }))
+      .mockResolvedValueOnce(jsonResponse({
+        message: { role: 'assistant', content: 'O Spotify é um serviço de streaming de música.' }
+      }))
     vi.stubGlobal('fetch', fetchMock)
 
     const provider = new OllamaProvider(fakeTools(execute))
     await expect(provider.complete(conceptualMessages, DEFAULT_SETTINGS)).resolves.toBe(
       'O Spotify é um serviço de streaming de música.'
     )
+    expect(fetchMock).toHaveBeenCalledTimes(3)
     expect(execute).not.toHaveBeenCalled()
   })
 
-  it('retries as conversation when an empty false-positive tool call is blocked', async () => {
+  it('regenera como conversa quando uma ferramenta falsa é bloqueada', async () => {
     const conceptualMessages: ChatMessage[] = [{
       id: 'empty-false-positive',
       role: 'user',
-      content: 'Qual a diferença entre Brave e Chrome?',
+      content: 'Estou comparando Brave e Chrome e queria entender as diferenças.',
       createdAt: new Date(0).toISOString()
     }]
     const execute = vi.fn()
@@ -426,7 +490,7 @@ describe('OllamaProvider tool calling', () => {
       .mockResolvedValueOnce(jsonResponse({
         message: {
           role: 'assistant',
-          content: '',
+          content: 'Vou pesquisar essa comparação.',
           tool_calls: [{
             type: 'function',
             function: { name: 'open_web', arguments: { query: 'Brave versus Chrome' } }
@@ -457,7 +521,7 @@ describe('OllamaProvider tool calling', () => {
       messages: Array<{ content?: string }>
     }
     expect(conversationBody.tools).toBeUndefined()
-    expect(conversationBody.messages.at(-1)?.content).toContain('sem ferramentas')
+    expect(conversationBody.messages[0]?.content).toContain('não há ferramentas disponíveis')
   })
 
   it('renders observed controls and keeps the same chain for a following UI action', async () => {
