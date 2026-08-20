@@ -4,23 +4,23 @@ Auditoria atualizada em 20/08/2026. Este documento define o que precisa estar co
 
 Esta rodada mantém escopo deliberado: **não inclui** `TITI-MEET-001` (modo reunião) nem `TITI-REMOTE-001` (cliente remoto). Eles seguem em `Later`, após aprovação dos alvos atuais.
 
-## Veredito do candidato beta 9
+## Veredito público da beta 9
 
-**CÓDIGO, PACOTE E INSTALAÇÃO LOCAL APROVADOS; NO-GO PARA TAG E LANDING ATÉ A CI FINAL PASSAR.** A fonte e o aplicativo instalado declaram `0.2.0-beta.9`; typecheck e 431 testes em 48 arquivos passam. O Ollama real aprovou conversa, contexto e ações, o corpus de ferramentas passou 19/19 e os smokes empacotados passaram. A beta 8 permanece como release pública; a landing pública ainda não deve apontar para a beta 9 até a tag produzir e validar os ativos finais.
+**GO PARA BETA PÚBLICO, NÃO PARA ESTÁVEL.** A fonte, o release e o aplicativo instalado declaram `0.2.0-beta.9`; typecheck e 431 testes em 48 arquivos passam. O Ollama real aprovou conversa, contexto e ações, o corpus de ferramentas passou 19/19, os smokes empacotados passaram e as CIs da PR, `main` e tag ficaram verdes. Cinco ativos foram publicados e comparados; o instalador público foi instalado preservando o perfil. A landing Sites v23 responde HTTP 200 e aponta para o ativo correto. Assinatura, escuta humana ampla e matriz Windows 10/11 continuam bloqueando uma versão estável.
 
-## Evidência já aprovada no código candidato
+## Evidência aprovada da release
 
 | Verificação | Estado | Evidência de 20/08/2026 |
 |---|---|---|
-| Versão e metadados | Aprovado na fonte | `package.json`, landing, notas, QA, backlog e marketing declaram `0.2.0-beta.9`; `qa:release-sync` passará após o NSIS gerar o novo `latest.yml` |
+| Versão e metadados | Aprovado | `package.json`, landing, notas, QA, backlog e marketing declaram `0.2.0-beta.9`; `qa:release-sync` confirmou a sincronização |
 | Typecheck e testes | Aprovado | `pnpm typecheck`; 48 arquivos e 431 testes, incluindo rotas separadas de conversa/ação, português falado, protocolo interno, autoteste, segurança e voz |
 | Modelo e ferramentas | Aprovado com Ollama real | conversa, contexto e ações passaram; corpus seguro de tool calling passou 19/19, sem executar ações externas |
-| Build, pacote e NSIS | Aprovado localmente | `package:win` e `verify:package` aprovaram ASAR, fuses, módulos nativos e runtimes no candidato beta 9 |
-| Landing candidata | Aprovada localmente | build e 5 testes renderizados passam; publicação segue bloqueada até o ativo público existir |
+| Build, pacote e NSIS | Aprovado localmente e na tag | `package:win`, `verify:package` e o workflow verificável aprovaram ASAR, fuses, módulos nativos e runtimes beta 9 |
+| Landing pública | Aprovada | Sites v23 responde HTTP 200 e contém versão e link beta 9 corretos |
 | Transcrição empacotada | Aprovada | 10 parciais em 15 s, frase final correta e processamento final em 7,043 s |
 | Voz neural empacotada | Aprovada tecnicamente | DirectML, oito passos, 4,9 s de áudio, 1,19 s fria e 0,32 s aquecida; escuta humana permanece pendente |
 | Integridade pública beta 8 | Aprovada e histórica | ativo público tem 892.693.188 bytes, SHA-256 `980775246752867BEB2142394D5C2386FF995E1024B6C02CB5E83CCE477CC544`; ASAR instalado `0CF70F3B0F1A8BDF09A0B5253C6B09805C1C644C1D53691EBD432C89ED6292F3` |
-| Integridade e instalação beta 9 local | Aprovada | 892.695.614 bytes; SHA-256 `33F2A612F2FD124CBCF1F9EE9580F56B9082B3C53943C2718B81752F9C16871A`; ASAR instalado idêntico `92685FEB12B5DE059BA9488AC8C60809E41D5946FBBDE79B90D61ED2C010ECC9`; versão instalada correta; perfil preservado; Authenticode `NotSigned` |
+| Integridade e instalação beta 9 pública | Aprovada para beta | 892.695.659 bytes; SHA-256 `806F1857C0B850361FFD54F8CAAFD52CA07067D2352271A45162EE787482AF40`; cinco ativos conferidos; ASAR instalado `92685FEB12B5DE059BA9488AC8C60809E41D5946FBBDE79B90D61ED2C010ECC9`; perfil preservado; Authenticode `NotSigned` |
 
 ## Gates específicos da beta 9
 
@@ -31,9 +31,9 @@ Esta rodada mantém escopo deliberado: **não inclui** `TITI-MEET-001` (modo reu
 - [x] Passar `verify:package`, `qa:release-sync`, auditorias e smokes empacotados de transcrição e TTS.
 - [x] Instalar o NSIS beta 9 sobre o perfil preservado; confirmar código 0, versão, ASAR idêntico e dados preservados.
 - [ ] Ouvir respostas em pt-BR no aplicativo instalado e registrar avaliação humana de naturalidade/pronúncia.
-- [ ] Criar a tag `v0.2.0-beta.9` no SHA aprovado e aguardar o workflow `Release verificável`.
-- [ ] Baixar e comparar todos os ativos públicos; validar acesso anônimo.
-- [ ] Só então publicar a landing beta 9 e registrar checksums finais.
+- [x] Criar a tag `v0.2.0-beta.9` no SHA aprovado e concluir o workflow `Release verificável`.
+- [x] Baixar anonimamente e comparar todos os ativos públicos; validar versão, manifesto, tamanho e checksums.
+- [x] Publicar a landing beta 9 em Sites v23 e confirmar HTTP 200, versão e link do instalador.
 
 ## Histórico congelado da beta 8
 

@@ -31,16 +31,16 @@ Auditoria atualizada em 20/08/2026 por frentes de Produto/QA, PO, marketing e co
 
 ### Veredito
 
-**A beta.8 está pública; a beta.9 é a candidata atual e já está instalada localmente.** A nova candidata separa conversas claras do prompt operacional, melhora o estilo em português brasileiro e normaliza a fala de números, datas, valores, unidades, siglas e nomes frequentes. O caminho de ações permanece protegido e passou 19/19 no corpus com o Qwen 4B real. O gate atual é provar a CI e os ativos públicos beta 9 sem reutilizar artefatos da beta 8.
+**A beta.9 está pública, instalada e sincronizada com a landing.** Ela separa conversas claras do prompt operacional, melhora o estilo em português brasileiro e normaliza a fala de números, datas, valores, unidades, siglas e nomes frequentes. O caminho de ações permanece protegido e passou 19/19 no corpus com o Qwen 4B real. Cinco ativos públicos, instalação preservada e Sites v23 foram validados; assinatura e avaliação humana ampla de voz continuam abertas.
 
 | Área | Estado atual | Evidência | Lacuna prioritária |
 | --- | --- | --- | --- |
-| Release e instalação | Beta.8 pública · beta.9 instalada localmente | beta.9 passou pacote, verificador, smokes e instalação; ASAR coincide e perfil foi preservado | Publicar o NSIS beta 9; Authenticode continua `NotSigned`; Windows 10/11 e rollback permanecem |
-| Código e CI | Saudável | typecheck e 48 arquivos/431 testes passam localmente; CI da beta 9 ainda é gate | Empacotar a árvore final, passar CI e manter o timeout isolado do `ConversationStore` registrado |
+| Release e instalação | Beta.9 pública e instalada | cinco ativos conferidos; instalador público 892.695.659 bytes e SHA-256 `806F1857…AF40`; ASAR coincide e perfil foi preservado | Authenticode continua `NotSigned`; Windows 10/11 e rollback permanecem |
+| Código e CI | Saudável | typecheck, 48 arquivos/431 testes e CIs de PR, `main` e tag passam | Manter o timeout isolado do `ConversationStore` registrado e ampliar testes reais |
 | Linguagem natural e ferramentas | Avançado no código | rota de conversa limpa e pt-BR; Ollama real aprovou conversa/contexto/ação; corpus de ferramentas passou 19/19 | Avaliação humana A/B de naturalidade e ampliar automação observar → agir → verificar |
 | Voz local | Avançado no pacote | normalização pt-BR preserva tokens críticos; Supertonic empacotado usa oito passos e DirectML, com 1,19 s fria e 0,32 s aquecida para 4,9 s de áudio | Ouvir o pacote beta 9, testar 20 turnos, dispositivos distintos e eco/recaptura |
-| App instalado | Beta.9 local instalada | versão e ASAR conferidos; atualização beta.8 → beta.9 preservou configurações, conversas e atividade | Escuta humana de resposta/pronúncia e repetir ações externas reais |
-| Landing | Beta.7 pública · beta.9 preparada no código | Sites v22 segue pública sem apontar para ativo inexistente | Publicar beta.9 somente após validar o download anônimo; contraste manual permanece |
+| App instalado | Beta.9 pública instalada | versão e ASAR conferidos; atualização beta.8 → beta.9 preservou configurações, conversas e atividade | Escuta humana de resposta/pronúncia e repetir ações externas reais |
+| Landing | Beta.9 pública · Sites v23 | HTTP 200, versão e link do instalador conferidos anonimamente | Contraste manual e ampliação da prova real permanecem |
 | Governança | Pronto no código | README, release, QA, backlog e marketing são conferidos pelo script; Issues #9/#10/#11 espelham Now/Next/Later | Atualizar evidências finais após NSIS/tag e adicionar donos quando houver equipe fixa |
 
 ### Fila executiva recomendada
@@ -759,7 +759,7 @@ Objetivo: transformar a decisão local do computador de desenvolvimento em escol
 ### TITI-LAUNCH-001 — Site, documentação e feedback coerentes
 
 - **Prioridade/estado/trilha:** P1 · Parcial · Produto + Marketing + Suporte
-- **Evidência atual:** landing beta.7 está pública na Sites versão 22 com política beta coerente; a fonte candidata beta.8 compila e passa cinco testes renderizados, mas seu CTA permanece proibido em produção até a release existir. Licença, metadados, política, suporte e SEO já estão no repositório; faltam contraste manual e ampliação da prova real dos fluxos anunciados.
+- **Evidência atual:** landing beta.9 está pública na Sites versão 23, responde HTTP 200 e aponta ao instalador público conferido; build e cinco testes renderizados passam. Licença, metadados, política, suporte e SEO estão no repositório; faltam contraste manual e ampliação da prova real dos fluxos anunciados.
 - **Resultado:** site promete o que o executável entrega e usuário sabe baixar, aprender e reportar.
 - **Aceite:**
   - [x] landing aponta para release atual e evita marcas desnecessárias/termos internos;
