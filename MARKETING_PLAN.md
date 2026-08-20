@@ -1,22 +1,22 @@
 # Plano de marketing e lançamento do Titi
 
-Atualizado em 15/08/2026 para o estado público da `v0.2.0-beta.1`. Este documento governa aquisição, mensagem, feedback e promoção. O princípio central é: **nenhuma campanha pode avançar mais rápido que a evidência do produto instalado**.
+Atualizado em 17/08/2026 para o estado público da `v0.2.0-beta.7`. Este documento governa aquisição, mensagem, feedback e promoção. O princípio central é: **nenhuma campanha pode avançar mais rápido que a evidência do produto instalado**.
 
 ## Decisão executiva
 
-A `v0.2.0-beta.1` está publicada como pré-release, com código, instalador, hash e landing acessíveis. Ela comprovou em ambiente empacotado a interface, as confirmações e a abertura de alguns aplicativos. Depois da publicação, a auditoria encontrou P0 que exigem uma **beta corretiva** antes de qualquer promoção ampla:
+A `v0.2.0-beta.7` está publicada como pré-release, com código, instalador, hash e landing acessíveis. Ela comprovou em ambiente empacotado a interface, as confirmações e a abertura de alguns aplicativos. Depois da publicação, a auditoria encontrou P0/P1 que exigem uma **beta corretiva progressiva** antes de qualquer promoção ampla:
 
-- um recurso interno de QA permaneceu no pacote de produção e pode acionar aprovações quando uma variável de ambiente específica é usada;
-- a versão publicada não bloqueia credenciais embutidas em URLs nem redige suficientemente URLs e pesquisas no histórico local de ações;
+- um recurso interno de QA encontrado em ciclos antigos foi removido do pacote de produção;
 - o instalador continua sem assinatura pública;
-- o instalador NSIS e o fluxo completo de voz ainda não foram validados do começo ao fim na máquina real com os dados preservados.
+- o instalador NSIS e o fluxo completo de voz ainda não foram validados do começo ao fim na máquina real com os dados preservados;
+- cliente remoto e modo reunião foram intencionalmente excluídos nesta fase.
 
 Não há evidência conhecida de exploração ou perda de dados. Ainda assim, esses itens contradizem pilares da marca — consentimento, transparência e confiança — e devem ser tratados publicamente como motivo de uma corretiva, não escondidos como “melhorias internas”.
 
 ### Estado de comunicação
 
 - **Agora:** manutenção transparente; não iniciar campanha, anúncio patrocinado, Product Hunt, imprensa, influenciadores ou postagem de aquisição em comunidades.
-- **Beta atual:** disponível como registro público de pré-release, mas não recomendada ativamente para novos usuários enquanto a corretiva é preparada.
+- **Beta atual:** disponível como registro público de pré-release, mas sem recomendação de campanha ativa enquanto os gates técnicos estiverem abertos.
 - **Próxima beta corretiva:** distribuição primeiro para teste privado e depois para pequenos grupos, somente após os gates deste plano.
 - **Promoção ampla:** bloqueada enquanto hook de QA, URL/redação, assinatura e voz permanecerem abertos.
 
@@ -48,12 +48,13 @@ Se surgir evidência de execução sem consentimento, exposição de credenciais
 - standby de jogos comprovado em jogos reais, múltiplos monitores e diferentes modos de tela;
 - atualização automática, rollback, múltiplos provedores ou OAuth;
 - uso como tecnologia assistiva ou substituição de teclado e mouse.
+- cliente remoto e operação de reunião por captura de tela são recursos intencionais para a próxima fase e não estão nesta etapa de lançamento.
 
 ## Auditoria da comunicação atual
 
 ### README
 
-O README está tecnicamente detalhado e reconhece limites importantes, mas ainda descreve `0.2.0-beta.1` como “candidato interno” que não substituiu a beta pública. Isso ficou desatualizado depois da publicação. Na próxima corretiva, deve distinguir claramente:
+O README está tecnicamente detalhado e reconhece limites importantes; ainda descreve alguns pontos de versão de forma conservadora. Na próxima revisão, deve distinguir claramente:
 
 1. versão pública atual sob correção;
 2. versão corretiva recomendada;
@@ -61,13 +62,13 @@ O README está tecnicamente detalhado e reconhece limites importantes, mas ainda
 4. limites e riscos conhecidos;
 5. como atualizar, voltar ou relatar um problema sem dados pessoais.
 
-### Notas da `v0.2.0-beta.1`
+### Notas da `v0.2.0-beta.7`
 
 As notas acertam ao informar que a versão é beta, que o instalador não é assinado e que automação interna, voz neural e jogos ainda têm limites. Porém, algumas frases são mais fortes que a evidência:
 
-- “o instalador pode ser executado normalmente” ainda não foi comprovado pelo instalador real;
-- “configurações e conversas são reutilizadas” é esperado pelo código, mas ainda precisa de smoke instalado;
-- “toda abertura pede confirmação” precisa ser contextualizado porque o hook de QA encontrado no pacote viola esse princípio em uma condição específica;
+- “o instalador pode ser executado normalmente” ainda não foi comprovado em todos os cenários reais;
+- “configurações e conversas são reutilizadas” é esperado pelo código, mas ainda precisa de smoke instalado em mais cenários;
+- “toda abertura pede confirmação” precisa ser contextualizada porque o fluxo atual executa ações compatíveis com segurança definida;
 - “histórico redigido” não deve sugerir que URLs, parâmetros e pesquisas já têm redação completa;
 - “standby ao detectar um jogo” deve continuar identificado como experimental.
 
@@ -146,7 +147,7 @@ O Titi não deve ser vendido como automação universal. Seu diferencial atual �
 
 ### Comunicado durante a preparação da corretiva
 
-> A beta `v0.2.0-beta.1` do Titi está pública para transparência, mas não estamos recomendando novos downloads enquanto preparamos uma beta corretiva. A revisão encontrou pontos de consentimento, tratamento de URLs e validação de voz que precisam ser corrigidos e testados no instalador real. Não há evidência conhecida de exploração. Publicaremos a nova versão, os testes realizados e um novo hash assim que ela passar pelos gates.
+> A beta `v0.2.0-beta.7` do Titi está pública para transparência, mas não estamos recomendando novos downloads enquanto preparamos uma beta corretiva. A revisão encontrou pontos de consentimento, tratamento de URLs e validação de voz que precisam ser corrigidos e testados no instalador real. Não há evidência conhecida de exploração. Publicaremos a nova versão, os testes realizados e um novo hash assim que ela passar pelos gates.
 
 ### Descrição curta depois da corretiva aprovada
 

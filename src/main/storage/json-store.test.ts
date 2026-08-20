@@ -68,6 +68,40 @@ describe('JsonStore recovery', () => {
     expect(await store.read()).toEqual({ value: 3 })
     await expect(access(`${path}.tmp`)).rejects.toMatchObject({ code: 'ENOENT' })
   })
+
+  it('purges the previous snapshot when data is explicitly deleted', async () => {
+    const directory = await createTemporaryDirectory()
+    const path = join(directory, 'conversations.json')
+    const store = new JsonStore(path, { conversations: [] as string[] })
+
+    await store.write({ conversations: ['sensitive'] })
+    await store.write({ conversations: ['sensitive', 'newer'] })
+    await store.purgeAndWrite({ conversations: [] })
+
+    await expect(access(`${path}.bak`)).rejects.toMatchObject({ code: 'ENOENT' })
+    expect(JSON.parse(await readFile(path, 'utf8'))).toEqual({ conversations: [] })
+  })
+
+  it('rejects an oversized write without replacing the previous value', async () => {
+    const directory = await createTemporaryDirectory()
+    const path = join(directory, 'bounded.json')
+    const store = new JsonStore(path, { value: 'fallback' }, 80)
+
+    await store.write({ value: 'safe' })
+    await expect(store.write({ value: 'x'.repeat(100) })).rejects.toThrow(/limite seguro/i)
+
+    expect(await store.read()).toEqual({ value: 'safe' })
+    await expect(access(`${path}.tmp`)).rejects.toMatchObject({ code: 'ENOENT' })
+  })
+
+  it('ignores a persisted file larger than the configured read limit', async () => {
+    const directory = await createTemporaryDirectory()
+    const path = join(directory, 'oversized.json')
+    await writeFile(path, JSON.stringify({ value: 'x'.repeat(100) }), 'utf8')
+    const store = new JsonStore(path, { value: 'fallback' }, 80)
+
+    expect(await store.read()).toEqual({ value: 'fallback' })
+  })
 })
 
 async function createTemporaryDirectory(): Promise<string> {

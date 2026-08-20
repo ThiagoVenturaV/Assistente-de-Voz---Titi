@@ -2,6 +2,7 @@ import type {
   ConversationSummary,
   TitiSettings
 } from '../../../shared/contracts'
+import type { RefObject } from 'react'
 import {
   MessageIcon,
   MoreIcon,
@@ -17,6 +18,7 @@ interface SidebarProps {
   conversations: ConversationSummary[]
   selectedId?: string
   settings: TitiSettings
+  settingsButtonRef?: RefObject<HTMLButtonElement | null>
   onToggle(): void
   onCreate(): void
   onSelect(id: string): void
@@ -29,6 +31,7 @@ export function Sidebar({
   conversations,
   selectedId,
   settings,
+  settingsButtonRef,
   onToggle,
   onCreate,
   onSelect,
@@ -91,7 +94,11 @@ export function Sidebar({
       )}
 
       <div className="sidebar-footer">
-        <button className="sidebar-action" onClick={onOpenSettings}>
+        <button
+          ref={settingsButtonRef}
+          className="sidebar-action"
+          onClick={onOpenSettings}
+        >
           <SettingsIcon />
           {!collapsed && <span>Configurações</span>}
         </button>

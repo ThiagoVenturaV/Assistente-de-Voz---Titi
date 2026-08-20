@@ -11,6 +11,7 @@ import { Composer } from './components/Composer'
 import { EmptyState } from './components/EmptyState'
 import { MessageList } from './components/MessageList'
 import { Onboarding } from './components/Onboarding'
+import { GameStandbyDecisionModal } from './components/GameStandbyDecisionModal'
 import { SettingsPanel } from './components/SettingsPanel'
 import { Sidebar } from './components/Sidebar'
 import { ToolConfirmationModal } from './components/ToolConfirmationModal'
@@ -42,6 +43,9 @@ export function App(): React.JSX.Element {
   const liveRestartTimer = useRef<number | null>(null)
   const settingsRef = useRef<TitiSettings | null>(null)
   const currentRef = useRef<Conversation | null>(null)
+  const settingsButtonRef = useRef<HTMLButtonElement | null>(null)
+  const settingsFocusReturnRef = useRef<HTMLElement | null>(null)
+  const settingsOpenRef = useRef(false)
   const sendingRef = useRef(false)
   const voiceProcessingRef = useRef(false)
   const interactionGeneration = useRef(0)
@@ -51,6 +55,44 @@ export function App(): React.JSX.Element {
   const voiceChunkQueue = useRef<Promise<void>>(Promise.resolve())
   const gameStandbyRef = useRef(false)
   const preparingRuntimeRef = useRef(false)
+
+  type SendMessageOptions = {
+    baseConversation?: Conversation | null
+    requestId?: string
+    startedAt?: number
+    skipOptimistic?: boolean
+    optimisticConversation?: Conversation
+  }
+
+  function applyConversationState(
+    conversation: Conversation,
+    content: string,
+    requestId: string,
+    startedAt: number,
+    skipOptimistic?: boolean,
+    optimisticConversation?: Conversation
+  ): Conversation {
+    const messageId = `pending-${requestId}`
+    const optimistic = skipOptimistic && optimisticConversation
+      ? (optimisticConversation.id === messageId
+        ? optimisticConversation
+        : createOptimisticConversation(conversation, content, messageId, new Date(startedAt).toISOString()))
+      : createOptimisticConversation(conversation, content, messageId, new Date(startedAt).toISOString())
+
+    setCurrent(optimistic)
+    currentRef.current = optimistic
+    setActivityStartedAt(startedAt)
+    setConversations((previous) => [
+      {
+        id: optimistic.id,
+        title: optimistic.title,
+        updatedAt: optimistic.updatedAt,
+        preview: optimistic.preview
+      },
+      ...previous.filter(({ id }) => id !== optimistic.id)
+    ])
+    return optimistic
+  }
 
   useEffect(() => {
     let active = true
@@ -124,13 +166,32 @@ export function App(): React.JSX.Element {
   }, [voiceProcessing])
 
   useEffect(() => {
+    settingsOpenRef.current = settingsOpen
+  }, [settingsOpen])
+
+  useEffect(() => {
     const handleStopKey = (event: KeyboardEvent): void => {
+      if ((event.ctrlKey || event.metaKey) && event.code === 'KeyL' && !event.shiftKey && !event.repeat) {
+        event.preventDefault()
+        void toggleLiveMode()
+        return
+      }
+
+      if (event.key === 'Escape' && settingsOpenRef.current) {
+        event.preventDefault()
+        closeSettingsPanel()
+        return
+      }
+
       if (event.key !== 'Escape' || !hasActiveInteraction()) return
       event.preventDefault()
       stopCurrentInteraction('Interação interrompida.')
     }
+
     window.addEventListener('keydown', handleStopKey)
-    return () => window.removeEventListener('keydown', handleStopKey)
+    return () => {
+      window.removeEventListener('keydown', handleStopKey)
+    }
   }, [])
 
   useEffect(() => {
@@ -145,6 +206,22 @@ export function App(): React.JSX.Element {
     scheduleLiveListening(60)
     return clearLiveRestart
   }, [settings?.onboardingComplete, settings?.voice.enabled, settings?.voice.liveMode, gameStandby, listening, sending, voiceProcessing])
+
+  function openSettingsPanel(): void {
+    const focusTarget = document.activeElement
+    settingsFocusReturnRef.current = focusTarget instanceof HTMLElement
+      ? focusTarget
+      : settingsButtonRef.current
+    setSettingsOpen(true)
+  }
+
+  function closeSettingsPanel(): void {
+    setSettingsOpen(false)
+    const previousFocusTarget = settingsFocusReturnRef.current
+    settingsFocusReturnRef.current = null
+    if (!previousFocusTarget) return
+    window.requestAnimationFrame(() => previousFocusTarget.focus())
+  }
 
   async function refreshConversations(selectedId?: string): Promise<void> {
     const summaries = await window.titi.conversations.list()
@@ -180,7 +257,7 @@ export function App(): React.JSX.Element {
     }
   }
 
-  async function sendMessage(value = draft): Promise<void> {
+  async function sendMessage(value = draft, options: SendMessageOptions = {}): Promise<void> {
     const content = value.trim()
     if (!content || sendingRef.current) return
     if (gameStandbyRef.current) {
@@ -189,14 +266,20 @@ export function App(): React.JSX.Element {
     }
     setDraft('')
     const generation = ++interactionGeneration.current
-    const requestId = crypto.randomUUID()
+    const requestId = options.requestId ?? crypto.randomUUID()
+    const startedAt = options.startedAt ?? Date.now()
+    const {
+      baseConversation: explicitBaseConversation,
+      skipOptimistic,
+      optimisticConversation
+    } = options
     const speechController = new AbortController()
     activeRequestId.current = requestId
     activeSpeech.current = speechController
     sendingRef.current = true
     setSending(true)
     setNotice(null)
-    let baseConversation = currentRef.current
+    let baseConversation = explicitBaseConversation ?? currentRef.current
     try {
       if (!baseConversation) {
         baseConversation = await window.titi.conversations.create()
@@ -204,24 +287,16 @@ export function App(): React.JSX.Element {
         currentRef.current = baseConversation
       }
 
-      const startedAt = Date.now()
-      const optimisticConversation = createOptimisticConversation(
-        baseConversation,
-        content,
-        `pending-${requestId}`,
-        new Date(startedAt).toISOString()
-      )
-      setCurrent(optimisticConversation)
-      setConversations((previous) => [
-        {
-          id: optimisticConversation.id,
-          title: optimisticConversation.title,
-          updatedAt: optimisticConversation.updatedAt,
-          preview: optimisticConversation.preview
-        },
-        ...previous.filter(({ id }) => id !== optimisticConversation.id)
-      ])
-      setActivityStartedAt(startedAt)
+      if (baseConversation) {
+        applyConversationState(
+          baseConversation,
+          content,
+          requestId,
+          startedAt,
+          skipOptimistic,
+          optimisticConversation
+        )
+      }
 
       const response = await window.titi.conversations.send({
         requestId,
@@ -314,6 +389,24 @@ export function App(): React.JSX.Element {
         voiceChunkQueue.current = voiceChunkQueue.current
           .then(() => window.titi.voice.pushStreamChunk(streamSessionId, pcmAudio))
           .catch(() => undefined)
+      },
+      () => {
+        if (recorder.current !== nextRecorder) return
+        recordingGeneration.current += 1
+        nextRecorder.cancel()
+        recorder.current = null
+        recordingStarting.current = false
+        cancelVoiceStream()
+        setListening(false)
+        setVoiceProcessing(false)
+        setNotice('O microfone foi desconectado ou perdeu a permissão. Abra Configurações → Voz para escolher outra entrada.')
+        void window.titi.mascot.setState('idle')
+        if (settingsRef.current?.voice.liveMode) {
+          void window.titi.voice.setLiveMode(false).then((latestSettings) => {
+            settingsRef.current = latestSettings
+            setSettings(latestSettings)
+          })
+        }
       }
     )
     const generation = ++recordingGeneration.current
@@ -371,9 +464,16 @@ export function App(): React.JSX.Element {
         transcription = await window.titi.voice.transcribe(audio)
       }
       if (generation !== recordingGeneration.current) return
+      const messageText = transcription.text.trim()
+      if (!messageText) {
+        setNotice('Não foi possível extrair um texto da gravação.')
+        void window.titi.mascot.setState('idle')
+        return
+      }
+
       if (
         settingsRef.current?.voice.liveMode
-        && resolveLiveVoiceCommand(transcription.text) === 'stop'
+        && resolveLiveVoiceCommand(messageText) === 'stop'
       ) {
         setDraft('')
         setVoiceProcessing(false)
@@ -384,9 +484,40 @@ export function App(): React.JSX.Element {
         void window.titi.mascot.setState('idle')
         return
       }
-      setDraft(transcription.text)
-      setNotice(`Ouvi: “${transcription.text}”`)
-      await sendMessage(transcription.text)
+
+      const requestId = crypto.randomUUID()
+      const startedAt = Date.now()
+      if (!currentRef.current) {
+        const created = await window.titi.conversations.create()
+        if (generation !== recordingGeneration.current) return
+        currentRef.current = created
+        setCurrent(created)
+      }
+      const baseConversation = currentRef.current
+      let optimisticConversation: Conversation | undefined
+      if (baseConversation) {
+        optimisticConversation = applyConversationState(
+          baseConversation,
+          messageText,
+          requestId,
+          startedAt,
+          true
+        )
+      }
+
+      if (
+        messageText
+      ) {
+        setDraft(messageText)
+        setNotice(`Ouvi: “${messageText}”`)
+      }
+      await sendMessage(messageText, {
+        requestId,
+        baseConversation,
+        startedAt,
+        skipOptimistic: true,
+        optimisticConversation
+      })
     } catch (error) {
       if (generation !== recordingGeneration.current) return
       setNotice(error instanceof Error ? error.message : 'Não consegui transcrever a gravação.')
@@ -479,6 +610,7 @@ export function App(): React.JSX.Element {
     interactionGeneration.current += 1
     recordingGeneration.current += 1
     clearLiveRestart()
+    const inFlightRequest = Boolean(activeRequestId.current && sendingRef.current)
     recorder.current?.cancel()
     recorder.current = null
     cancelVoiceStream()
@@ -498,7 +630,11 @@ export function App(): React.JSX.Element {
     setActivityStartedAt(null)
     setListening(false)
     setVoiceProcessing(false)
-    setNotice(message)
+    setNotice(
+      inFlightRequest
+        ? `${message} Se já estava em execução uma ferramenta com efeito externo, ela pode ter continuado até a confirmação.`
+        : message
+    )
     void window.titi.mascot.setState('idle')
 
     if (settingsRef.current?.voice.liveMode) {
@@ -557,7 +693,8 @@ export function App(): React.JSX.Element {
         onCreate={createConversation}
         onSelect={selectConversation}
         onRemove={removeConversation}
-        onOpenSettings={() => setSettingsOpen(true)}
+        settingsButtonRef={settingsButtonRef}
+        onOpenSettings={openSettingsPanel}
       />
 
       <main className="chat-area">
@@ -591,7 +728,16 @@ export function App(): React.JSX.Element {
           )}
         </div>
 
-        {notice && <button className="notice" onClick={() => setNotice(null)}>{notice}<span>×</span></button>}
+        <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+          {listening
+            ? 'Gravação em andamento.'
+            : voiceProcessing
+              ? 'Transcrevendo sua fala.'
+              : sending
+                ? 'Titi está pensando e executando a tarefa.'
+                : 'Pronto para conversar.'}
+        </div>
+        {notice && <button className="notice" aria-label={`Dispensar aviso: ${notice}`} onClick={() => setNotice(null)}>{notice}<span aria-hidden="true">×</span></button>}
         <Composer
           value={draft}
           sending={sending}
@@ -603,6 +749,9 @@ export function App(): React.JSX.Element {
           onStop={() => stopCurrentInteraction()}
           onListenStart={() => void beginListening(false)}
           onListenEnd={endListening}
+          onListenTimeout={() => {
+            setNotice('Tempo de escuta excedido. Fale novamente para reabrir o microfone.')
+          }}
           onToggleLive={toggleLiveMode}
         />
       </main>
@@ -625,7 +774,7 @@ export function App(): React.JSX.Element {
         <SettingsPanel
           settings={settings}
           runtime={runtime}
-          onClose={() => setSettingsOpen(false)}
+          onClose={closeSettingsPanel}
           onSave={saveSettings}
           onCheckRuntime={checkRuntime}
           onPrepareRuntime={prepareRuntime}
@@ -633,6 +782,7 @@ export function App(): React.JSX.Element {
         />
       )}
 
+      <GameStandbyDecisionModal />
       <ToolConfirmationModal />
     </div>
   )

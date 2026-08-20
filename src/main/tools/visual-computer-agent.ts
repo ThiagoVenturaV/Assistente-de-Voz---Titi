@@ -1,5 +1,6 @@
 import type { TitiSettings } from '../../shared/contracts'
 import type { ToolExecutionResult } from './contracts'
+import { readLimitedJsonResponse } from '../security/limited-json-response'
 import type {
   ComputerController,
   ComputerDesktopCapture,
@@ -130,7 +131,14 @@ export class OllamaVisualComputerAgent implements VisualComputerAgent {
     // and receives coordinates relative to that rectangle.
     const clickCapture = await this.controller.capture('spotify', signal)
     const clickPoint = spotifyBottomPlayerPoint(clickCapture)
-    const click = await this.controller.click('spotify', clickPoint.x, clickPoint.y, signal)
+    const click = await this.controller.click('spotify', clickPoint.x, clickPoint.y, {
+      processId: clickCapture.processId,
+      windowHandle: clickCapture.windowHandle,
+      windowTitle: clickCapture.windowTitle,
+      processName: clickCapture.processName,
+      width: clickCapture.width,
+      height: clickCapture.height
+    }, signal)
     await abortableDelay(550, signal)
     const after = await this.controller.capture('spotify', signal)
     const verification = await this.verify(settings, after, action, safeGoal, signal)
@@ -300,7 +308,7 @@ export class OllamaVisualComputerAgent implements VisualComputerAgent {
       }),
       signal
     })
-    const payload = await response.json() as OllamaVisionResponse
+    const payload = await readLimitedJsonResponse<OllamaVisionResponse>(response)
     if (!response.ok) {
       throw new Error(payload.error || `Ollama visual respondeu com HTTP ${response.status}.`)
     }

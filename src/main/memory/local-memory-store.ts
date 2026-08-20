@@ -129,7 +129,7 @@ export class LocalMemoryStore {
       const originalLength = database.entries.length
       database.entries = database.entries.filter((entry) => entry.id !== id)
       return database.entries.length !== originalLength
-    })
+    }, true)
   }
 
   /** Explicit user deletion remains available even when history is disabled. */
@@ -140,7 +140,7 @@ export class LocalMemoryStore {
         ? database.entries.filter((entry) => entry.kind !== kind)
         : []
       return originalLength - database.entries.length
-    })
+    }, true)
   }
 
   /**
@@ -211,12 +211,16 @@ export class LocalMemoryStore {
     })
   }
 
-  private async mutate<T>(operation: (database: MemoryDatabase) => T): Promise<T> {
+  private async mutate<T>(
+    operation: (database: MemoryDatabase) => T,
+    purgeBackup = false
+  ): Promise<T> {
     let result!: T
     const mutation = this.mutationQueue.then(async () => {
       const database = normalizeDatabase(await this.store.read())
       result = operation(database)
-      await this.store.write(database)
+      if (purgeBackup) await this.store.purgeAndWrite(database)
+      else await this.store.write(database)
     })
     this.mutationQueue = mutation.catch(() => undefined)
     await mutation

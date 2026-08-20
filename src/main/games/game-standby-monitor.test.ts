@@ -73,6 +73,25 @@ describe('GameStandbyMonitor', () => {
     expect(enter).not.toHaveBeenCalled()
   })
 
+  it('permite adiar a entrada em standby para um mesmo processo e não reapresenta prompt', async () => {
+    const samples = [game, game, game]
+    const enter = vi.fn().mockResolvedValue(false)
+    const monitor = new GameStandbyMonitor({
+      poll: async () => samples.shift() ?? null,
+      knownGames: ['game'],
+      onEnter: enter,
+      onExit: vi.fn(),
+      enterSamples: 2
+    })
+
+    await monitor.checkNow()
+    await monitor.checkNow()
+    expect(enter).toHaveBeenCalledOnce()
+    await monitor.checkNow()
+    expect(enter).toHaveBeenCalledOnce()
+    expect(monitor.isInStandby()).toBe(false)
+  })
+
   it('stays in standby while the foreground switches directly between games', async () => {
     const gameB = { processId: 84, executable: 'OtherGame.exe', fullscreen: true }
     const samples = [game, gameB, null, null]

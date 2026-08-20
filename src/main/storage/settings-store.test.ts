@@ -33,14 +33,14 @@ describe('SettingsStore', () => {
     expect(renamed.voice.enabled).toBe(true)
   })
 
-  it('mantém confirmações críticas sempre ativas', async () => {
+  it('preserva atualizações válidas e leitura de campos persistidos', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'titi-settings-'))
     temporaryDirectories.push(directory)
     const store = new SettingsStore(directory)
 
-    await expect(store.update({ confirmSensitiveActions: false }))
-      .resolves.toMatchObject({ confirmSensitiveActions: true })
-    await expect(store.get()).resolves.toMatchObject({ confirmSensitiveActions: true })
+    const current = await store.update({ keepHistory: false })
+    expect(current).toMatchObject({ keepHistory: false })
+    await expect(store.get()).resolves.toMatchObject({ keepHistory: false })
   })
 
   it('mantém o controle da interface desativado por padrão e preserva o opt-in explícito', async () => {
@@ -77,7 +77,6 @@ describe('SettingsStore', () => {
       onboardingComplete: true,
       mascotName: 'Titi Antigo',
       keepHistory: 'false',
-      confirmSensitiveActions: false,
       provider: {
         kind: 'ollama',
         endpoint: 'https://remote.example.com',
@@ -97,7 +96,6 @@ describe('SettingsStore', () => {
       onboardingComplete: true,
       mascotName: 'Titi Antigo',
       keepHistory: true,
-      confirmSensitiveActions: true,
       provider: { endpoint: 'http://127.0.0.1:11434', model: 'qwen3:4b-instruct' },
       voice: { pushToTalkShortcut: 'CommandOrControl+Shift+Space' }
     })

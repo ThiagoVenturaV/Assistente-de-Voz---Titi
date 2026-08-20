@@ -1,20 +1,23 @@
 # Gate de QA — Titi `0.2.0-beta.7`
 
-Auditoria atualizada em 17/08/2026. Este documento define o que precisa estar comprovado antes de orientar o usuário a instalar a nova versão ou publicar o download como beta público.
+Auditoria atualizada em 19/08/2026. Este documento define o que precisa estar comprovado antes de orientar o usuário a instalar a nova versão ou publicar o download como beta público.
+
+Esta rodada mantém escopo deliberado: **não inclui** `TITI-MEET-001` (modo reunião) nem `TITI-REMOTE-001` (cliente remoto). Eles seguem em `Later`, após aprovação dos alvos atuais.
 
 ## Veredito atual
 
-**A PRÉ-RELEASE PÚBLICA `0.2.0-beta.7` ESTÁ PUBLICADA, INSTALADA E SINCRONIZADA ENTRE GITHUB, LANDING E ESTA MÁQUINA.** Passaram 331 testes, typecheck, build, NSIS, verificação do pacote, smokes de Parakeet e Supertonic DirectML, instalação sobre o perfil preservado e o teste real do botão de fechar do mascote. A tag aponta para `b48fb76`, a CI da `main` terminou verde, os três ativos foram publicados e o download anônimo respondeu HTTP 200 com 892.673.907 bytes. A landing Sites versão 18 também respondeu HTTP 200 com a beta.7. O Qwen 4B passou em 18/19 cenários do contrato e em 4/4 fluxos do provider, com a correção “Chrome → Brave” registrada como regressão conhecida; o Qwen 3.5 9B permanece selecionável e passou em 19/19. Como o instalador continua `NotSigned`, pode acionar o SmartScreen e não deve ser tratado como versão estável.
+**A PRÉ-RELEASE PÚBLICA `0.2.0-beta.7` ESTÁ PUBLICADA, INSTALADA E SINCRONIZADA ENTRE GITHUB, LANDING E ESTA MÁQUINA.** No candidato publicado passaram 331 testes, typecheck, build, NSIS, verificação do pacote, smokes de Parakeet e Supertonic DirectML, instalação sobre o perfil preservado e o teste real do botão de fechar do mascote. A tag aponta para `b48fb76`, a CI da `main` terminou verde, os três ativos foram publicados e o download anônimo respondeu HTTP 200 com 892.673.907 bytes. A landing Sites versão 21 também respondeu HTTP 200 com a beta.7, transparência de download, política de privacidade, suporte, SEO técnico e alvos móveis ampliados. A branch em preparação passa 419 testes em 48 arquivos, incluindo autoteste guiado, diagnóstico seguro, perda de microfone, política beta e acessibilidade. O Qwen 4B passou em 18/19 cenários do contrato e em 4/4 fluxos do provider, com a correção “Chrome → Brave” registrada como regressão conhecida; o Qwen 3.5 9B permanece selecionável e passou em 19/19. Como o instalador continua `NotSigned`, pode acionar o SmartScreen e não deve ser tratado como versão estável.
 
-Antes do teste, o usuário havia desinstalado a versão anterior: a pasta de instalação foi removida, enquanto configurações e conversas permaneceram em `%APPDATA%\titi-desktop`. A beta.2 foi instalada sobre esse perfil e reabriu os dados existentes.
+Antes do teste, o usuário havia desinstalado a versão anterior: a pasta de instalação foi removida, enquanto configurações e conversas permaneceram em `%APPDATA%\titi-desktop`. A instalação foi executada sobre esse perfil e reabriu os dados existentes.
 
 ## Evidências desta auditoria
 
-| Verificação | Estado | Evidência em 17/08/2026 |
+| Verificação | Estado | Evidência até 19/08/2026 |
 |---|---|---|
 | Versão declarada na fonte | Aprovado | `package.json` declara `0.2.0-beta.7` |
+| Sincronização de metadados de versão | Aprovado | `pnpm qa:release-sync` confirmou coerência entre `package.json`, `landing`, `latest.yml` e nota de versão |
 | Typecheck | Aprovado | `pnpm typecheck`, código 0 |
-| Testes automatizados | Aprovado na branch | `pnpm test`: 34 arquivos e 331 testes aprovados, incluindo o controle de fechar do mascote sempre visível |
+| Testes automatizados | Aprovado na branch | `pnpm test`: 48 arquivos e 419 testes aprovados, incluindo release, autoteste guiado, diagnóstico seguro, perda de microfone, política beta, acessibilidade, privacidade, standby e o controle de fechar do mascote |
 | Build de produção | Aprovado | `pnpm build`: main, preload e renderer compilados |
 | Linguagem natural e seleção de ferramentas | Parcial documentado | `qwen3:4b-instruct`: 18/19, média de 1,05 s nesta rodada; `qwen3.5:9b`: 19/19; o caso 4B “Chrome → Brave” permanece conhecido e nenhum efeito externo é executado pelo script |
 | Conversa real do provider | Aprovado sem efeitos externos | 4/4 fluxos sequenciais no `OllamaProvider` real com Qwen 4B e 4/4 com Qwen 3.5 9B, definições reais das ferramentas e executor gravador; detalhes em `docs/OLLAMA_AGENT_MODEL_BENCHMARK.md` |
@@ -35,7 +38,7 @@ Antes do teste, o usuário havia desinstalado a versão anterior: a pasta de ins
 | Manifesto de release beta.7 | Aprovado localmente | `latest.yml` declara beta.7 e 892.673.907 bytes, com SHA-512 correspondente ao NSIS final |
 | Assinatura do instalador | Risco explícito | `Get-AuthenticodeSignature` retorna `NotSigned` para o instalador beta.7 e `win-unpacked/Titi.exe` |
 | Ensaio visual real do Spotify | Aprovado na fonte | com árvore acessível vazia, o Ollama local identificou Play com 95%, o clique relativo iniciou a reprodução e a inspeção independente mostrou Pause; o recorte ampliado corrigiu a classificação pós-clique para `playing` com 95% |
-| Política de confirmação beta | Aprovado automaticamente | web, Spotify, aplicativos e UI permitida executam direto; somente abrir/controlar Antigravity é sensível; alvos protegidos continuam bloqueados |
+| Política de confirmação na branch | Aprovado automaticamente | ações genéricas de UI exigem confirmação, identidade exata da janela/controle e nova validação antes do efeito; alvos protegidos continuam bloqueados |
 | Catálogo real do Windows | Aprovado para as fontes requeridas | `Get-StartApps` retornou Brave (`Brave`), Spotify (`SpotifyAB.SpotifyMusic_zpdnekdrzrea0!Spotify`), ChatGPT/Codex (`OpenAI.Codex_2p2nqsd0c76g0!App`), Antigravity e Antigravity IDE |
 | Instalação do NSIS beta.7 | Aprovado estruturalmente e visualmente | código 0 e ASAR instalado idêntico ao `win-unpacked` (`A9070C81…26ECF`); `actions.json`, `conversations.json` e `settings.json` mantiveram seus SHA-256; botão de fechar aprovado no mascote real |
 
@@ -52,138 +55,11 @@ Antes do teste, o usuário havia desinstalado a versão anterior: a pasta de ins
 - [x] Provar visão local de 2 monitores e abertura direta do YouTube no Brave.
 - [x] Executar novamente os smokes DirectML e Parakeet no pacote final.
 - [x] Publicar tag e release beta.7, validar download anônimo e só então trocar a landing page pública.
+- [x] Rodar `qa:release-sync` para travar que `package.json`, `landing/app/page.tsx`, `landing/package.json`, `latest.yml` e `README` continuam no mesmo número de versão.
 
-## Histórico do gate beta.3 e pendências manuais herdadas
+## Relatórios históricos
 
-As seções abaixo preservam a evidência detalhada da beta.3 e os smokes manuais ainda úteis. Itens históricos não substituem a evidência específica da beta.7 acima.
-
-### Bloqueadores do candidato beta.3
-
-### RC-00 — substituir o pacote público com instrumentação interna
-
-- [x] remover `TITI_CAPTURE_DIR`, `captureQaScreens` e cliques automáticos do processo principal;
-- [x] fazer o verificador falhar se qualquer marcador reaparecer no ASAR;
-- [x] gerar e verificar um novo `win-unpacked` sem esses marcadores;
-- [x] gerar o NSIS beta.3 a partir da fonte final e ligar a tag própria ao commit `a0298a2`;
-- [x] instalar sobre o perfil preservado, executar a matriz automatizada crítica e só então trocar o download público; os smokes manuais restantes continuam abaixo.
-
-### RC-01 — gerar o artefato correto
-
-- [x] Executar `pnpm package:win` em Windows com a árvore de trabalho final.
-- [x] Existir `release/Titi-Setup-0.2.0-beta.3.exe` e seu `.blockmap`.
-- [x] `release/win-unpacked/resources/app.asar` conter `titi-desktop` versão `0.2.0-beta.3`.
-- [x] `pnpm verify:package` terminar com código 0 após o empacotamento beta.3.
-- [x] Conferir que somente o EXE beta.3, seu blockmap e `latest.yml` foram enviados ao release novo.
-
-Instaladores anteriores continuam no diretório local `release/`; o upload deve selecionar explicitamente somente o EXE beta.3, seu `.blockmap` e `latest.yml`.
-
-### RC-02 — alinhar instalador, manifesto e publicação
-
-- [x] `release/latest.yml` declarar `0.2.0-beta.3`, o nome e o tamanho do instalador candidato.
-- [x] Calcular e registrar o SHA-256 do NSIS final: `42458B01E7144B7C03D2CEB0CA355EF8E436D988107E306B9DBCE750B1E32BA1`.
-- [ ] Recalcular e publicar o SHA-256 se o arquivo for assinado, pois a assinatura altera os bytes.
-- [x] `RELEASE_NOTES.md`, README e a fonte da landing page identificarem `0.2.0-beta.3`; a landing só deve ser publicada depois do release existir.
-- [x] Título, tag, ativos e link do GitHub Release publicado apontarem para essa mesma versão e arquivo.
-- [x] Não anunciar atualização automática: o aplicativo ainda usa atualização manual.
-
-### RC-03 — confiança do executável
-
-- [ ] `Get-AuthenticodeSignature` retornar `Valid` e o editor esperado para o instalador e o executável principal.
-- [x] Identificar o candidato beta.3: 878.333.160 bytes (837,64 MiB) e SHA-256 `42458B…32BA1`.
-- [x] O digest SHA-256 publicado pelo GitHub corresponder ao arquivo local e o link anônimo responder HTTP 200.
-- [ ] O Microsoft Defender com proteção em tempo real ativa examinar o instalador beta.3 final sem registrar detecção correspondente.
-- [ ] Nenhum segredo, conversa, arquivo de perfil ou caminho pessoal da máquina de build estar dentro do ASAR ou dos recursos.
-
-Para uma versão estável e recomendada amplamente, assinatura válida continua sendo gate. Esta pré-release pode ser publicada para testadores porque o estado `NotSigned` será informado de forma explícita; o aviso do Windows não deve ser contornado nem descrito como garantia de segurança.
-
-### RC-04 — provar o executável empacotado
-
-- [x] Instalar o candidato reconstruído como usuário comum sem terminal, PowerShell ou CMD visível.
-- [ ] Abrir o `win-unpacked` atual em perfil isolado e confirmar onboarding, home, mascote e a nova configuração de controle sem janela branca.
-- [x] Confirmar `0.2.0-beta.3` no ASAR e Parakeet completo em `resources`.
-- [x] Instalar o candidato reconstruído e confirmar `0.2.0-beta.3` no pacote instalado.
-- [ ] Confirmar visualmente na beta.3 que interface, mascote, histórico e estado local carregam sem janela branca.
-- [ ] Testar entrada do Parakeet, microfone e saída de voz na instalação final.
-- [ ] Fechar e abrir o candidato atual três vezes sem crash, janela branca ou duplicação da janela principal.
-- [ ] Executar um smoke contínuo de 30 minutos sem crescimento anormal de CPU, RAM, handles ou processos.
-
-### RC-05 — provar as ferramentas de verdade
-
-O teste do modelo em JSON é necessário, mas não basta. O caminho completo precisa passar pelo `AssistantHarness`, política beta de confirmação, auditoria, catálogo do Windows, UI Automation e aplicativo real.
-
-- [x] O modelo e a recuperação semântica passaram em 19/19 cenários; as seis ferramentas, correções e referências entre turnos foram selecionadas corretamente, “Spotify não está rodando; abre ele e dá play” resultou em `spotify({ action: "play" })`, e perguntas conceituais não produziram efeito.
-- [x] O Windows registrou fontes reais para Brave, Spotify, ChatGPT/Codex, Antigravity e Antigravity IDE.
-- [ ] No pacote atual, “Abra o Spotify”, “Abra o Brave” e “Abra o Codex” executam direto e registram o resultado honesto.
-- [ ] “Abra o Antigravity” continua mostrando confirmação; negar impede o efeito e aprovar usa o AppID registrado.
-- [ ] Um aplicativo recém-instalado e seguro é descoberto pelo nome sem confirmação e cria `app-skills.json` apenas após sucesso.
-- [ ] Na segunda abertura, a receita aprendida é reutilizada sem varrer caminhos desnecessariamente.
-- [ ] Aplicativo inexistente retorna falha e nunca diz que foi aberto.
-- [ ] Nome ambíguo não abre silenciosamente o candidato errado.
-- [ ] `cmd`, PowerShell, caminho `.exe`, argumento de linha de comando e URI não permitida são bloqueados sem processo filho.
-- [ ] Negar ou deixar expirar a confirmação do Antigravity não executa efeito lateral.
-- [ ] Pesquisa web e pesquisa no aplicativo de música executam direto durante a beta e registram destino/termo no log local.
-- [ ] Com controle de interface desligado, `computer_observe` e `computer_action` falham sem tocar no aplicativo.
-- [ ] Com controle ligado, uma ação genérica só avança após observar o mesmo alvo na mesma interação; alvo ausente, antigo ou ambíguo é bloqueado.
-- [ ] No Spotify real com acessibilidade disponível, `play` aciona o botão acessível e só confirma quando `Pause/Pausar` aparece; `pause` verifica a transição inversa.
-- [x] Com a árvore acessível vazia no Spotify real, o fallback visual local identificou o Play, clicou no controle inferior relativo à janela e uma inspeção independente confirmou Pause; a classificação do recorte ampliado retornou `playing` com 95%.
-- [ ] No pacote instalado, repetir Play/Pause com a janela movida e redimensionada; a captura imediatamente anterior ao clique deve recalcular o ponto relativo e a captura posterior deve confirmar o ícone oposto.
-- [ ] Para Próxima/Anterior ou quando o fallback visual estiver indisponível, a tecla multimídia permanece `dispatched`, sem afirmar que a faixa mudou.
-- [ ] O log de atividade registra pedido, decisão, sucesso/falha e duração, sem tokens, credenciais ou conteúdo sensível.
-
-### RC-06 — voz, modo ao vivo e mascote
-
-- [ ] O botão **Aperte para falar** captura enquanto usado, encerra a track e produz transcrição real.
-- [ ] O botão **Ao vivo** no mascote inicia a escuta sem exigir ativar antes o outro botão.
-- [ ] Completar três ciclos: ouvir → silêncio → transcrever → responder → falar → voltar a ouvir.
-- [ ] Desligar o modo ao vivo durante início, gravação, transcrição, resposta do modelo e fala impede qualquer reinício posterior do microfone.
-- [ ] Negar a permissão de microfone mostra erro compreensível e deixa o modo ao vivo desligado.
-- [ ] Fechar o Titi encerra todas as tracks e cancela síntese de voz.
-- [ ] O mascote usa estados coerentes de ouvindo, pensando, revisando, falando, sucesso, erro e standby.
-- [ ] O atalho global funciona fora da janela, acusa conflito e é desregistrado ao sair.
-
-### RC-07 — Ollama sem janelas e com ownership correto
-
-- [ ] Com Ollama instalado e parado, o Titi inicia no máximo um `ollama serve` e nenhuma janela de terminal aparece.
-- [ ] Durante 60 segundos de inicialização e polling de jogo, nenhuma janela de PowerShell/CMD/Terminal pisca na tela.
-- [ ] Dez pedidos concorrentes de preparação continuam produzindo uma única inicialização.
-- [ ] Se o Ollama já estava em execução antes do Titi, fechar o Titi não o encerra.
-- [ ] Se o processo foi iniciado pelo Titi, sair do Titi encerra somente esse processo e não deixa órfão.
-- [ ] Endpoint local personalizado é usado em status, health check, conversa e descarregamento do modelo.
-- [ ] Em máquina sem Ollama, download, assinatura do instalador oficial, instalação consentida, progresso, limpeza e download do modelo são testados em VM limpa.
-
-### RC-08 — histórico privado e memória local
-
-- [x] Com histórico ligado, configurações e conversas preservadas mantiveram exatamente seus hashes após instalar a `0.2.0-beta.3`.
-- [ ] “Lembre que...” cria uma memória explícita, aparece na área de memória e influencia uma resposta posterior.
-- [ ] Remover uma memória e limpar todas impedem uso posterior.
-- [ ] Com `keepHistory=false`, a conversa continua em RAM durante a sessão, mas reiniciar não grava novas mensagens.
-- [ ] No modo privado, os timestamps/hashes de `conversations.json`, `actions.json`, `memory.json` e `app-skills.json` não mudam por causa da conversa privada.
-- [ ] Reativar histórico não transforma retroativamente a sessão privada em conteúdo persistido.
-- [ ] Corrupção simulada do JSON recupera o último backup válido sem apagar os dados preservados.
-
-### RC-09 — standby durante jogos
-
-- [ ] Um jogo em tela cheia é detectado após a tolerância prevista, sem falso positivo em Brave/Chrome/Codex/Antigravity.
-- [ ] O mascote entra em standby, o modo ao vivo para e o modelo selecionado libera VRAM sem fechar o jogo.
-- [ ] Ao fechar ou trocar do jogo, o Titi retoma uma vez, sem duplicar Ollama, microfone ou timers.
-- [ ] Se o modo ao vivo estava desligado antes do jogo, permanece desligado depois.
-- [ ] Medir CPU/RAM/VRAM na máquina-alvo Ryzen 5 5600, 32 GB e RTX 2060 Super durante idle, conversa e jogo.
-
-## Checklist específico para a máquina do usuário
-
-Como a versão antiga já foi desinstalada e os dados ficaram preservados, executar nesta ordem:
-
-1. Antes da instalação, registrar apenas tamanho, timestamp e hash dos JSONs em `%APPDATA%\titi-desktop`, sem copiar o conteúdo para o release.
-2. Instalar `Titi-Setup-0.2.0-beta.3.exe` como usuário comum e observar se algum console aparece.
-3. Confirmar que o onboarding não reinicia indevidamente, o nome do mascote e as configurações continuam, e as conversas antigas podem ser abertas.
-4. Confirmar que novos arquivos `actions.json`, `memory.json` e `app-skills.json` só surgem quando a respectiva função é usada e a privacidade permite.
-5. Rodar a matriz real de Spotify, Brave, Codex/ChatGPT e Antigravity.
-6. Rodar três turnos do modo ao vivo pelo mascote e um turno de aperte-para-falar.
-7. Testar standby com um jogo real e observar processos/VRAM.
-8. Reiniciar o Windows, abrir novamente e repetir uma ferramenta e um turno de voz.
-9. Recalcular os hashes dos dados e verificar que apenas arquivos esperados mudaram.
-
-Resultado estrutural da instalação beta.3 em 16/08/2026: o NSIS retornou código 0 e o `app.asar` instalado declara `0.2.0-beta.3`. Antes e depois, `settings.json` manteve 568 bytes e SHA-256 `2AEB68B48B7505AC29E71D3017E80B139309DBA359E802A329CA1D069E621074`; `conversations.json` manteve 43.581 bytes e SHA-256 `8D30ECB31652C6F896D02F0D04763640837136526B5817206E99B82419DDFE9B`.
+- [0.2.0-beta.3](./docs/release-history/0.2.0-beta.3.md) — artefato, hashes, instalação e pendências manuais preservadas fora do gate atual.
 
 ## Gates automatizados finais
 
@@ -213,7 +89,7 @@ Só orientar o usuário a instalar quando **todos** estes itens forem verdadeiro
 
 1. existe um instalador final `Titi-Setup-0.2.0-beta.7.exe`, com estado de assinatura e hash publicados;
 2. a versão interna, `latest.yml`, tag, notas e link de download são `0.2.0-beta.7`;
-3. typecheck, 331 testes, build, QA do modelo, empacotamento e verificação do pacote passam no mesmo candidato;
+3. typecheck, 419 testes, build, QA do modelo, empacotamento e verificação do pacote passam no mesmo candidato;
 4. a instalação real sobre os dados preservados passa sem perda de nome, configurações ou conversas;
 5. Spotify, Brave e Codex/ChatGPT abrem direto; Antigravity pede confirmação; a UI do Spotify passa no ciclo observar → agir → verificar;
 6. modo ao vivo, aperte-para-falar, microfone e mascote passam no Windows real;

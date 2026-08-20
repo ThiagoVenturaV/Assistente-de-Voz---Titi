@@ -8,7 +8,6 @@ export const DEFAULT_SETTINGS: TitiSettings = {
   showFloatingMascot: true,
   computerControlEnabled: false,
   keepHistory: true,
-  confirmSensitiveActions: true,
   provider: {
     kind: 'ollama',
     endpoint: 'http://127.0.0.1:11434',

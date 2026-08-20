@@ -1,11 +1,37 @@
 import { CommandDeck, MotionRuntime } from "./motion-runtime";
 import Image from "next/image";
+import { SITE_DESCRIPTION, SITE_ORIGIN } from "./site";
 
 const DOWNLOAD_URL = "https://github.com/ThiagoVenturaV/Assistente-de-Voz---Titi/releases/download/v0.2.0-beta.7/Titi-Setup-0.2.0-beta.7.exe";
+const RELEASE_URL = "https://github.com/ThiagoVenturaV/Assistente-de-Voz---Titi/releases/tag/v0.2.0-beta.7";
+const SUPPORT_URL = "/suporte";
+
+const softwareApplication = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "Titi",
+  description: SITE_DESCRIPTION,
+  url: SITE_ORIGIN,
+  downloadUrl: DOWNLOAD_URL,
+  softwareVersion: "0.2.0-beta.7",
+  applicationCategory: "UtilitiesApplication",
+  operatingSystem: "Windows 10, Windows 11",
+  offers: { "@type": "Offer", price: "0", priceCurrency: "BRL" },
+  featureList: [
+    "Conversa por voz com processamento local por padrão",
+    "Transcrição incremental em português brasileiro",
+    "Automação compatível com aplicativos do Windows",
+    "Histórico e diagnóstico sob controle do usuário",
+  ],
+};
 
 export default function Home() {
   return (
     <main className="site-frame" id="inicio">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareApplication).replaceAll("<", "\\u003c") }}
+      />
       <MotionRuntime />
       <div className="scroll-progress" aria-hidden="true" />
 
@@ -19,20 +45,23 @@ export default function Home() {
           <a href="#privacidade">Privacidade</a>
           <a href="#perguntas">Perguntas</a>
         </div>
-        <a className="masthead-cta" href={DOWNLOAD_URL}>Baixar beta <span>↘</span></a>
+        <a className="masthead-cta" href="#download">Ver download <span>↘</span></a>
       </nav>
 
       <section className="hero shell" aria-labelledby="hero-title">
         <div className="hero-copy" data-reveal>
           <p className="eyebrow"><span>BETA 0.2</span><i /> IA local para Windows</p>
           <h1 id="hero-title">Fale do<br />seu jeito.<br /><em>O PC faz.</em></h1>
-          <p className="hero-lead">O Titi entende pedidos em linguagem natural, acompanha o contexto da conversa e transforma sua voz em ações — no seu computador.</p>
+          <p className="hero-lead">O Titi entende pedidos em linguagem natural, acompanha o contexto da conversa e transforma sua voz em ações compatíveis — no seu computador.</p>
+          <div className="hero-disclosure" aria-label="Informações importantes antes do download">
+            <span>Beta 0.2.0-beta.7</span><span>851,32 MiB</span><span>Windows 10/11 x64</span><span>+ ~2,5 GB para a IA</span><strong>Sem assinatura · o SmartScreen pode avisar</strong><a href="/privacidade">Privacidade</a><a href={RELEASE_URL}>Notas e integridade</a>
+          </div>
           <div className="hero-actions">
             <a className="primary-button" href={DOWNLOAD_URL}><span className="windows-glyph">⊞</span><span><strong>Baixar para Windows</strong><small>Grátis durante o beta</small></span><b>↓</b></a>
             <a className="round-link" href="#como-funciona" aria-label="Ver como o Titi funciona"><span>↓</span> Ver em ação</a>
           </div>
           <div className="hero-facts" aria-label="Principais benefícios">
-            <span><i /> Fala e voz locais</span><span><i /> Contexto entre mensagens</span><span><i /> Ações no Windows</span>
+            <span><i /> Núcleo local por padrão</span><span><i /> Contexto entre mensagens</span><span><i /> Ações compatíveis no Windows</span>
           </div>
         </div>
 
@@ -47,7 +76,7 @@ export default function Home() {
                 <p className="panel-status"><i /> AO VIVO · ENTENDENDO ENQUANTO VOCÊ FALA</p>
                 <p className="panel-user">Titi, abre meu aplicativo de música e coloca alguma coisa calma.</p>
                 <div className="panel-answer"><Image src="/titi-icon.png" alt="" width={26} height={26} /><p><small>ENTENDI</small>Abrindo seu aplicativo de música e iniciando uma seleção tranquila.</p></div>
-                <div className="panel-action"><span>♪</span><p><small>AÇÃO CONCLUÍDA</small><b>Aplicativo aberto · tocando</b></p><i>Pronto</i></div>
+                <div className="panel-action"><span>♪</span><p><small>RESULTADO VERIFICADO</small><b>Aplicativo aberto · tocando</b></p><i>Demo beta</i></div>
                 <div className="panel-composer">Converse com o Titi… <span>⌁</span></div>
               </div>
             </div>
@@ -58,7 +87,7 @@ export default function Home() {
         </div>
       </section>
 
-      <div className="signal-line" aria-hidden="true"><div className="signal-track">{[0, 1].map((group) => <div className="signal-group" key={group}><span>VOCÊ FALA</span><i>✦</i><span>ELE ENTENDE</span><i>✦</i><span>O PC RESPONDE</span><i>✦</i><span>TUDO LOCAL</span><i>✦</i></div>)}</div></div>
+      <div className="signal-line" aria-hidden="true"><div className="signal-track">{[0, 1].map((group) => <div className="signal-group" key={group}><span>VOCÊ FALA</span><i>✦</i><span>ELE ENTENDE</span><i>✦</i><span>O PC RESPONDE</span><i>✦</i><span>NÚCLEO LOCAL</span><i>✦</i></div>)}</div></div>
 
       <section className="manifesto shell" data-reveal>
         <p className="section-index"><span>01</span> A IDEIA</p>
@@ -93,7 +122,7 @@ export default function Home() {
 
       <section className="local-section" id="privacidade">
         <div className="shell local-grid">
-          <div className="local-copy" data-reveal><p className="section-index section-index--dark"><span>04</span> INTELIGÊNCIA QUE MORA AÍ</p><h2>Sua voz não precisa<br />viajar para ser<br /><em>compreendida.</em></h2><p>A transcrição, a conversa e a voz neural podem rodar no seu próprio computador. Quando sua placa de vídeo está disponível, o Titi usa a GPU para responder com mais fluidez.</p><div className="local-points"><span><i>01</i> Fala processada localmente</span><span><i>02</i> Histórico guardado com você</span><span><i>03</i> Voz neural acelerada pela GPU</span></div></div>
+          <div className="local-copy" data-reveal><p className="section-index section-index--dark"><span>04</span> INTELIGÊNCIA QUE MORA AÍ</p><h2>Sua voz não precisa<br />viajar para ser<br /><em>compreendida.</em></h2><p>A transcrição, a conversa e a voz neural rodam no seu próprio computador por padrão. A internet entra quando você escolhe baixar modelos, abrir páginas, pesquisar ou usar um serviço externo.</p><div className="local-points"><span><i>01</i> Fala processada localmente</span><span><i>02</i> Histórico guardado com você</span><span><i>03</i> Voz neural acelerada pela GPU</span></div><a className="local-policy-link" href="/privacidade">Ler política de privacidade →</a></div>
           <div className="local-core" data-parallax="0.08" data-reveal><div className="core-grid" /><span className="core-ring core-ring--one" /><span className="core-ring core-ring--two" /><span className="core-ring core-ring--three" /><div className="core-center"><span>⌁</span><small>PROCESSANDO</small><b>NO SEU PC</b></div><p className="core-note core-note--one"><i /> VOZ LOCAL</p><p className="core-note core-note--two"><i /> GPU ATIVA</p><p className="core-note core-note--three"><i /> DADOS COM VOCÊ</p></div>
         </div>
       </section>
@@ -104,17 +133,17 @@ export default function Home() {
       </section>
 
       <section className="download-section shell" id="download">
-        <div className="download-poster" data-reveal><div className="download-copy"><p><span>BETA PÚBLICO</span> V0.2.0 BETA.7</p><h2>Seu PC<br />já pode<br /><em>entender.</em></h2><p className="download-lead">Instale o Titi, fale naturalmente e descubra uma maneira mais humana de usar o Windows.</p><a className="primary-button primary-button--mint" href={DOWNLOAD_URL}><span className="windows-glyph">⊞</span><span><strong>Baixar Titi Beta</strong><small>Windows 10 ou 11 · aproximadamente 850 MB</small></span><b>↓</b></a></div><div className="download-art" data-parallax="0.06"><span className="download-orbit download-orbit--one" /><span className="download-orbit download-orbit--two" /><div className="titi-sprite download-titi" role="img" aria-label="Mascote Titi" /><p>OLÁ,<br />HUMANO.</p></div></div>
+        <div className="download-poster" data-reveal><div className="download-copy"><p><span>BETA PÚBLICO</span> V0.2.0 BETA.7</p><h2>Seu PC<br />já pode<br /><em>entender.</em></h2><p className="download-lead">Instale o Titi, fale naturalmente e descubra uma maneira mais humana de usar o Windows.</p><div className="download-trust"><b>851,32 MiB · Windows 10/11 x64</b><span>O modelo padrão adiciona aproximadamente 2,5 GB.</span><span>Pré-release sem assinatura Authenticode: o SmartScreen pode exibir um aviso.</span><span><a href={RELEASE_URL}>Notas e integridade</a> · <a href="/privacidade">Política de privacidade</a></span></div><a className="primary-button primary-button--mint" href={DOWNLOAD_URL}><span className="windows-glyph">⊞</span><span><strong>Baixar Titi Beta</strong><small>Pré-release de teste não assinada</small></span><b>↓</b></a></div><div className="download-art" data-parallax="0.06"><span className="download-orbit download-orbit--one" /><span className="download-orbit download-orbit--two" /><div className="titi-sprite download-titi" role="img" aria-label="Mascote Titi" /><p>OLÁ,<br />HUMANO.</p></div></div>
         <div className="requirements"><article><span>01</span><p><b>Windows 10 ou 11</b>Em um computador recente</p></article><article><span>02</span><p><b>16 GB de memória</b>Recomendados para conversar bem</p></article><article><span>03</span><p><b>Cerca de 8 GB livres</b>Para o aplicativo e o modelo local</p></article><article><span>04</span><p><b>GPU recomendada</b>Para voz e respostas mais rápidas</p></article></div>
         <p className="setup-note">Na primeira configuração, o Titi explica tudo antes de baixar o modelo padrão de aproximadamente 2,5 GB.</p>
       </section>
 
       <section className="faq-section shell" id="perguntas">
         <header data-reveal><p className="section-index"><span>06</span> PERGUNTAS FREQUENTES</p><h2>Antes de<br /><em>começar.</em></h2></header>
-        <div className="faq-list" data-reveal><details><summary><span>01</span>Preciso configurar modelos manualmente?<i /></summary><p>Não. Na primeira vez, o Titi orienta a configuração e só baixa o modelo adicional depois da sua confirmação.</p></details><details><summary><span>02</span>Tudo já vem no instalador?<i /></summary><p>A interface, o mascote, a transcrição incremental e a voz neural local já vêm. O modelo de conversa padrão, com aproximadamente 2,5 GB, é baixado depois.</p></details><details><summary><span>03</span>O que o Titi já consegue fazer no Windows?<i /></summary><p>O beta abre aplicativos compatíveis, usa seu navegador, pesquisa, controla Play/Pause no aplicativo de música e aciona controles acessíveis. A cobertura cresce a cada versão.</p></details><details><summary><span>04</span>Ele pede permissão antes de cada comando?<i /></summary><p>Durante o beta, os comandos compatíveis executam direto. O Antigravity permanece como uma confirmação especial antes da ação.</p></details><details><summary><span>05</span>Como interrompo uma conversa ao vivo?<i /></summary><p>Diga “parar” ou pressione Esc. O Titi encerra a escuta e devolve o controle imediatamente.</p></details><details><summary><span>06</span>Meus dados saem do computador?<i /></summary><p>Sua voz, suas conversas e seu histórico podem ficar no seu computador. Se uma ação pedida precisar de internet, como uma pesquisa, o Titi usa a conexão para essa ação.</p></details></div>
+        <div className="faq-list" data-reveal><details><summary><span>01</span>Preciso configurar modelos manualmente?<i /></summary><p>Não. Na primeira vez, o Titi orienta a configuração e só baixa o modelo adicional depois da sua confirmação.</p></details><details><summary><span>02</span>Tudo já vem no instalador?<i /></summary><p>A interface, o mascote, a transcrição incremental e a voz neural local já vêm. O modelo de conversa padrão, com aproximadamente 2,5 GB, é baixado depois.</p></details><details><summary><span>03</span>O que o Titi já consegue fazer no Windows?<i /></summary><p>O beta abre aplicativos compatíveis, usa seu navegador, pesquisa, controla Play/Pause no aplicativo de música e aciona controles acessíveis. A cobertura cresce a cada versão.</p></details><details><summary><span>04</span>Ele pede permissão antes de cada comando?<i /></summary><p>Durante o beta, ações permitidas executam direto e somente abrir ou controlar o Antigravity pede confirmação. Compras, envios, publicações, exclusões e comandos arbitrários continuam bloqueados.</p></details><details><summary><span>05</span>Como interrompo uma conversa ao vivo?<i /></summary><p>Diga “parar” ou pressione Esc. O Titi encerra a escuta e devolve o controle imediatamente.</p></details><details><summary><span>06</span>Meus dados saem do computador?<i /></summary><p>Sua voz, suas conversas e seu histórico podem ficar no seu computador. Se uma ação pedida precisar de internet, como uma pesquisa, o Titi usa a conexão para essa ação.</p></details></div>
       </section>
 
-      <footer className="footer"><div className="shell footer-main"><a className="wordmark wordmark--footer" href="#inicio"><span className="wordmark-pet"><Image src="/titi-icon.png" alt="" width={30} height={30} /></span><span>Titi</span></a><p>Uma conversa mais natural<br />entre você e o seu computador.</p><div><a href="#como-funciona">Como funciona ↑</a><a href="#privacidade">Privacidade ↑</a><a href="#download">Download ↓</a></div></div><div className="shell footer-bottom"><span>© 2026 Titi</span><span>Feito no Brasil · Beta público</span><a href="#inicio">Voltar ao topo ↑</a></div></footer>
+      <footer className="footer"><div className="shell footer-main"><a className="wordmark wordmark--footer" href="#inicio"><span className="wordmark-pet"><Image src="/titi-icon.png" alt="" width={30} height={30} /></span><span>Titi</span></a><p>Uma conversa mais natural<br />entre você e o seu computador.</p><div><a href="#como-funciona">Como funciona ↑</a><a href="/privacidade">Política de privacidade →</a><a href={SUPPORT_URL}>Suporte →</a><a href="#download">Download ↓</a></div></div><div className="shell footer-bottom"><span>© 2026 Titi</span><span>Feito no Brasil · Beta público</span><a href="#inicio">Voltar ao topo ↑</a></div></footer>
     </main>
   );
 }

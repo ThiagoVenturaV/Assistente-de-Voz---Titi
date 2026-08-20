@@ -14,7 +14,10 @@ import type {
 } from './contracts'
 import type {
   ComputerController,
+  ComputerInvocation,
   ComputerObservation,
+  ComputerWindowActionResult,
+  UiInvocationIdentity,
   UiControlSnapshot
 } from './windows-ui-automation'
 import type { VisualComputerAgent } from './visual-computer-agent'
@@ -38,7 +41,7 @@ const WINDOWS_MEDIA_KEYS: Record<MediaKeyAction, number> = {
 export class DesktopToolkit implements ToolExecutor {
   private readonly recentUiObservations = new Map<string, {
     application: string
-    controls: Set<string>
+    observation: ComputerObservation
     observedAt: number
   }>()
 
@@ -53,6 +56,7 @@ export class DesktopToolkit implements ToolExecutor {
   readonly definitions: ToolDefinition[] = [
     {
       type: 'function',
+      risk: 'reversible',
       execution: { timeoutMs: 20_000, sideEffect: 'external' },
       function: {
         name: 'open_application',
@@ -71,6 +75,7 @@ export class DesktopToolkit implements ToolExecutor {
     },
     {
       type: 'function',
+      risk: 'reversible',
       execution: { timeoutMs: 10_000, sideEffect: 'external' },
       function: {
         name: 'open_web',
@@ -91,6 +96,76 @@ export class DesktopToolkit implements ToolExecutor {
     },
     {
       type: 'function',
+      risk: 'reversible',
+      execution: { timeoutMs: 10_000, sideEffect: 'external' },
+      function: {
+        name: 'focus_window',
+        description: 'Coloca a janela ativa de um aplicativo no primeiro plano para continuar uma ação.',
+        parameters: {
+          type: 'object',
+          required: ['application'],
+          properties: {
+            application: {
+              type: 'string',
+              description: 'Nome do aplicativo com a janela ativa em primeiro plano.'
+            },
+            windowTitle: {
+              type: 'string',
+              description: 'Título exato observado da janela quando houver múltiplas janelas abertas do mesmo aplicativo.'
+            }
+          }
+        }
+      }
+    },
+    {
+      type: 'function',
+      risk: 'reversible',
+      execution: { timeoutMs: 10_000, sideEffect: 'external' },
+      function: {
+        name: 'minimize_window',
+        description: 'Minimiza a janela ativa de um aplicativo.',
+        parameters: {
+          type: 'object',
+          required: ['application'],
+          properties: {
+            application: {
+              type: 'string',
+              description: 'Nome do aplicativo cuja janela deve ser minimizada.'
+            },
+            windowTitle: {
+              type: 'string',
+              description: 'Título exato observado da janela quando houver múltiplas janelas abertas do mesmo aplicativo.'
+            }
+          }
+        }
+      }
+    },
+    {
+      type: 'function',
+      risk: 'reversible',
+      execution: { timeoutMs: 10_000, sideEffect: 'external' },
+      function: {
+        name: 'close_window',
+        description: 'Fecha uma janela de aplicativo específico com atenção a dados não salvos.',
+        parameters: {
+          type: 'object',
+          required: ['application'],
+          properties: {
+            application: {
+              type: 'string',
+              description: 'Nome do aplicativo da janela que deve ser fechada.'
+            },
+            windowTitle: {
+              type: 'string',
+              description: 'Título exato observado da janela quando houver múltiplas janelas abertas do mesmo aplicativo.'
+            }
+          }
+        }
+      }
+    },
+    {
+      type: 'function',
+      risk: 'reversible',
       execution: { timeoutMs: 90_000, sideEffect: 'external' },
       function: {
         name: 'spotify',
@@ -111,6 +186,7 @@ export class DesktopToolkit implements ToolExecutor {
     },
     {
       type: 'function',
+      risk: 'read',
       execution: { timeoutMs: 10_000, sideEffect: 'none' },
       function: {
         name: 'computer_observe',
@@ -129,6 +205,7 @@ export class DesktopToolkit implements ToolExecutor {
     },
     {
       type: 'function',
+      risk: 'read',
       execution: { timeoutMs: 45_000, sideEffect: 'none' },
       function: {
         name: 'computer_look',
@@ -147,10 +224,11 @@ export class DesktopToolkit implements ToolExecutor {
     },
     {
       type: 'function',
+      risk: 'reversible',
       execution: { timeoutMs: 10_000, sideEffect: 'external' },
       function: {
         name: 'computer_action',
-        description: 'Aciona por acessibilidade um controle visível que foi observado em um aplicativo Windows. Durante a beta executa direto, exceto no Antigravity, e sempre rejeita nomes ambíguos.',
+        description: 'Aciona por acessibilidade, após confirmação explícita, exatamente o controle e a janela observados nesta interação. Sempre rejeita alvos ambíguos ou alterados.',
         parameters: {
           type: 'object',
           required: ['action', 'application', 'target'],
@@ -169,6 +247,7 @@ export class DesktopToolkit implements ToolExecutor {
     },
     {
       type: 'function',
+      risk: 'read',
       execution: { timeoutMs: 1_000, sideEffect: 'none' },
       function: {
         name: 'current_datetime',
@@ -202,6 +281,12 @@ export class DesktopToolkit implements ToolExecutor {
           return await this.lookAtComputer(args, context)
         case 'computer_action':
           return await this.actOnComputer(args, context)
+        case 'focus_window':
+          return await this.focusWindow(args, context)
+        case 'minimize_window':
+          return await this.minimizeWindow(args, context)
+        case 'close_window':
+          return await this.closeWindow(args, context)
         case 'current_datetime':
           return currentDateTime()
         default:
@@ -397,13 +482,13 @@ export class DesktopToolkit implements ToolExecutor {
     const application = requiredString(args.application, 'application')
     const observation = await this.computerController!.observe(application, context?.signal)
     if (context?.chainId) {
-      this.rememberUiObservation(context.chainId, application, observation.controls)
+      this.rememberUiObservation(context.chainId, application, observation)
     }
     return {
       ok: true,
       status: 'confirmed',
       message: `Controles visíveis observados em ${observation.windowTitle || application}.`,
-      details: { ...observation }
+      details: publicObservation(observation)
     }
   }
 
@@ -444,12 +529,16 @@ export class DesktopToolkit implements ToolExecutor {
       'RadioButton',
       'TabItem'
     ])
-    if (!context?.chainId || !this.wasRecentlyObserved(
-      context.chainId,
-      application,
-      target,
-      controlType
-    )) {
+    if (!context) {
+      return {
+        ok: false,
+        status: 'failed',
+        message: 'A ação foi bloqueada porque não há contexto seguro para vincular a observação.',
+        details: { observationRequired: true }
+      }
+    }
+    const expected = this.recentlyObservedIdentity(context.chainId, application, target, controlType)
+    if (!expected) {
       return {
         ok: false,
         status: 'failed',
@@ -462,6 +551,7 @@ export class DesktopToolkit implements ToolExecutor {
       application,
       target,
       controlType,
+      expected,
       context.signal
     )
     throwIfAborted(context.signal)
@@ -472,8 +562,89 @@ export class DesktopToolkit implements ToolExecutor {
       message: `O controle “${invocation.control.name}” foi acionado; o efeito final não pôde ser garantido.`,
       details: {
         effectState: 'dispatched_unverified',
-        invocation,
-        observation
+        invocation: publicInvocation(invocation),
+        observation: observation ? publicObservation(observation) : null
+      }
+    }
+  }
+
+  private async focusWindow(
+    args: Record<string, unknown>,
+    context?: ToolExecutionContext
+  ): Promise<ToolExecutionResult> {
+    const disabled = await this.computerControlUnavailable()
+    if (disabled) return disabled
+    const application = requiredString(args.application, 'application')
+    const windowTitle = optionalString(args.windowTitle)
+    const invocation = await this.computerController!.focusWindow(
+      application,
+      windowTitle,
+      context?.signal
+    )
+    throwIfAborted(context?.signal)
+    return {
+      ok: true,
+      status: 'confirmed',
+      message: `Janela "${invocation.windowTitle}" de ${invocation.processName} ficou em primeiro plano.`,
+      details: {
+        effectState: 'confirmed',
+        method: 'windows_ui_automation',
+        action: 'focus',
+        operation: publicWindowAction(invocation)
+      }
+    }
+  }
+
+  private async minimizeWindow(
+    args: Record<string, unknown>,
+    context?: ToolExecutionContext
+  ): Promise<ToolExecutionResult> {
+    const disabled = await this.computerControlUnavailable()
+    if (disabled) return disabled
+    const application = requiredString(args.application, 'application')
+    const windowTitle = optionalString(args.windowTitle)
+    const invocation = await this.computerController!.minimizeWindow(
+      application,
+      windowTitle,
+      context?.signal
+    )
+    throwIfAborted(context?.signal)
+    return {
+      ok: true,
+      status: 'confirmed',
+      message: `Janela "${invocation.windowTitle}" de ${invocation.processName} foi minimizada.`,
+      details: {
+        effectState: 'confirmed',
+        method: 'windows_ui_automation',
+        action: 'minimize',
+        operation: publicWindowAction(invocation)
+      }
+    }
+  }
+
+  private async closeWindow(
+    args: Record<string, unknown>,
+    context?: ToolExecutionContext
+  ): Promise<ToolExecutionResult> {
+    const disabled = await this.computerControlUnavailable()
+    if (disabled) return disabled
+    const application = requiredString(args.application, 'application')
+    const windowTitle = optionalString(args.windowTitle)
+    const invocation = await this.computerController!.closeWindow(
+      application,
+      windowTitle,
+      context?.signal
+    )
+    throwIfAborted(context?.signal)
+    return {
+      ok: false,
+      status: 'dispatched',
+      message: `Fechamento solicitado para "${invocation.windowTitle}" de ${invocation.processName}.`,
+      details: {
+        effectState: 'dispatched_unverified',
+        method: 'windows_ui_automation',
+        action: 'close',
+        operation: publicWindowAction(invocation)
       }
     }
   }
@@ -505,6 +676,7 @@ export class DesktopToolkit implements ToolExecutor {
         'spotify',
         control.name,
         control.controlType,
+        invocationIdentity(before, control),
         signal
       )
       if (targetKind !== 'play' && targetKind !== 'pause') {
@@ -512,7 +684,11 @@ export class DesktopToolkit implements ToolExecutor {
           ok: false,
           status: 'dispatched',
           message: `${targetKind === 'next' ? 'Próxima faixa' : 'Faixa anterior'} acionada no Spotify; a mudança não foi confirmada.`,
-          details: { effectState: 'dispatched_unverified', method: 'windows_ui_automation', invocation }
+          details: {
+            effectState: 'dispatched_unverified',
+            method: 'windows_ui_automation',
+            invocation: publicInvocation(invocation)
+          }
         }
       }
 
@@ -531,7 +707,12 @@ export class DesktopToolkit implements ToolExecutor {
         ok: false,
         status: 'dispatched',
         message: `${targetKind === 'play' ? 'Play' : 'Pause'} foi acionado no Spotify, mas o novo estado não apareceu na interface.`,
-        details: { effectState: 'dispatched_unverified', method: 'windows_ui_automation', invocation, observation: after }
+        details: {
+          effectState: 'dispatched_unverified',
+          method: 'windows_ui_automation',
+          invocation: publicInvocation(invocation),
+          observation: publicObservation(after)
+        }
       }
     } catch (error) {
       if (signal?.aborted) throw error
@@ -576,11 +757,11 @@ export class DesktopToolkit implements ToolExecutor {
   private rememberUiObservation(
     chainId: string,
     application: string,
-    controls: UiControlSnapshot[]
+    observation: ComputerObservation
   ): void {
     this.recentUiObservations.set(chainId, {
       application: normalizeUiLabel(application),
-      controls: new Set(controls.map((control) => uiControlKey(control.name, control.controlType))),
+      observation,
       observedAt: Date.now()
     })
     while (this.recentUiObservations.size > 100) {
@@ -590,25 +771,85 @@ export class DesktopToolkit implements ToolExecutor {
     }
   }
 
-  private wasRecentlyObserved(
+  private recentlyObservedIdentity(
     chainId: string,
     application: string,
     target: string,
     controlType?: string
-  ): boolean {
+  ): UiInvocationIdentity | null {
     const observation = this.recentUiObservations.get(chainId)
     if (!observation || Date.now() - observation.observedAt > 30_000) {
       this.recentUiObservations.delete(chainId)
-      return false
+      return null
     }
-    if (observation.application !== normalizeUiLabel(application)) return false
-    if (controlType) return observation.controls.has(uiControlKey(target, controlType))
-    const targetPrefix = `${normalizeUiLabel(target)}|`
-    return [...observation.controls].some((control) => control.startsWith(targetPrefix))
+    if (observation.application !== normalizeUiLabel(application)) return null
+    const normalizedTarget = normalizeUiLabel(target)
+    const matches = observation.observation.controls.filter((control) => (
+      normalizeUiLabel(control.name) === normalizedTarget
+      && (!controlType || control.controlType === controlType)
+    ))
+    if (matches.length !== 1) return null
+    return invocationIdentity(observation.observation, matches[0])
   }
 }
 
-function windowEvidence(observation: ComputerObservation): Omit<ComputerObservation, 'controls'> {
+function invocationIdentity(
+  observation: ComputerObservation,
+  control: UiControlSnapshot
+): UiInvocationIdentity {
+  return {
+    window: {
+      processId: observation.processId,
+      windowHandle: observation.windowHandle,
+      windowTitle: observation.windowTitle,
+      processName: observation.processName
+    },
+    control: {
+      automationId: control.automationId,
+      runtimeId: control.runtimeId
+    }
+  }
+}
+
+function publicObservation(observation: ComputerObservation): Record<string, unknown> {
+  return {
+    application: observation.application,
+    windowTitle: observation.windowTitle,
+    processName: observation.processName,
+    controls: observation.controls.map(({ name, controlType, enabled }) => ({
+      name,
+      controlType,
+      enabled
+    }))
+  }
+}
+
+function publicInvocation(invocation: ComputerInvocation): Record<string, unknown> {
+  return {
+    application: invocation.application,
+    windowTitle: invocation.windowTitle,
+    processName: invocation.processName,
+    invoked: invocation.invoked,
+    control: {
+      name: invocation.control.name,
+      controlType: invocation.control.controlType,
+      enabled: invocation.control.enabled
+    }
+  }
+}
+
+function publicWindowAction(operation: ComputerWindowActionResult): Record<string, unknown> {
+  return {
+    application: operation.application,
+    windowTitle: operation.windowTitle,
+    processName: operation.processName,
+    action: operation.action
+  }
+}
+
+function windowEvidence(
+  observation: ComputerObservation
+): Pick<ComputerObservation, 'application' | 'windowTitle' | 'processName'> {
   return {
     application: observation.application,
     windowTitle: observation.windowTitle,
@@ -803,15 +1044,11 @@ function normalizeUiLabel(value: string): string {
     .trim()
 }
 
-function uiControlKey(name: string, controlType: string): string {
-  return `${normalizeUiLabel(name)}|${controlType}`
-}
-
 function confirmedSpotifyResult(
   message: string,
   observation: ComputerObservation,
   verification: 'already_in_requested_state' | 'verified_after_action',
-  invocation?: unknown
+  invocation?: ComputerInvocation
 ): ToolExecutionResult {
   return {
     ok: true,
@@ -821,8 +1058,8 @@ function confirmedSpotifyResult(
       effectState: 'confirmed',
       method: 'windows_ui_automation',
       verification,
-      invocation,
-      observation
+      ...(invocation ? { invocation: publicInvocation(invocation) } : {}),
+      observation: publicObservation(observation)
     }
   }
 }

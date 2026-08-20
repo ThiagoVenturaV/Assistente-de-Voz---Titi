@@ -8,7 +8,7 @@ export interface ForegroundApplication {
 
 export interface GameStandbyMonitorOptions {
   poll?: () => Promise<ForegroundApplication | null>
-  onEnter(app: ForegroundApplication): Promise<void> | void
+  onEnter(app: ForegroundApplication): Promise<boolean> | boolean
   onExit(app: ForegroundApplication): Promise<void> | void
   knownGames?: string[]
   intervalMs?: number
@@ -72,6 +72,7 @@ export class GameStandbyMonitor {
   private enteringExecutable: string | null = null
   private exiting = 0
   private active: ForegroundApplication | null = null
+  private deferredProcessId: number | null = null
 
   constructor(options: GameStandbyMonitorOptions) {
     this.poll = options.poll ?? readForegroundApplication
@@ -97,6 +98,7 @@ export class GameStandbyMonitor {
     this.entering = 0
     this.enteringExecutable = null
     this.exiting = 0
+    this.deferredProcessId = null
     if (options.restore !== false && this.active) {
       const previous = this.active
       this.active = null
@@ -127,6 +129,14 @@ export class GameStandbyMonitor {
 
     if (!this.active) {
       this.exiting = 0
+      if (!candidate) {
+        this.entering = 0
+        this.enteringExecutable = null
+        this.deferredProcessId = null
+        return
+      }
+      if (this.deferredProcessId === candidate.processId) return
+      if (this.deferredProcessId !== null) this.deferredProcessId = null
       const candidateExecutable = candidate
         ? normalizeExecutable(candidate.executable)
         : null
@@ -142,8 +152,9 @@ export class GameStandbyMonitor {
       if (candidate && this.entering >= this.enterSamples) {
         this.entering = 0
         this.enteringExecutable = null
-        await this.onEnter(candidate)
-        this.active = candidate
+        const shouldEnter = await this.onEnter(candidate)
+        if (shouldEnter !== false) this.active = candidate
+        else this.deferredProcessId = candidate.processId
       }
       return
     }

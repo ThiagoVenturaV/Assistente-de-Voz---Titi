@@ -60,7 +60,7 @@ export class AuditedToolExecutor implements ToolExecutor {
       arguments: redactSensitive(argumentsValue),
       ok: result.ok,
       message: auditMessage(name, result.message, result.ok, result.status),
-      details: redactSensitive(result.details),
+      details: auditableDetails(name, result.details),
       durationMs: Math.round(performance.now() - startedAt)
     })
     return result
@@ -92,6 +92,9 @@ export function auditMessage(
   ok: boolean,
   status?: ToolExecutionResult['status']
 ): string {
+  if (tool === 'computer_observe' || tool === 'computer_look') {
+    return ok ? 'Observação local concluída.' : 'A observação local não foi concluída.'
+  }
   if (tool === 'open_web') {
     if (status === 'dispatched') return 'Pedido de página ou pesquisa enviado; efeito não confirmado.'
     return ok ? 'Página ou pesquisa aberta.' : 'Não foi possível abrir a página ou pesquisa.'
@@ -101,6 +104,13 @@ export function auditMessage(
     return ok ? 'Pesquisa aberta no aplicativo de música.' : 'Não foi possível pesquisar no aplicativo de música.'
   }
   return redactUrls(message)
+}
+
+function auditableDetails(tool: string, details: unknown): unknown {
+  if (tool === 'computer_observe' || tool === 'computer_look') {
+    return { observationDetailsStored: false }
+  }
+  return redactSensitive(details)
 }
 
 function redactUrls(value: string): string {

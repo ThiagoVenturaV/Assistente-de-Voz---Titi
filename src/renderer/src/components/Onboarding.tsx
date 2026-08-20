@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import type { RuntimeStatus, TitiSettings } from '../../../shared/contracts'
+import { localModelDownloadLabel } from '../../../shared/model-catalog'
 import { TitiSprite } from './TitiSprite'
 import { CheckIcon, CpuIcon, ShieldIcon, SparklesIcon } from './icons'
+import { PUBLIC_PRIVACY_URL } from '../product-links'
 
 interface OnboardingProps {
   settings: TitiSettings
@@ -83,6 +85,7 @@ export function Onboarding({
               </>
             )}
             <button className="text-button" onClick={() => setStep(0)}>Voltar</button>
+            <a className="text-button onboarding-policy" href={PUBLIC_PRIVACY_URL} target="_blank" rel="noreferrer">Como o Titi trata seus dados</a>
           </>
         )}
       </div>
@@ -92,7 +95,9 @@ export function Onboarding({
 
 function onboardingRuntimeText(runtime: RuntimeStatus | null): string {
   if (runtime?.setupAction === 'ready') return `${runtime.model} pronto para usar`
-  if (runtime?.setupAction === 'download-model') return `${runtime.model} precisa ser baixado (cerca de 6,6 GB)`
+  if (runtime?.setupAction === 'download-model') {
+    return `${runtime.model} precisa ser baixado (${localModelDownloadLabel(runtime.model)})`
+  }
   if (runtime?.setupAction === 'start-engine') return 'Ollama instalado; serviço será iniciado'
   if (runtime?.setupAction === 'install-engine') return 'Ollama e o modelo precisam ser instalados'
   return 'Verificando este computador…'

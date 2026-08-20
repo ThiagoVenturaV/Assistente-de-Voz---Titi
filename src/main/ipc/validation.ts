@@ -1,4 +1,10 @@
-import type { ChatRequest, MascotState, TitiSettings } from '../../shared/contracts'
+import type {
+  ChatRequest,
+  GameStandbyDecision,
+  GameStandbyDecisionResponse,
+  MascotState,
+  TitiSettings
+} from '../../shared/contracts'
 import { isSafePushToTalkShortcut } from '../voice/global-push-to-talk'
 
 const ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -6,6 +12,7 @@ const MODEL_PATTERN = /^[\p{L}\p{N}._/:@+\-]{1,120}$/u
 const MASCOT_STATES = new Set<MascotState>([
   'idle', 'listening', 'thinking', 'speaking', 'success', 'error', 'standby', 'review'
 ])
+const GAME_STANDBY_DECISIONS = new Set<GameStandbyDecision>(['complete', 'cancel', 'defer'])
 
 export function validatedConversationId(value: unknown): string {
   if (typeof value !== 'string' || !ID_PATTERN.test(value)) {
@@ -42,7 +49,7 @@ export function validatedSettingsPatch(value: unknown): Partial<TitiSettings> {
   if (!isRecord(value)) throw new Error('Configurações inválidas.')
   rejectUnknownKeys(value, [
     'version', 'onboardingComplete', 'mascotName', 'launchAtStartup',
-    'showFloatingMascot', 'computerControlEnabled', 'keepHistory', 'confirmSensitiveActions', 'provider', 'voice', 'games'
+    'showFloatingMascot', 'computerControlEnabled', 'keepHistory', 'provider', 'voice', 'games'
   ])
   const result: Partial<TitiSettings> = {}
   if ('version' in value) {
@@ -51,7 +58,7 @@ export function validatedSettingsPatch(value: unknown): Partial<TitiSettings> {
   }
   for (const key of [
     'onboardingComplete', 'launchAtStartup', 'showFloatingMascot',
-    'computerControlEnabled', 'keepHistory', 'confirmSensitiveActions'
+    'computerControlEnabled', 'keepHistory'
   ] as const) {
     if (key in value) {
       if (typeof value[key] !== 'boolean') throw new Error(`Valor inválido para ${key}.`)
@@ -72,6 +79,20 @@ export function validatedSettingsPatch(value: unknown): Partial<TitiSettings> {
 export function validatedBoolean(value: unknown, field: string): boolean {
   if (typeof value !== 'boolean') throw new Error(`Valor inválido para ${field}.`)
   return value
+}
+
+export function validatedGameStandbyDecisionResponse(
+  value: unknown
+): GameStandbyDecisionResponse {
+  if (!isRecord(value)) throw new Error('Decisão do modo standby inválida.')
+  if (typeof value.requestId !== 'string' || !ID_PATTERN.test(value.requestId)) {
+    throw new Error('Decisão do modo standby inválida.')
+  }
+  const decision = value.decision as GameStandbyDecision
+  if (!GAME_STANDBY_DECISIONS.has(decision)) {
+    throw new Error('Decisão do modo standby inválida.')
+  }
+  return { requestId: value.requestId, decision }
 }
 
 export function validatedMascotState(value: unknown): MascotState {
@@ -96,6 +117,12 @@ export function validatedPcmAudio(value: unknown): ArrayBuffer {
     || value.byteLength > 16_000 * Float32Array.BYTES_PER_ELEMENT * 15
   ) {
     throw new Error('Bloco PCM inválido ou maior que 15 segundos.')
+  }
+  const samples = new Float32Array(value)
+  for (const sample of samples) {
+    if (!Number.isFinite(sample) || sample < -1 || sample > 1) {
+      throw new Error('Bloco PCM contém amostras inválidas.')
+    }
   }
   return value
 }
