@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 const temporaryRoots: string[] = []
 const execFileAsync = promisify(execFile)
 const releaseScript = resolve('scripts/prepare-release-assets.mjs')
+const releaseWorkflow = resolve('.github/workflows/release.yml')
 
 afterEach(async () => {
   await Promise.all(temporaryRoots.splice(0).map((path) => rm(path, {
@@ -64,20 +65,44 @@ describe('prepareReleaseAssets', () => {
     await expect(runReleaseScript(root, 'vbeta 8', 'unsigned-prerelease'))
       .rejects.toMatchObject({ stderr: expect.stringContaining('versão inválida') })
   })
+
+  it('aceita o separador repassado pelo gerenciador de pacotes', async () => {
+    const root = await releaseFixture('0.2.0-beta.8')
+
+    await expect(runReleaseScript(
+      root,
+      'v0.2.0-beta.8',
+      'unsigned-prerelease',
+      true
+    )).resolves.toMatchObject({ stdout: expect.stringContaining('Ativos preparados') })
+  })
+
+  it('retoma manualmente somente a tag imutável conferida', async () => {
+    const workflow = await readFile(releaseWorkflow, 'utf8')
+
+    expect(workflow).toContain('workflow_dispatch:')
+    expect(workflow).toContain('ref: ${{ env.TITI_RELEASE_TAG }}')
+    expect(workflow).toContain('TITI_RELEASE_COMMIT=$headCommit')
+    expect(workflow).toContain('node scripts/prepare-release-assets.mjs')
+    expect(workflow).not.toContain('pnpm release:assets --')
+  })
 })
 
 async function runReleaseScript(
   projectRoot: string,
   tag: string,
-  signing: 'signed' | 'unsigned-prerelease'
+  signing: 'signed' | 'unsigned-prerelease',
+  includePackageManagerSeparator = false
 ): Promise<{ stdout: string; stderr: string }> {
-  return execFileAsync(process.execPath, [
+  const argumentsList = [
     releaseScript,
     '--project-root', projectRoot,
     '--tag', tag,
     '--commit', '0123456789abcdef0123456789abcdef01234567',
     '--signing', signing
-  ], { encoding: 'utf8', windowsHide: true })
+  ]
+  if (includePackageManagerSeparator) argumentsList.splice(1, 0, '--')
+  return execFileAsync(process.execPath, argumentsList, { encoding: 'utf8', windowsHide: true })
 }
 
 async function releaseFixture(version: string): Promise<string> {
