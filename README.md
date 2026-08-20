@@ -6,7 +6,7 @@
 
 Titi é um assistente local para Windows com interface gráfica, conversa por texto e voz, mascote 2D animado e ferramentas controladas para agir no computador. O objetivo é permitir que a pessoa use seus aplicativos por voz sem entregar um terminal irrestrito ao modelo.
 
-> **Estado atual:** a candidata `0.2.0-beta.8` usa `qwen3:4b-instruct` como perfil rápido padrão e mantém `qwen3.5:9b` como opção de qualidade. Permanecem a transcrição Parakeet incremental, a voz Supertonic em DirectML com fallback para CPU e a visão local de múltiplos monitores. Durante o beta, controles observados de baixo risco executam diretamente; somente abrir ou controlar o Antigravity exibe confirmação. Ações perigosas continuam bloqueadas. O instalador continua sem assinatura pública e deve ser tratado como prévia para testadores.
+> **Estado atual:** a candidata `0.2.0-beta.9` usa `qwen3:4b-instruct` como perfil rápido padrão e mantém `qwen3.5:9b` como opção de qualidade. Conversas claramente informativas agora usam uma rota própria em português brasileiro, sem o prompt e os schemas de automação; pedidos mistos e ações continuam no fluxo protegido de ferramentas. A voz Supertonic ganhou normalização pt-BR de números, datas, valores, unidades, siglas e nomes frequentes, com oito passos de qualidade, DirectML e fallback para CPU. Durante o beta, controles observados de baixo risco executam diretamente; somente abrir ou controlar o Antigravity exibe confirmação. Ações perigosas continuam bloqueadas. O instalador continua sem assinatura pública e deve ser tratado como prévia para testadores.
 > **Escopo desta iteração:** não implementamos ainda `TITI-MEET-001` (modo reunião) nem `TITI-REMOTE-001` (cliente remoto).
 
 ## O que está implementado no código atual

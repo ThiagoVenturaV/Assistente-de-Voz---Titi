@@ -1,40 +1,43 @@
-# Gate de QA — Titi `0.2.0-beta.8`
+# Gate de QA — Titi `0.2.0-beta.9`
 
 Auditoria atualizada em 20/08/2026. Este documento define o que precisa estar comprovado antes de orientar o usuário a instalar a nova versão ou publicar o download como beta público.
 
 Esta rodada mantém escopo deliberado: **não inclui** `TITI-MEET-001` (modo reunião) nem `TITI-REMOTE-001` (cliente remoto). Eles seguem em `Later`, após aprovação dos alvos atuais.
 
-## Veredito do candidato beta 8
+## Veredito do candidato beta 9
 
-**CANDIDATO LOCAL APROVADO PARA A CI FINAL; NO-GO PARA TAG E LANDING ATÉ ESSA CI PASSAR.** A fonte candidata declara `0.2.0-beta.8`; 423 testes em 48 arquivos, typecheck, build, landing, auditorias, NSIS, Parakeet e Supertonic empacotados passam. A instalação local preservou os dados e a interface abriu pelo protocolo interno seguro. A confirmação humana de microfone/áudio permanece pendente e será declarada como limite do beta. A landing pública continua apontando para a beta 7 até a tag produzir e validar os cinco ativos públicos.
+**CÓDIGO, PACOTE E INSTALAÇÃO LOCAL APROVADOS; NO-GO PARA TAG E LANDING ATÉ A CI FINAL PASSAR.** A fonte e o aplicativo instalado declaram `0.2.0-beta.9`; typecheck e 431 testes em 48 arquivos passam. O Ollama real aprovou conversa, contexto e ações, o corpus de ferramentas passou 19/19 e os smokes empacotados passaram. A beta 8 permanece como release pública; a landing pública ainda não deve apontar para a beta 9 até a tag produzir e validar os ativos finais.
 
 ## Evidência já aprovada no código candidato
 
 | Verificação | Estado | Evidência de 20/08/2026 |
 |---|---|---|
-| Versão e metadados | Aprovado na fonte | `package.json`, landing, notas, QA, backlog e marketing declaram `0.2.0-beta.8`; `qa:release-sync` deve passar após o NSIS gerar o novo `latest.yml` |
-| Typecheck e testes | Aprovado | `pnpm typecheck`; 48 arquivos e 423 testes, incluindo protocolo interno, autoteste guiado, release, segurança, diagnóstico, voz, microfone e acessibilidade |
-| Build, pacote e NSIS | Aprovado localmente | `package:win` e `verify:package`; ASAR, fuses, protocolo `titi://app`, módulos nativos e runtimes verificados no candidato beta 8 |
-| Landing candidata | Aprovada localmente | build e 5 testes renderizados; link beta 8 preparado, mas proibido publicar antes do ativo responder |
-| Transcrição empacotada | Aprovada no NSIS local | 10 parciais em 15 s, frase final correta, 7,170 s no smoke desta rodada |
-| Voz neural empacotada | Aprovada no NSIS local | DirectML, 4,9 s de áudio, 0,80 s fria e 0,21 s aquecida |
-| Integridade local | Aprovada | 892.693.188 bytes; SHA-256 `5B7E743A1E7A0B546F38E7BC98CE09918FC85A88062542576FC9292701C2A0BB`; ASAR SHA-256 `0CF70F3B0F1A8BDF09A0B5253C6B09805C1C644C1D53691EBD432C89ED6292F3`; Authenticode `NotSigned` permitido apenas por ser pré-release |
-| Inicialização e instalação | Aprovada localmente | fuse de snapshot incompatível foi corrigido; renderer migrou de `file://` para `titi://app`; NSIS `/currentuser` código 0; ASAR instalado idêntico; ações, conversas e configurações preservaram SHA-256; interface, histórico, 2 telas, autoteste e X do mascote verificados no Windows real |
-| CI da preparação | Aprovada | PR #12 verde em Windows limpo, com dependências, auditorias, testes e `package:dir` |
+| Versão e metadados | Aprovado na fonte | `package.json`, landing, notas, QA, backlog e marketing declaram `0.2.0-beta.9`; `qa:release-sync` passará após o NSIS gerar o novo `latest.yml` |
+| Typecheck e testes | Aprovado | `pnpm typecheck`; 48 arquivos e 431 testes, incluindo rotas separadas de conversa/ação, português falado, protocolo interno, autoteste, segurança e voz |
+| Modelo e ferramentas | Aprovado com Ollama real | conversa, contexto e ações passaram; corpus seguro de tool calling passou 19/19, sem executar ações externas |
+| Build, pacote e NSIS | Aprovado localmente | `package:win` e `verify:package` aprovaram ASAR, fuses, módulos nativos e runtimes no candidato beta 9 |
+| Landing candidata | Aprovada localmente | build e 5 testes renderizados passam; publicação segue bloqueada até o ativo público existir |
+| Transcrição empacotada | Aprovada | 10 parciais em 15 s, frase final correta e processamento final em 7,043 s |
+| Voz neural empacotada | Aprovada tecnicamente | DirectML, oito passos, 4,9 s de áudio, 1,19 s fria e 0,32 s aquecida; escuta humana permanece pendente |
+| Integridade pública beta 8 | Aprovada e histórica | ativo público tem 892.693.188 bytes, SHA-256 `980775246752867BEB2142394D5C2386FF995E1024B6C02CB5E83CCE477CC544`; ASAR instalado `0CF70F3B0F1A8BDF09A0B5253C6B09805C1C644C1D53691EBD432C89ED6292F3` |
+| Integridade e instalação beta 9 local | Aprovada | 892.695.614 bytes; SHA-256 `33F2A612F2FD124CBCF1F9EE9580F56B9082B3C53943C2718B81752F9C16871A`; ASAR instalado idêntico `92685FEB12B5DE059BA9488AC8C60809E41D5946FBBDE79B90D61ED2C010ECC9`; versão instalada correta; perfil preservado; Authenticode `NotSigned` |
 
-## Gates específicos da beta 8
+## Gates específicos da beta 9
 
-- [x] Integrar a preparação na `main` somente após CI verde.
-- [x] Atualizar todas as réplicas de versão sem copiar hash ou tamanho exato da beta 7.
-- [x] Gerar `Titi-Setup-0.2.0-beta.8.exe`, blockmap e `latest.yml` do candidato local.
-- [x] Passar `verify:package`, `qa:release-sync`, assinatura com política de pré-release e os smokes empacotados no NSIS beta 8.
-- [x] Registrar tamanho, SHA-256, SHA-512 do `latest.yml` e hash do ASAR do candidato local; manifesto final será gerado pelo commit da tag.
-- [x] Instalar o NSIS beta 8 sobre o perfil preservado e provar que configurações, conversas e ações permanecem.
-- [ ] Executar o autoteste guiado real: microfone, transcrição, modelo, tool calling e áudio audível.
-- [ ] Confirmar que o modal aparece somente no Antigravity e que ações perigosas falham fechadas.
-- [ ] Criar a tag `v0.2.0-beta.8` no SHA aprovado e aguardar o workflow `Release verificável`.
-- [ ] Baixar e comparar os cinco ativos públicos; validar acesso anônimo.
-- [ ] Só então publicar a landing beta 8 e atualizar este veredito com evidência real.
+- [x] Separar conversa clara do caminho de ferramentas sem permitir falso positivo em pedidos mistos.
+- [x] Aprovar conversa e ações com o Ollama real e passar 19/19 no corpus de tool calling.
+- [x] Normalizar pt-BR sem perder números, negações ou valores e elevar Supertonic para oito passos.
+- [x] Gerar `Titi-Setup-0.2.0-beta.9.exe`, blockmap e `latest.yml` sem reutilizar artefatos da beta 8.
+- [x] Passar `verify:package`, `qa:release-sync`, auditorias e smokes empacotados de transcrição e TTS.
+- [x] Instalar o NSIS beta 9 sobre o perfil preservado; confirmar código 0, versão, ASAR idêntico e dados preservados.
+- [ ] Ouvir respostas em pt-BR no aplicativo instalado e registrar avaliação humana de naturalidade/pronúncia.
+- [ ] Criar a tag `v0.2.0-beta.9` no SHA aprovado e aguardar o workflow `Release verificável`.
+- [ ] Baixar e comparar todos os ativos públicos; validar acesso anônimo.
+- [ ] Só então publicar a landing beta 9 e registrar checksums finais.
+
+## Histórico congelado da beta 8
+
+**A PRÉ-RELEASE PÚBLICA `0.2.0-beta.8` FOI PUBLICADA E INSTALADA NESTA MÁQUINA.** O ativo público tem 892.693.188 bytes e SHA-256 `980775246752867BEB2142394D5C2386FF995E1024B6C02CB5E83CCE477CC544`; o ASAR instalado tem SHA-256 `0CF70F3B0F1A8BDF09A0B5253C6B09805C1C644C1D53691EBD432C89ED6292F3`. O perfil foi preservado. A landing pública permaneceu temporariamente na beta 7 e deve saltar diretamente para a beta 9 somente após os novos ativos serem validados.
 
 ## Histórico congelado da beta 7
 

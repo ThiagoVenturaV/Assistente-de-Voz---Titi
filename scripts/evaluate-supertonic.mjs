@@ -39,7 +39,7 @@ const initializationSeconds = (performance.now() - initializationStarted) / 1000
 const generationConfig = () => new sherpa.GenerationConfig({
   sid: 5,
   speed: 1.02,
-  numSteps: 5,
+  numSteps: 8,
   extra: { lang: 'pt' }
 })
 const warmupText = process.env.TITI_TTS_WARMUP_TEXT?.trim()

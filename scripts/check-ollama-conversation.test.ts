@@ -14,16 +14,24 @@ settings.provider.model = process.env.OLLAMA_MODEL?.trim() || 'qwen3:4b-instruct
 settings.provider.endpoint = process.env.OLLAMA_ENDPOINT?.trim() || 'http://127.0.0.1:11434'
 
 describe.sequential('conversa real do OllamaProvider', () => {
-  it('responde uma pergunta conceitual sem executar ferramenta', async () => {
+  it('responde um corpus conceitual em pt-BR sem ferramenta nem abertura genérica', async () => {
     const tools = new RecordingTools()
-    const answer = await new OllamaProvider(tools).complete(messages(
-      'Me explica o que é o Spotify.'
-    ), settings)
+    const provider = new OllamaProvider(tools)
+    const prompts = [
+      'Me explica o que é o Spotify.',
+      'Qual a diferença entre memória RAM e armazenamento?',
+      'Como funciona uma placa de vídeo?'
+    ]
 
-    expect(answer.length).toBeGreaterThan(20)
-    expect(answer).not.toContain('[SEM_FERRAMENTA]')
+    for (const prompt of prompts) {
+      const answer = await provider.complete(messages(prompt), settings)
+      expect(answer.length).toBeGreaterThan(20)
+      expect(answer).not.toContain('[SEM_FERRAMENTA]')
+      expect(answer).not.toMatch(/^(?:claro|com certeza)[!,.\s:-]/iu)
+      expect(answer.split(/\s+/u).length).toBeLessThan(220)
+    }
     expect(tools.calls).toEqual([])
-  }, 180_000)
+  }, 240_000)
 
   it('executa Play no Spotify pela frase natural composta', async () => {
     const tools = new RecordingTools()

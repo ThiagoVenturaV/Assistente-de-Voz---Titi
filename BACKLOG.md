@@ -25,29 +25,29 @@ Princípios obrigatórios:
 - **P2:** evolução após os fluxos essenciais estarem estáveis.
 - **P3:** última prioridade deliberada.
 
-## Auditoria multidisciplinar atual — `0.2.0-beta.8`
+## Auditoria multidisciplinar atual — `0.2.0-beta.9`
 
 Auditoria atualizada em 20/08/2026 por frentes de Produto/QA, PO, marketing e copy, com verificação do repositório, candidato, instalação e landing. Este bloco prevalece sobre os registros históricos abaixo.
 
 ### Veredito
 
-**A beta.8 é candidata em preparação e ainda não está publicada nem instalada.** A preparação integrada na `main` fecha a política sem modal genérico, adiciona autoteste guiado, diagnóstico privado, recuperação de microfone, acessibilidade e release retomável; o Qwen 4B permanece como perfil rápido e o 9B como opção de qualidade. O gate atual é produzir e provar o NSIS beta 8 exato sem reutilizar artefatos da beta 7.
+**A beta.8 está pública; a beta.9 é a candidata atual e já está instalada localmente.** A nova candidata separa conversas claras do prompt operacional, melhora o estilo em português brasileiro e normaliza a fala de números, datas, valores, unidades, siglas e nomes frequentes. O caminho de ações permanece protegido e passou 19/19 no corpus com o Qwen 4B real. O gate atual é provar a CI e os ativos públicos beta 9 sem reutilizar artefatos da beta 8.
 
 | Área | Estado atual | Evidência | Lacuna prioritária |
 | --- | --- | --- | --- |
-| Release e instalação | Candidata · beta.8 não publicada | workflow validado, retomada segura de rascunho, manifesto/checksums e bloqueio de estável não assinada possuem testes | Gerar, instalar e publicar o NSIS beta 8; Authenticode continua `NotSigned`; Windows 10/11 e rollback permanecem |
-| Código e CI | Saudável com flake sob carga registrado | typecheck, build e 48 arquivos/423 testes passam; PRs #12/#25 e `main` verdes em checkout Windows limpo | A correção final de inicialização ainda precisa passar pela CI antes da tag; o timeout isolado do `ConversationStore` permanece registrado |
-| Linguagem natural e ferramentas | Parcial avançado | Qwen 4B fez 18/19 no corpus e 4/4 no provider; autoteste prova tool calling; alvos perigosos falham fechados e somente Antigravity confirma | Repetir corpus contextual atualizado e ampliar automação observar → agir → verificar |
-| Voz local | Parcial avançado | Parakeet incremental e Supertonic DirectML passam no pacote; autoteste guiado percorre a cadeia e pede confirmação humana do áudio | Faltam 20 turnos reais, dispositivos distintos, eco/recaptura e “pare” em todas as fases no instalado |
-| App instalado | Beta.8 local aprovada | NSIS beta.8 corrigido preservou ações, conversas e configurações; ASAR instalado coincide; janela, histórico, 2 telas, autoteste e X do mascote foram verificados | Falta confirmação humana de microfone/áudio no autoteste e repetir ações externas reais |
-| Landing | Beta.7 pública · política v22 | Sites v22 está pública com política correta do beta; candidata beta.8 compila e passa 5 testes, mas não será publicada antes da release | Publicar link beta.8 só após validar o ativo anônimo; contraste manual e prova real permanecem |
+| Release e instalação | Beta.8 pública · beta.9 instalada localmente | beta.9 passou pacote, verificador, smokes e instalação; ASAR coincide e perfil foi preservado | Publicar o NSIS beta 9; Authenticode continua `NotSigned`; Windows 10/11 e rollback permanecem |
+| Código e CI | Saudável | typecheck e 48 arquivos/431 testes passam localmente; CI da beta 9 ainda é gate | Empacotar a árvore final, passar CI e manter o timeout isolado do `ConversationStore` registrado |
+| Linguagem natural e ferramentas | Avançado no código | rota de conversa limpa e pt-BR; Ollama real aprovou conversa/contexto/ação; corpus de ferramentas passou 19/19 | Avaliação humana A/B de naturalidade e ampliar automação observar → agir → verificar |
+| Voz local | Avançado no pacote | normalização pt-BR preserva tokens críticos; Supertonic empacotado usa oito passos e DirectML, com 1,19 s fria e 0,32 s aquecida para 4,9 s de áudio | Ouvir o pacote beta 9, testar 20 turnos, dispositivos distintos e eco/recaptura |
+| App instalado | Beta.9 local instalada | versão e ASAR conferidos; atualização beta.8 → beta.9 preservou configurações, conversas e atividade | Escuta humana de resposta/pronúncia e repetir ações externas reais |
+| Landing | Beta.7 pública · beta.9 preparada no código | Sites v22 segue pública sem apontar para ativo inexistente | Publicar beta.9 somente após validar o download anônimo; contraste manual permanece |
 | Governança | Pronto no código | README, release, QA, backlog e marketing são conferidos pelo script; Issues #9/#10/#11 espelham Now/Next/Later | Atualizar evidências finais após NSIS/tag e adicionar donos quando houver equipe fixa |
 
 ### Fila executiva recomendada
 
-**Now — beta.8 de confiança:** `TITI-SEC-003`, `TITI-CANCEL-001`, `TITI-GAME-001`, `TITI-VOICE-001/003`, `TITI-DIST-001`, `TITI-QA-001`, `TITI-INSTALL-001`, `TITI-ACC-001`, `TITI-PRIV-002`, `TITI-GOV-001` e `TITI-MKT-001`.
+**Now — beta.9 de conversa e voz:** `TITI-VOICE-001/003`, `TITI-QA-001`, `TITI-DIST-001`, `TITI-INSTALL-001`, `TITI-GOV-001` e `TITI-MKT-001`.
 
-**Next — beta.8/9:** assinatura e updater, automação observar → agir → verificar, catálogo/ambiguidades, avaliação contínua, componentes do runtime, diagnóstico, desempenho, suporte/feedback, SEO, voz interrompível, ditado universal, receitas/perfis, conectores MCP e cockpit de tarefas.
+**Next — após beta.9:** assinatura e updater, automação observar → agir → verificar, catálogo/ambiguidades, avaliação contínua, componentes do runtime, diagnóstico, desempenho, suporte/feedback, SEO, chunking/cancelamento real da voz, ditado universal, receitas/perfis, conectores MCP e cockpit de tarefas.
 
 **Later:** provedores/API/OAuth, delegação a agentes de código, navegador avançado, sincronização opcional, i18n, palavra de ativação, recursos assistivos e automação determinística.
 
@@ -223,7 +223,7 @@ Pesquisa feita nas páginas oficiais dos produtos. A tabela registra padrões ú
 #### TITI-EVAL-001 — Avaliação contínua de linguagem natural e voz
 
 - **Prioridade/estado/trilha:** P1 · Parcial · IA + Voz + QA
-- **Evidência atual:** existem QA de 19 cenários de tool calling, integração pelo `OllamaProvider` real, A/B pela interface instalada e smokes controlados de Parakeet/Supertonic. Em 16/08/2026, `qwen3:4b-instruct` fez 18/19 no contrato, 4/4 no provedor em cerca de metade do tempo do `qwen3.5:9b` e venceu o teste pelo aplicativo; por isso virou o perfil rápido padrão, mantendo o 9B como opção de qualidade. `nemotron-mini:4b` foi descartado por incompatibilidade. Detalhes em `docs/OLLAMA_AGENT_MODEL_BENCHMARK.md`.
+- **Evidência atual:** existem QA de 19 cenários de tool calling, integração pelo `OllamaProvider` real, rota conversacional separada e smokes controlados de Parakeet/Supertonic. Em 20/08/2026, o `qwen3:4b-instruct` passou 19/19 no contrato e aprovou conversa, contexto, ação e observar→agir pelo provedor real. O corpus de fala pt-BR cobre retenção de números, negação, datas, horas, valores, unidades, versões, siglas, marcas, Markdown e código. O 9B permanece como opção de qualidade. Detalhes históricos em `docs/OLLAMA_AGENT_MODEL_BENCHMARK.md`.
 - **Aceite:**
   - [ ] corpus pt-BR versionado cobre sotaques, ruído, correções, referência, negação, números, nomes de apps e pedidos sem ação;
   - [ ] release registra WER, latência de parcial/final, acerto de ferramenta, falso efeito e tempo de TTS;
@@ -506,7 +506,7 @@ Objetivo: fazer as promessas já visíveis na interface funcionarem de verdade e
 ### TITI-QA-001 — Harness de QA do executável real
 
 - **Prioridade/estado/trilha:** P0 · Parcial · QA
-- **Evidência atual:** typecheck, build e 48 arquivos/423 testes passam na branch; CIs anteriores da `main` estão verdes; verificador, abertura real, instalação e smokes do pacote beta.8 local passam. A auditoria anterior encontrou um timeout isolado do `ConversationStore` sob contenção, registrado em `TITI-QA-FLAKE-001`.
+- **Evidência atual:** typecheck e 48 arquivos/431 testes passam na branch beta 9; conversa com Ollama real e 19/19 no corpus de ferramentas também passam. CIs anteriores da `main` estão verdes; verificador, abertura real, instalação e smokes do pacote beta 8 público passaram. A auditoria anterior encontrou um timeout isolado do `ConversationStore` sob contenção, registrado em `TITI-QA-FLAKE-001`.
 - **Resultado:** testes cobrem o produto instalado, não apenas funções isoladas.
 - **Aceite:**
   - [x] unitários cobrem política, storage, ferramentas, runtime Ollama e partes da voz;
@@ -788,7 +788,7 @@ O backend neural já foi integrado à beta.6. Este marco mede e aprimora a exper
 ### TITI-TTS-001 — Voz neural local opcional
 
 - **Prioridade/estado/trilha:** P1 · Parcial · Voz + Performance
-- **Evidência atual:** Supertonic 3 INT8 roda localmente com DirectML e fallback CPU, está incluído no pacote e passa em smokes controlados. Ainda faltam seleção/prévia, orçamento de latência, avaliação humana e E2E de interrupção/eco no instalado.
+- **Evidência atual:** Supertonic 3 INT8 roda localmente com DirectML e fallback CPU. A beta 9 usa oito passos de qualidade e projeção pt-BR determinística, preserva o chat original e isola falhas de fala da conversa. Ainda faltam seleção/prévia, orçamento de latência, avaliação humana e E2E de interrupção/eco no instalado.
 - **Resultado:** resposta menos robótica, preservando alternativa leve e compatível.
 - **Aceite:**
   - [x] pacote atual funciona offline e não envia texto a terceiros;
@@ -800,12 +800,13 @@ O backend neural já foi integrado à beta.6. Este marco mede e aprimora a exper
 
 ### TITI-TTS-002 — Qualidade e inclusão das vozes
 
-- **Prioridade/estado/trilha:** P1 · Não iniciado · Produto + QA
+- **Prioridade/estado/trilha:** P1 · Parcial · Produto + QA
+- **Evidência atual:** projeção pt-BR testada cobre números, datas, horas, reais, percentuais, unidades, versões, siglas, marcas, links, e-mail, código e emojis de tecla sem apagar tokens críticos. A naturalidade e o sotaque ainda dependem de escuta humana comparativa.
 - **Resultado:** vozes agradáveis para públicos diversos, sem personificação infantil obrigatória.
 - **Aceite:**
   - [ ] falantes de pt-BR avaliam inteligibilidade, naturalidade e fadiga;
   - [ ] nomes/prévias não associam qualidade a gênero ou idade do usuário;
-  - [ ] números, URLs, siglas, código e mensagens têm pronúncia previsível;
+  - [x] números, URLs, siglas, código e mensagens têm projeção falada previsível e corpus automatizado;
   - [ ] licença permite redistribuição ou download da fonte autorizada.
 
 ## Fora do escopo até existir política específica
@@ -819,7 +820,7 @@ O backend neural já foi integrado à beta.6. Este marco mede e aprimora a exper
 
 ## Ordem recomendada
 
-1. **Beta.7 — confiança:** fechar `TITI-SEC-003`, cancelamento/standby honesto, voz E2E, aperte-para-falar por teclado, acessibilidade, privacidade pública e governança da evidência.
-2. **Beta.8 — distribuição:** gerar NSIS no workflow de tag, assinar, provar atualização/rollback em Windows 10/11, integrar diagnóstico e definir o updater.
-3. **Beta.9 — produto amplo:** completar observar → agir → verificar, catálogo/ambiguidades, mídia/navegador, avaliação contínua, componentes do runtime e orçamento de desempenho/voz.
+1. **Beta.9 — conversa e voz:** validar respostas pt-BR, pronúncia, latência, pacote, instalação preservada e ativos públicos.
+2. **Próxima distribuição:** assinar, provar atualização/rollback em Windows 10/11, definir o updater e tornar componentes reparáveis.
+3. **Produto amplo:** completar observar → agir → verificar, catálogo/ambiguidades, mídia/navegador, avaliação contínua e orçamento de desempenho/voz.
 4. Depois, expandir provedores, APIs/OAuth, agentes de código, i18n, sincronização opcional e receitas compartilháveis conforme demanda comprovada.

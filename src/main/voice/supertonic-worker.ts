@@ -3,6 +3,7 @@ import { createRequire } from 'node:module'
 import { join } from 'node:path'
 import { parentPort, workerData } from 'node:worker_threads'
 import { encodePcm16Wav } from './local-speech'
+import { createSupertonicGenerationOptions } from './supertonic-generation'
 
 type SynthesisBackend = 'directml' | 'cpu'
 
@@ -78,12 +79,9 @@ port.on('message', (command: SynthesisCommand) => {
     const audio = engine.generate({
       text: command.text,
       enableExternalBuffer: false,
-      generationConfig: new sherpa.GenerationConfig({
-        sid: 5,
-        speed: command.rate,
-        numSteps: 5,
-        extra: { lang: 'pt' }
-      })
+      generationConfig: new sherpa.GenerationConfig(
+        createSupertonicGenerationOptions(command.rate)
+      )
     })
     if (
       !(audio.samples instanceof Float32Array)
