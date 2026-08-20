@@ -18,7 +18,7 @@ A beta 9 melhora dois pontos que afetam diretamente a sensação de conversar co
 - Uma falha de síntese não transforma uma resposta de chat já recebida em falha da conversa.
 - O estado “falando” só começa quando o áudio realmente inicia no dispositivo.
 
-## Evidência do candidato
+## Evidência da release
 
 - `pnpm typecheck`: aprovado.
 - `pnpm test`: 48 arquivos e 431 testes aprovados.
@@ -30,16 +30,18 @@ A beta 9 melhora dois pontos que afetam diretamente a sensação de conversar co
 - Transcrição empacotada: 10 revisões incrementais em 15 s, frase final correta e processamento final em 7,043 s.
 - Voz empacotada: backend `directml`, 4,9 s de áudio; primeira síntese em 1,19 s e síntese aquecida em 0,32 s usando oito passos.
 - Auditorias de dependências: zero vulnerabilidades conhecidas no nível alto; scanner de segredos aprovado.
-- Instalação local: código 0, versão `0.2.0-beta.9`, ASAR idêntico ao candidato e hashes de configurações, conversas e atividade preservados.
-- Integridade do ativo público e escuta humana continuam como gates antes de trocar a landing pública.
+- Instalação do ativo público: código 0, versão `0.2.0-beta.9`, ASAR esperado e hashes de configurações, conversas e atividade preservados.
+- Release pública: cinco ativos publicados, baixados novamente e comparados pelo workflow verificável.
+- Download anônimo e landing Sites v23: HTTP 200, versão e link beta 9 confirmados.
+- A escuta humana comparativa continua pendente e declarada como limite do beta.
 
 ## Integridade do instalador
 
-O candidato local `Titi-Setup-0.2.0-beta.9.exe` tem 892.695.614 bytes, SHA-256 `33F2A612F2FD124CBCF1F9EE9580F56B9082B3C53943C2718B81752F9C16871A` e estado Authenticode `NotSigned`. O ASAR local tem SHA-256 `92685FEB12B5DE059BA9488AC8C60809E41D5946FBBDE79B90D61ED2C010ECC9`. Esses valores identificam somente o candidato local; os checksums públicos serão registrados depois que o workflow da tag gerar e publicar os bytes definitivos. Nenhum hash nem artefato da beta 8 será reutilizado.
+O instalador público `Titi-Setup-0.2.0-beta.9.exe` tem 892.695.659 bytes, SHA-256 `806F1857C0B850361FFD54F8CAAFD52CA07067D2352271A45162EE787482AF40` e estado Authenticode `NotSigned`. O manifesto referencia o commit `19307732a780c018613bfc76986d272ad9058f4a`; o ASAR instalado tem SHA-256 `92685FEB12B5DE059BA9488AC8C60809E41D5946FBBDE79B90D61ED2C010ECC9`. Os cinco ativos públicos foram baixados anonimamente e os checksums publicados conferiram. Nenhum hash nem artefato da beta 8 foi reutilizado.
 
 ## Instalação e dados
 
-O instalador reutiliza o perfil em `%APPDATA%\titi-desktop`; configurações, conversas e atividade não fazem parte do pacote. A atualização beta 8 → beta 9 nesta máquina preservou exatamente os três arquivos e instalou um ASAR idêntico ao candidato local.
+O instalador reutiliza o perfil em `%APPDATA%\titi-desktop`; configurações, conversas e atividade não fazem parte do pacote. A atualização beta 8 → beta 9 com o ativo público preservou exatamente os três arquivos e instalou o ASAR esperado.
 
 ## Limites conhecidos
 

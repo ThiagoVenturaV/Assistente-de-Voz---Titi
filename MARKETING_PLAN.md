@@ -1,18 +1,18 @@
 # Plano de marketing e lançamento do Titi
 
-Atualizado em 20/08/2026 para a candidata `v0.2.0-beta.9`. Este documento governa aquisição, mensagem, feedback e promoção. O princípio central é: **nenhuma campanha pode avançar mais rápido que a evidência do produto instalado**.
+Atualizado em 20/08/2026 para a pré-release pública `v0.2.0-beta.9`. Este documento governa aquisição, mensagem, feedback e promoção. O princípio central é: **nenhuma campanha pode avançar mais rápido que a evidência do produto instalado**.
 
 ## Decisão executiva
 
-A `v0.2.0-beta.8` está pública. A `v0.2.0-beta.9` é a candidata atual e já está instalada localmente: conversa comum ganhou uma rota mais natural em pt-BR e a voz local passou a preparar números, datas, valores, unidades, siglas e marcas para pronúncia, com qualidade maior. Antes de promoção, a CI e os ativos públicos beta 9 precisam ser validados junto com respostas reais, tool calling e áudio audível.
+A `v0.2.0-beta.9` está pública, instalada e sincronizada com a landing: conversa comum ganhou uma rota mais natural em pt-BR e a voz local passou a preparar números, datas, valores, unidades, siglas e marcas para pronúncia, com qualidade maior. CIs, ativos públicos, instalação preservada e Sites v23 estão validados; promoção ampla continua bloqueada por assinatura, matriz multiplataforma e avaliação humana prolongada de voz.
 
 O instalador continua sem assinatura pública; cliente remoto e modo reunião foram intencionalmente excluídos. Não há evidência conhecida de exploração ou perda de dados.
 
 ### Estado de comunicação
 
-- **Agora:** concluir NSIS, instalação e ativos públicos da beta 9; não publicar seu CTA antes do download existir.
-- **Beta atual:** a beta 8 é o release público; a beta 9 está instalada localmente, enquanto a landing pública ainda aponta temporariamente para a beta 7.
-- **Beta 9:** distribuir primeiro para testadores e pequenos grupos somente após fechar o gate do `QA_PLAN.md`.
+- **Agora:** distribuir a beta 9 para testadores e coletar avaliação estruturada de conversa, pronúncia e latência.
+- **Beta atual:** a beta 9 é o release público, está instalada nesta máquina e é o download da landing Sites v23.
+- **Beta 9:** manter distribuição controlada enquanto assinatura, Windows 10/11 e voz prolongada permanecem abertas.
 - **Promoção ampla:** bloqueada enquanto assinatura, matriz de voz/jogos, Windows limpo e rollback permanecerem abertos.
 
 Se surgir evidência de execução sem consentimento, exposição de credenciais ou perda de dados, retirar imediatamente o link principal de download e publicar orientação objetiva. Não minimizar o problema nem usar linguagem alarmista sem evidência.
@@ -28,7 +28,7 @@ Se surgir evidência de execução sem consentimento, exposição de credenciais
 - abertura empacotada de Brave, Spotify, ChatGPT/Codex e Antigravity na máquina de desenvolvimento;
 - descoberta local de aplicativos em fontes confiáveis do Windows;
 - histórico, memória explícita e painel local de atividade implementados e cobertos por testes automatizados;
-- release público beta 8 com hash e notas; workflow beta 9 preparado para ativos verificados.
+- release público beta 9 com hash, manifesto, checksums e landing sincronizada.
 
 ### O que ainda não pode ser prometido
 
@@ -57,9 +57,9 @@ O README está tecnicamente detalhado e reconhece limites importantes; ainda des
 4. limites e riscos conhecidos;
 5. como atualizar, voltar ou relatar um problema sem dados pessoais.
 
-### Candidata `v0.2.0-beta.9`
+### Pré-release pública `v0.2.0-beta.9`
 
-As notas da beta 9 explicam a separação entre conversa e ação, a projeção de fala pt-BR, o aumento de qualidade do Supertonic e os limites do produto. Hash, tamanho exato e instalação permanecem explicitamente pendentes até o NSIS final.
+As notas da beta 9 explicam a separação entre conversa e ação, a projeção de fala pt-BR, o aumento de qualidade do Supertonic e os limites do produto. Hash, tamanho, manifesto, instalação e landing estão registrados; assinatura e avaliação humana ampla permanecem explícitas como limites.
 
 ### Histórico das notas da `v0.2.0-beta.7`
 
@@ -75,7 +75,7 @@ A corretiva deve ter uma seção explícita **Por que esta atualização é impo
 
 ### Landing page
 
-A landing está visualmente forte, aponta para o release correto e separa parte da visão futura. Entretanto, enquanto a corretiva não estiver aprovada, os seguintes trechos não devem ser usados em anúncios ou capturas promocionais:
+A landing está visualmente forte, aponta para o release correto e separa parte da visão futura. Enquanto assinatura e a matriz manual ampla permanecerem abertas, os seguintes trechos não devem ser usados como promessas absolutas em anúncios:
 
 - “Um agente. Todo o seu PC.”;
 - “Nada acontece escondido.”;
@@ -85,10 +85,10 @@ A landing está visualmente forte, aponta para o release correto e separa parte 
 - a conversa ao vivo descrita como experiência contínua sem mencionar que está em teste;
 - editor, agente de código, jogos e outros aplicativos apresentados de modo que pareçam automação já entregue.
 
-Recomendação para a próxima revisão do site, sem alterar o site nesta tarefa:
+Critérios que devem permanecer em qualquer próxima revisão do site:
 
 - inserir aviso visível de beta para testadores e de instalador não assinado;
-- durante a janela corretiva, informar que uma atualização está sendo preparada e evitar CTA de campanha;
+- manter o CTA identificado como beta público não assinado;
 - trocar absolutos por “processado localmente por padrão”, “algumas ações compatíveis” e “confirmação antes das ações suportadas”;
 - deixar “todo o PC”, edição interna, jogos e delegação numa seção inequivocamente chamada **Visão futura**;
 - mostrar o modal de confirmação antes do resultado de abertura;
