@@ -1,12 +1,37 @@
 import { CommandDeck, MotionRuntime } from "./motion-runtime";
 import Image from "next/image";
+import { SITE_DESCRIPTION, SITE_ORIGIN } from "./site";
 
 const DOWNLOAD_URL = "https://github.com/ThiagoVenturaV/Assistente-de-Voz---Titi/releases/download/v0.2.0-beta.7/Titi-Setup-0.2.0-beta.7.exe";
 const RELEASE_URL = "https://github.com/ThiagoVenturaV/Assistente-de-Voz---Titi/releases/tag/v0.2.0-beta.7";
+const SUPPORT_URL = "/suporte";
+
+const softwareApplication = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "Titi",
+  description: SITE_DESCRIPTION,
+  url: SITE_ORIGIN,
+  downloadUrl: DOWNLOAD_URL,
+  softwareVersion: "0.2.0-beta.7",
+  applicationCategory: "UtilitiesApplication",
+  operatingSystem: "Windows 10, Windows 11",
+  offers: { "@type": "Offer", price: "0", priceCurrency: "BRL" },
+  featureList: [
+    "Conversa por voz com processamento local por padrão",
+    "Transcrição incremental em português brasileiro",
+    "Automação compatível com aplicativos do Windows",
+    "Histórico e diagnóstico sob controle do usuário",
+  ],
+};
 
 export default function Home() {
   return (
     <main className="site-frame" id="inicio">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareApplication).replaceAll("<", "\\u003c") }}
+      />
       <MotionRuntime />
       <div className="scroll-progress" aria-hidden="true" />
 
@@ -118,7 +143,7 @@ export default function Home() {
         <div className="faq-list" data-reveal><details><summary><span>01</span>Preciso configurar modelos manualmente?<i /></summary><p>Não. Na primeira vez, o Titi orienta a configuração e só baixa o modelo adicional depois da sua confirmação.</p></details><details><summary><span>02</span>Tudo já vem no instalador?<i /></summary><p>A interface, o mascote, a transcrição incremental e a voz neural local já vêm. O modelo de conversa padrão, com aproximadamente 2,5 GB, é baixado depois.</p></details><details><summary><span>03</span>O que o Titi já consegue fazer no Windows?<i /></summary><p>O beta abre aplicativos compatíveis, usa seu navegador, pesquisa, controla Play/Pause no aplicativo de música e aciona controles acessíveis. A cobertura cresce a cada versão.</p></details><details><summary><span>04</span>Ele pede permissão antes de cada comando?<i /></summary><p>Ações genéricas em controles da interface e outras operações sensíveis pedem sua confirmação antes de executar. Ações simples e reversíveis continuam diretas.</p></details><details><summary><span>05</span>Como interrompo uma conversa ao vivo?<i /></summary><p>Diga “parar” ou pressione Esc. O Titi encerra a escuta e devolve o controle imediatamente.</p></details><details><summary><span>06</span>Meus dados saem do computador?<i /></summary><p>Sua voz, suas conversas e seu histórico podem ficar no seu computador. Se uma ação pedida precisar de internet, como uma pesquisa, o Titi usa a conexão para essa ação.</p></details></div>
       </section>
 
-      <footer className="footer"><div className="shell footer-main"><a className="wordmark wordmark--footer" href="#inicio"><span className="wordmark-pet"><Image src="/titi-icon.png" alt="" width={30} height={30} /></span><span>Titi</span></a><p>Uma conversa mais natural<br />entre você e o seu computador.</p><div><a href="#como-funciona">Como funciona ↑</a><a href="/privacidade">Política de privacidade →</a><a href="#download">Download ↓</a></div></div><div className="shell footer-bottom"><span>© 2026 Titi</span><span>Feito no Brasil · Beta público</span><a href="#inicio">Voltar ao topo ↑</a></div></footer>
+      <footer className="footer"><div className="shell footer-main"><a className="wordmark wordmark--footer" href="#inicio"><span className="wordmark-pet"><Image src="/titi-icon.png" alt="" width={30} height={30} /></span><span>Titi</span></a><p>Uma conversa mais natural<br />entre você e o seu computador.</p><div><a href="#como-funciona">Como funciona ↑</a><a href="/privacidade">Política de privacidade →</a><a href={SUPPORT_URL}>Suporte →</a><a href="#download">Download ↓</a></div></div><div className="shell footer-bottom"><span>© 2026 Titi</span><span>Feito no Brasil · Beta público</span><a href="#inicio">Voltar ao topo ↑</a></div></footer>
     </main>
   );
 }

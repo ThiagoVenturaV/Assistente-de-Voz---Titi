@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { SITE_DESCRIPTION, SITE_ORIGIN } from "./site";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -16,16 +17,20 @@ export function generateMetadata(): Metadata {
   const base = configuredSiteBase();
   const socialImage = base ? new URL("/og-brand.png", base).href : undefined;
   const title = "Titi — Fale do seu jeito. O PC entende e faz.";
-  const description = "IA local para Windows que entende linguagem natural, acompanha o contexto e transforma sua voz em ações no computador.";
+  const description = SITE_DESCRIPTION;
   return {
     ...(base ? { metadataBase: base } : {}),
     title,
     description,
+    alternates: { canonical: "/" },
+    robots: { index: true, follow: true },
     openGraph: {
       title,
       description,
       type: "website",
       locale: "pt_BR",
+      url: "/",
+      siteName: "Titi",
       ...(socialImage ? { images: [{ url: socialImage, width: 1731, height: 909, alt: "Titi — Fale do seu jeito. O PC entende e faz." }] } : {}),
     },
     twitter: { card: "summary_large_image", title, description, ...(socialImage ? { images: [socialImage] } : {}) },
@@ -43,7 +48,7 @@ export function generateMetadata(): Metadata {
 
 function configuredSiteBase(): URL | undefined {
   const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim();
-  if (!configured) return undefined;
+  if (!configured) return new URL(`${SITE_ORIGIN}/`);
   const url = new URL(configured);
   if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash) {
     throw new Error("NEXT_PUBLIC_SITE_URL deve ser uma origem HTTPS canônica.");

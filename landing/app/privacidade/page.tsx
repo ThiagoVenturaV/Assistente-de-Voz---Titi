@@ -5,6 +5,8 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "Privacidade — Titi",
   description: "Entenda quais dados o Titi processa localmente, quando usa a internet e como exportar ou apagar suas informações.",
+  alternates: { canonical: "/privacidade" },
+  openGraph: { url: "/privacidade", siteName: "Titi" },
 };
 
 const REPOSITORY_ISSUES = "https://github.com/ThiagoVenturaV/Assistente-de-Voz---Titi/issues";

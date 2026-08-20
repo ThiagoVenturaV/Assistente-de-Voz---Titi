@@ -37,6 +37,12 @@ test("server-renders the Titi landing page", async () => {
   assert.match(html, /acompanha correções, referências e intenção/);
   assert.match(html, /transcrição incremental aparece enquanto você fala/);
   assert.match(html, /Voz neural acelerada pela GPU/);
+  assert.match(html, /rel="canonical"[^>]+titi-assistente\.thiago2013ventura\.chatgpt\.site/i);
+  assert.match(html, /property="og:url"/i);
+  assert.match(html, /property="og:site_name"[^>]+content="Titi"/i);
+  assert.match(html, /application\/ld\+json/);
+  assert.match(html, /SoftwareApplication/);
+  assert.match(html, /href="\/suporte"/);
   assert.doesNotMatch(html, /TUDO LOCAL/);
   assert.doesNotMatch(html, /SHA-256|Ollama|Whisper|Spotify|Chrome|Brave|Codex/);
   assert.doesNotMatch(html, />\s*GitHub\b|Ver o código no GitHub|issues\/new\/choose/i);
@@ -58,6 +64,38 @@ test("publishes a complete local-first privacy policy", async () => {
   assert.match(html, /Como controlar e apagar/);
   assert.match(html, /Configurações → Privacidade/);
   assert.match(html, /19 de agosto de 2026/);
+  assert.match(html, /rel="canonical"[^>]+\/privacidade/i);
+});
+
+test("publishes privacy-safe support guidance", async () => {
+  const response = await render("/suporte");
+  assert.equal(response.status, 200);
+  const html = await response.text();
+
+  assert.match(html, /Suporte — Titi/);
+  assert.match(html, /Configurações → Atividade/);
+  assert.match(html, /Exportar diagnóstico/);
+  assert.match(html, /Nada é enviado automaticamente/);
+  assert.match(html, /não contém conversas/i);
+  assert.match(html, /rel="canonical"[^>]+\/suporte/i);
+});
+
+test("publishes robots and sitemap discovery routes", async () => {
+  const [robotsResponse, sitemapResponse] = await Promise.all([
+    render("/robots.txt"),
+    render("/sitemap.xml"),
+  ]);
+  assert.equal(robotsResponse.status, 200);
+  assert.equal(sitemapResponse.status, 200);
+
+  const robots = await robotsResponse.text();
+  const sitemap = await sitemapResponse.text();
+  assert.match(robots, /User-Agent:\s*\*/i);
+  assert.match(robots, /Allow:\s*\//i);
+  assert.match(robots, /Sitemap:.*\/sitemap\.xml/i);
+  assert.match(sitemap, /titi-assistente\.thiago2013ventura\.chatgpt\.site\//i);
+  assert.match(sitemap, /\/privacidade/);
+  assert.match(sitemap, /\/suporte/);
 });
 
 test("keeps product metadata, motion fallbacks and accessible landmarks", async () => {
