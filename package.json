@@ -145,7 +145,7 @@
     "koffi": "3.1.5",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "sherpa-onnx-node": "1.13.5",
+    "sherpa-onnx-node": "1.13.6",
     "sherpa-onnx-win-x64": "1.13.5"
   },
   "devDependencies": {
