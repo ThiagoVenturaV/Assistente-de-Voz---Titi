@@ -1,4 +1,10 @@
 import { useEffect, useRef } from 'react'
+import {
+  VOICE_LANGUAGE_OPTIONS,
+  type VoiceGender,
+  type VoiceLanguage,
+  type VoiceMode
+} from '../../../shared/contracts'
 import { LiveIcon, MicIcon, SendIcon, StopIcon } from './icons'
 
 interface ComposerProps {
@@ -7,6 +13,9 @@ interface ComposerProps {
   busy: boolean
   listening: boolean
   liveMode: boolean
+  voiceMode: VoiceMode
+  voiceGender: VoiceGender
+  voiceLanguage: VoiceLanguage
   onChange(value: string): void
   onSend(): void
   onStop(): void
@@ -14,6 +23,9 @@ interface ComposerProps {
   onListenEnd(): void
   onListenTimeout(): void
   onToggleLive(): void
+  onVoiceModeChange(mode: VoiceMode): void
+  onVoiceGenderChange(gender: VoiceGender): void
+  onVoiceLanguageChange(language: VoiceLanguage): void
 }
 
 export function Composer({
@@ -22,13 +34,19 @@ export function Composer({
   busy,
   listening,
   liveMode,
+  voiceMode,
+  voiceGender,
+  voiceLanguage,
   onChange,
   onSend,
   onStop,
   onListenStart,
   onListenEnd,
   onListenTimeout,
-  onToggleLive
+  onToggleLive,
+  onVoiceModeChange,
+  onVoiceGenderChange,
+  onVoiceLanguageChange
 }: ComposerProps): React.JSX.Element {
   const textarea = useRef<HTMLTextAreaElement>(null)
   const keyboardPushToTalk = useRef(false)
@@ -196,6 +214,37 @@ export function Composer({
             >
               <LiveIcon />
             </button>
+            <select
+              className="composer-select"
+              aria-label="Modo de voz"
+              title="Modo de voz (Streaming ou TTS)"
+              value={voiceMode}
+              onChange={(event) => onVoiceModeChange(event.target.value as VoiceMode)}
+            >
+              <option value="streaming">Streaming</option>
+              <option value="tts">TTS</option>
+            </select>
+            <select
+              className="composer-select"
+              aria-label="Voz (feminina ou masculina)"
+              title="Timbre de voz LFM3 (Feminina ou Masculina)"
+              value={voiceGender}
+              onChange={(event) => onVoiceGenderChange(event.target.value as VoiceGender)}
+            >
+              <option value="female">Feminina</option>
+              <option value="male">Masculina</option>
+            </select>
+            <select
+              className="composer-select composer-select--lang"
+              aria-label="Idioma da voz"
+              title="Idioma de audição e fala (LFM3)"
+              value={voiceLanguage}
+              onChange={(event) => onVoiceLanguageChange(event.target.value as VoiceLanguage)}
+            >
+              {VOICE_LANGUAGE_OPTIONS.map((option) => (
+                <option key={option.code} value={option.code}>{option.label}</option>
+              ))}
+            </select>
           </div>
           {busy ? (
             <button

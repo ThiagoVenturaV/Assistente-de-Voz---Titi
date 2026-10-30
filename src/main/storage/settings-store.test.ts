@@ -31,6 +31,33 @@ describe('SettingsStore', () => {
     expect(renamed.provider.endpoint).toBe('http://127.0.0.1:2244')
     expect(renamed.mascotName).toBe('Titi Teste')
     expect(renamed.voice.enabled).toBe(true)
+    expect(renamed.voice.mode).toBe('streaming')
+    expect(renamed.voice.gender).toBe('female')
+    expect(renamed.voice.language).toBe('pt')
+  })
+
+  it('persiste preferências de voz do LFM3 (modo, gênero e idioma)', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'titi-settings-'))
+    temporaryDirectories.push(directory)
+    const store = new SettingsStore(directory)
+    const current = await store.get()
+
+    await store.update({
+      voice: {
+        ...current.voice,
+        mode: 'tts',
+        gender: 'male',
+        language: 'es'
+      }
+    })
+
+    await expect(new SettingsStore(directory).get()).resolves.toMatchObject({
+      voice: {
+        mode: 'tts',
+        gender: 'male',
+        language: 'es'
+      }
+    })
   })
 
   it('preserva atualizações válidas e leitura de campos persistidos', async () => {
@@ -97,7 +124,12 @@ describe('SettingsStore', () => {
       mascotName: 'Titi Antigo',
       keepHistory: true,
       provider: { endpoint: 'http://127.0.0.1:11434', model: 'qwen3:4b-instruct' },
-      voice: { pushToTalkShortcut: 'CommandOrControl+Shift+Space' }
+      voice: {
+        pushToTalkShortcut: 'CommandOrControl+Shift+Space',
+        mode: 'streaming',
+        gender: 'female',
+        language: 'pt'
+      }
     })
   })
 

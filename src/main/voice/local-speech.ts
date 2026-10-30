@@ -1,12 +1,23 @@
-export function prepareTextForSpeech(content: string): string {
-  const withoutMarkup = content
+import type { VoiceLanguage } from '../../shared/contracts'
+
+export function prepareTextForSpeech(content: string, language: VoiceLanguage = 'pt'): string {
+  const isPortuguese = language === 'pt'
+  const codeBlockNotice = isPortuguese ? ' Há um bloco de código no chat. ' : ' '
+  const linkNotice = isPortuguese ? ' O link está no chat. ' : ' '
+  let withoutMarkup = content
     .normalize('NFC')
-    .replace(/```[\s\S]*?```/g, ' Há um bloco de código no chat. ')
+    .replace(/```[\s\S]*?```/g, codeBlockNotice)
     .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
     .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
-    .replace(/(?:https?:\/\/|www\.)\S+/giu, ' O link está no chat. ')
-    .replace(/\b[\w.+-]+@[\w.-]+\.[a-z]{2,}\b/giu, speakEmailAddress)
-    .replace(/\b(?:[a-z0-9-]+\.)+(?:com\.br|com|org|net|io|dev|app)\b/giu, speakDomain)
+    .replace(/(?:https?:\/\/|www\.)\S+/giu, linkNotice)
+
+  if (isPortuguese) {
+    withoutMarkup = withoutMarkup
+      .replace(/\b[\w.+-]+@[\w.-]+\.[a-z]{2,}\b/giu, speakEmailAddress)
+      .replace(/\b(?:[a-z0-9-]+\.)+(?:com\.br|com|org|net|io|dev|app)\b/giu, speakDomain)
+  }
+
+  withoutMarkup = withoutMarkup
     .replace(/([#*0-9])\uFE0F?\u20E3/gu, '$1')
     .replace(/(?:\p{Regional_Indicator}{2}|\p{Extended_Pictographic}(?:\uFE0F|\p{Emoji_Modifier})?(?:\u200D\p{Extended_Pictographic}(?:\uFE0F|\p{Emoji_Modifier})?)*)/gu, ' ')
     .replace(/[\uFE0E\uFE0F\u200D]/g, '')
@@ -16,7 +27,11 @@ export function prepareTextForSpeech(content: string): string {
     .replace(/<[^>]+>/g, ' ')
     .replace(/\r?\n+/g, '. ')
 
-  return normalizeBrazilianPortugueseSpeech(withoutMarkup)
+  const normalized = isPortuguese
+    ? normalizeBrazilianPortugueseSpeech(withoutMarkup)
+    : withoutMarkup
+
+  return normalized
     .replace(/\s+([,.;:!?])/g, '$1')
     .replace(/([:;])\./g, '$1')
     .replace(/\.(?:\s+\.)+/g, '.')
@@ -65,6 +80,8 @@ export function normalizeBrazilianPortugueseSpeech(content: string): string {
 
 const BRAZILIAN_SPEECH_TERMS: ReadonlyArray<readonly [RegExp, string]> = [
   [/\bpt[- ]BR\b/giu, 'português brasileiro'],
+  [/\bLFM3\b/giu, 'éle éfe eme 3'],
+  [/\bLFM\b/giu, 'éle éfe eme'],
   [/\bChatGPT\b/giu, 'Chat gê pê tê'],
   [/\bDirectML\b/giu, 'Dáirect eme éle'],
   [/\bSupertonic\b/giu, 'Supertônic'],
@@ -220,6 +237,15 @@ export function encodePcm16Wav(samples: Float32Array, sampleRate: number): Array
   for (let index = 0; index < samples.length; index += 1) {
     const clamped = Math.max(-1, Math.min(1, samples[index]))
     view.setInt16(44 + index * 2, clamped < 0 ? clamped * 0x8000 : clamped * 0x7fff, true)
+  }
+  return buffer
+}
+
+export function encodeFloat32ToPcm16Buffer(samples: Float32Array): Buffer {
+  const buffer = Buffer.allocUnsafe(samples.length * 2)
+  for (let index = 0; index < samples.length; index += 1) {
+    const clamped = Math.max(-1, Math.min(1, samples[index]))
+    buffer.writeInt16LE(Math.round(clamped < 0 ? clamped * 0x8000 : clamped * 0x7fff), index * 2)
   }
   return buffer
 }

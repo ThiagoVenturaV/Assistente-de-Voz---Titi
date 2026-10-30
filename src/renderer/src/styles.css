@@ -456,3 +456,25 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .privacy-link { text-decoration: none; }
 .danger-button { color: #ffaaa3; border-color: rgba(238, 115, 107, .32); }
 .privacy-choice { color: var(--muted); font-size: 12px; margin: 0; overflow-wrap: anywhere; }
+
+.composer-modes { flex-wrap: wrap; align-items: center; }
+.composer-select {
+  min-height: 44px;
+  height: 44px;
+  padding: 0 10px;
+  color: var(--muted);
+  background: #171a17;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  cursor: pointer;
+  font-size: 11px;
+  outline: 0;
+}
+.composer-select:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, .045);
+  border-color: var(--line-strong);
+}
+.composer-select--lang {
+  max-width: 158px;
+}

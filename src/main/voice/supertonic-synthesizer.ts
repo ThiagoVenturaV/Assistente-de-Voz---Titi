@@ -1,7 +1,14 @@
 import { join } from 'node:path'
 import { Worker } from 'node:worker_threads'
-import type { VoiceSynthesis } from '../../shared/contracts'
+import type {
+  VoiceGender,
+  VoiceLanguage,
+  VoiceMode,
+  VoiceSynthesis,
+  VoiceSynthesisChunk
+} from '../../shared/contracts'
 import { prepareTextForSpeech } from './local-speech'
+import { Lfm3Runtime, type Lfm3SynthesizeOptions } from './lfm3-runtime'
 
 type SynthesisBackend = VoiceSynthesis['backend']
 
@@ -23,7 +30,7 @@ interface PendingSynthesis {
   abort: () => void
 }
 
-const MODEL_DIRECTORY = 'sherpa-onnx-supertonic-3-tts-int8-2026-05-11'
+const MODEL_DIRECTORY = 'LFM3-Audio-2B-GGUF'
 
 export class SupertonicSynthesizer {
   private readonly modelRoot: string
@@ -34,18 +41,18 @@ export class SupertonicSynthesizer {
   private directmlDisabled = false
   private generation = 0
 
-  constructor(resourcesPath: string) {
-    this.modelRoot = join(
-      resourcesPath,
-      'runtime',
-      'supertonic',
-      'model-extracted',
-      MODEL_DIRECTORY
-    )
-    this.directmlRoot = join(resourcesPath, 'runtime', 'supertonic', 'directml')
+  constructor(
+    private readonly resourcesPath: string,
+    private readonly sharedRuntime?: Lfm3Runtime
+  ) {
+    this.modelRoot = join(resourcesPath, 'runtime', 'lfm3', 'models', MODEL_DIRECTORY)
+    this.directmlRoot = join(resourcesPath, 'runtime', 'lfm3', 'bin')
   }
 
   prepare(): Promise<void> {
+    if (this.sharedRuntime) {
+      return this.sharedRuntime.prepare()
+    }
     return this.ensureReady()
   }
 
@@ -53,11 +60,30 @@ export class SupertonicSynthesizer {
     requestId: string,
     content: string,
     rate: number,
-    signal: AbortSignal
+    signal: AbortSignal,
+    options: {
+      mode?: VoiceMode
+      gender?: VoiceGender
+      language?: VoiceLanguage
+      onChunk?: (chunk: VoiceSynthesisChunk) => void
+    } = {}
   ): Promise<VoiceSynthesis> {
     throwIfAborted(signal)
-    const text = prepareTextForSpeech(content)
+    const language = options.language ?? 'pt'
+    const text = prepareTextForSpeech(content, language)
     if (!text) throw new Error('A resposta não contém texto para ser falado.')
+
+    if (this.sharedRuntime) {
+      const runtimeOptions: Lfm3SynthesizeOptions = {
+        mode: options.mode ?? 'streaming',
+        gender: options.gender ?? 'female',
+        language,
+        signal,
+        onChunk: options.onChunk
+      }
+      return this.sharedRuntime.synthesize(requestId, text, rate, runtimeOptions)
+    }
+
     await this.ensureReady()
     throwIfAborted(signal)
     if (!this.worker) throw new Error('O worker da voz neural não está disponível.')
@@ -80,7 +106,15 @@ export class SupertonicSynthesizer {
       }, 120_000)
       this.pending.set(requestId, { resolve, reject, timeout, signal, abort })
       signal.addEventListener('abort', abort, { once: true })
-      this.worker?.postMessage({ type: 'synthesize', requestId, text, rate })
+      this.worker?.postMessage({
+        type: 'synthesize',
+        requestId,
+        text,
+        rate,
+        mode: options.mode ?? 'streaming',
+        gender: options.gender ?? 'female',
+        language
+      })
     })
   }
 
@@ -117,6 +151,7 @@ export class SupertonicSynthesizer {
   private startWorker(backend: SynthesisBackend, generation: number): Promise<void> {
     const worker = new Worker(join(__dirname, 'supertonic-worker.js'), {
       workerData: {
+        resourcesPath: this.resourcesPath,
         modelRoot: this.modelRoot,
         directmlRoot: this.directmlRoot,
         backend
@@ -135,7 +170,7 @@ export class SupertonicSynthesizer {
         if (this.worker === worker) this.worker = null
         reject(new Error(`A voz neural local em ${backend} demorou demais para iniciar.`))
         void worker.terminate()
-      }, 30_000)
+      }, 45_000)
       worker.on('message', (message: WorkerMessage) => {
         if (message.type === 'ready') {
           if (startupSettled) return
@@ -206,7 +241,12 @@ export class SupertonicSynthesizer {
       pending.reject(new Error('A voz neural local retornou um áudio inválido.'))
       return
     }
-    if (message.backend !== 'directml' && message.backend !== 'cpu') {
+    if (
+      message.backend !== 'directml'
+      && message.backend !== 'cpu'
+      && message.backend !== 'lfm3-streaming'
+      && message.backend !== 'lfm3-tts'
+    ) {
       pending.reject(new Error('A voz neural local não informou o backend utilizado.'))
       return
     }
@@ -227,6 +267,8 @@ export class SupertonicSynthesizer {
     this.pending.clear()
   }
 }
+
+export { SupertonicSynthesizer as Lfm3Synthesizer }
 
 function throwIfAborted(signal: AbortSignal): void {
   if (signal.aborted) throw abortError(signal)

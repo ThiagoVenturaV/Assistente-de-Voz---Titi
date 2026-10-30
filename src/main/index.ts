@@ -77,6 +77,7 @@ import { DesktopToolkit } from './tools/desktop-toolkit'
 import { ToolConfirmationBroker } from './tools/tool-confirmation-broker'
 import { WindowsUiAutomationController } from './tools/windows-ui-automation'
 import { OllamaVisualComputerAgent } from './tools/visual-computer-agent'
+import { Lfm3Runtime } from './voice/lfm3-runtime'
 import { ParakeetTranscriber, sanitizeTranscription } from './voice/parakeet-transcriber'
 import { ParakeetStreamingTranscriber } from './voice/parakeet-streaming-transcriber'
 import { LocalTranscriptionRefiner } from './voice/transcription-refiner'
@@ -93,6 +94,7 @@ let confirmationBroker: ToolConfirmationBroker
 let harness: AssistantHarness
 let runtimeManager: OllamaRuntimeManager
 let gameStandbyMonitor: GameStandbyMonitor
+let lfm3Runtime: Lfm3Runtime
 let transcriber: ParakeetTranscriber
 let streamingTranscriber: ParakeetStreamingTranscriber
 let transcriptionRefiner: LocalTranscriptionRefiner
@@ -193,12 +195,14 @@ app.whenReady().then(async () => {
     (progress) => broadcast('runtime:setup-progress', progress),
     app.getPath('temp')
   )
+  lfm3Runtime = new Lfm3Runtime(runtimeResourcesPath)
   transcriber = new ParakeetTranscriber(
     runtimeResourcesPath,
-    app.getPath('temp')
+    app.getPath('temp'),
+    lfm3Runtime
   )
-  streamingTranscriber = new ParakeetStreamingTranscriber(runtimeResourcesPath)
-  speechSynthesizer = new SupertonicSynthesizer(runtimeResourcesPath)
+  streamingTranscriber = new ParakeetStreamingTranscriber(runtimeResourcesPath, lfm3Runtime)
+  speechSynthesizer = new SupertonicSynthesizer(runtimeResourcesPath, lfm3Runtime)
   void speechSynthesizer.prepare().catch(() => {
     // A síntese repetirá a inicialização e exibirá o erro apenas se ambos os backends falharem.
   })
@@ -268,6 +272,7 @@ app.on('before-quit', () => {
   activeDiagnosticSelfTests.clear()
   streamingTranscriber?.dispose()
   speechSynthesizer?.dispose()
+  lfm3Runtime?.dispose()
   confirmationBroker?.cancelAll()
   globalPushToTalk?.dispose()
   void gameStandbyMonitor?.stop({ restore: false })
@@ -294,6 +299,7 @@ async function enterGameStandby(app: ForegroundApplication): Promise<boolean> {
     setMascotState('standby', true)
     mascotWindow?.hide()
     broadcast('game:standby-changed', true)
+    lfm3Runtime?.dispose()
     await runtimeManager.unloadSelectedModel().catch(() => undefined)
     return true
   } finally {
@@ -774,7 +780,12 @@ function registerIpcHandlers(): void {
     setMascotState('thinking')
     try {
       const startedAt = performance.now()
-      const transcription = await transcriber.transcribe(wavAudio, controller.signal)
+      const settings = await settingsStore.get()
+      const transcription = await transcriber.transcribe(
+        wavAudio,
+        controller.signal,
+        settings.voice.language
+      )
       const text = await transcriptionRefiner.refine(transcription.text, controller.signal)
       return {
         text,
@@ -811,11 +822,16 @@ function registerIpcHandlers(): void {
       streamingTranscriber.cancel(activeId)
       activeVoiceStreams.delete(activeId)
     }
-    await streamingTranscriber.start(sessionId, (partial) => {
-      if (!event.sender.isDestroyed()) {
-        event.sender.send('voice:partial-transcription', partial)
-      }
-    })
+    const settings = await settingsStore.get()
+    await streamingTranscriber.start(
+      sessionId,
+      (partial) => {
+        if (!event.sender.isDestroyed()) {
+          event.sender.send('voice:partial-transcription', partial)
+        }
+      },
+      settings.voice.language
+    )
     activeVoiceStreams.set(sessionId, { ownerId: event.sender.id })
   })
   ipcMain.handle('voice:stream-chunk', (event, sessionValue: unknown, audioValue: unknown) => {
@@ -881,11 +897,22 @@ function registerIpcHandlers(): void {
       const controller = new AbortController()
       activeSyntheses.set(request.requestId, { controller, ownerId: event.sender.id })
       try {
+        const settings = await settingsStore.get()
         return await speechSynthesizer.synthesize(
           request.requestId,
           request.text,
           request.rate,
-          controller.signal
+          controller.signal,
+          {
+            mode: settings.voice.mode,
+            gender: settings.voice.gender,
+            language: settings.voice.language,
+            onChunk: (chunk) => {
+              if (!event.sender.isDestroyed()) {
+                event.sender.send('voice:synthesis-chunk', chunk)
+              }
+            }
+          }
         )
       } catch (error) {
         if (isAbortError(error) || controller.signal.aborted) throw abortReason()

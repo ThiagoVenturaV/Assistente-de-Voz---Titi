@@ -1,10 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
-import type {
-  CuratedMemorySummary,
-  DiagnosticSummary,
-  RuntimeStatus,
-  TitiSettings,
-  ToolActionLogEntry
+import {
+  VOICE_LANGUAGE_OPTIONS,
+  type CuratedMemorySummary,
+  type DiagnosticSummary,
+  type RuntimeStatus,
+  type TitiSettings,
+  type ToolActionLogEntry,
+  type VoiceGender,
+  type VoiceLanguage,
+  type VoiceMode
 } from '../../../shared/contracts'
 import {
   CheckIcon,
@@ -305,10 +309,13 @@ export function SettingsPanel({
             )}
 
             {section === 'voice' && (
-              <SettingsGroup title="Conversa por voz" description="Fale naturalmente com o Titi sem depender da nuvem.">
+              <SettingsGroup
+                title="Conversa por voz (LFM3 Audio 2B)"
+                description="Ouvir e falar localmente com o novo modelo LiquidAI LFM3, sem depender da nuvem."
+              >
                 <Toggle
                   label="Ativar recursos de voz"
-                  description="Permite captura pelo microfone e resposta falada."
+                  description="Permite captura pelo microfone e resposta falada com o LFM3."
                   checked={draft.voice.enabled}
                   onChange={(enabled) => setDraft({ ...draft, voice: { ...draft.voice, enabled } })}
                 />
@@ -318,6 +325,58 @@ export function SettingsPanel({
                   checked={draft.voice.liveMode}
                   onChange={(liveMode) => setDraft({ ...draft, voice: { ...draft.voice, liveMode } })}
                 />
+                <Field
+                  label="Modo de voz"
+                  hint="Escolha entre Streaming (reprodução imediata em tempo real) ou TTS (áudio completo)."
+                >
+                  <select
+                    aria-label="Modo de voz"
+                    disabled={!draft.voice.enabled}
+                    value={draft.voice.mode}
+                    onChange={(event) => setDraft({
+                      ...draft,
+                      voice: { ...draft.voice, mode: event.target.value as VoiceMode }
+                    })}
+                  >
+                    <option value="streaming">Streaming (tempo real)</option>
+                    <option value="tts">TTS (áudio completo)</option>
+                  </select>
+                </Field>
+                <Field
+                  label="Voz (feminina ou masculina)"
+                  hint="Escolha o timbre do modelo LFM3 para falar."
+                >
+                  <select
+                    aria-label="Voz (feminina ou masculina)"
+                    disabled={!draft.voice.enabled}
+                    value={draft.voice.gender}
+                    onChange={(event) => setDraft({
+                      ...draft,
+                      voice: { ...draft.voice, gender: event.target.value as VoiceGender }
+                    })}
+                  >
+                    <option value="female">Feminina</option>
+                    <option value="male">Masculina</option>
+                  </select>
+                </Field>
+                <Field
+                  label="Idioma da voz"
+                  hint="Idioma usado pelo LFM3 tanto para ouvir quanto para responder."
+                >
+                  <select
+                    aria-label="Idioma da voz"
+                    disabled={!draft.voice.enabled}
+                    value={draft.voice.language}
+                    onChange={(event) => setDraft({
+                      ...draft,
+                      voice: { ...draft.voice, language: event.target.value as VoiceLanguage }
+                    })}
+                  >
+                    {VOICE_LANGUAGE_OPTIONS.map((option) => (
+                      <option key={option.code} value={option.code}>{option.label}</option>
+                    ))}
+                  </select>
+                </Field>
                 <MicrophoneSettings
                   deviceId={draft.voice.inputDeviceId}
                   disabled={!draft.voice.enabled}
@@ -468,7 +527,7 @@ export function SettingsPanel({
                     <DiagnosticItem
                       label="Áudio"
                       value={diagnosticSummary.audio.enabled
-                        ? `${diagnosticSummary.audio.liveMode ? 'Ao vivo' : 'Apertar para falar'} · ${diagnosticSummary.audio.inputDeviceSelected ? 'microfone escolhido' : 'microfone padrão'}`
+                        ? `${diagnosticSummary.audio.liveMode ? 'Ao vivo' : 'Apertar para falar'} · LFM3 ${settings.voice.mode === 'streaming' ? 'Streaming' : 'TTS'} · ${settings.voice.gender === 'female' ? 'Feminina' : 'Masculina'} (${settings.voice.language}) · ${diagnosticSummary.audio.inputDeviceSelected ? 'microfone escolhido' : 'microfone padrão'}`
                         : 'Desativado'}
                     />
                     <DiagnosticItem

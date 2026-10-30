@@ -1,161 +1,67 @@
-import { randomUUID } from 'node:crypto'
-import { spawn } from 'node:child_process'
-import { access, readFile, unlink, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import type { VoiceTranscription } from '../../shared/contracts'
+import type { VoiceLanguage, VoiceTranscription } from '../../shared/contracts'
+import {
+  assertValidWavBuffer,
+  Lfm3Runtime,
+  LFM3_MMPROJ_FILE,
+  LFM3_MODEL_FILE,
+  sanitizeTranscription,
+  throwIfAborted
+} from './lfm3-runtime'
+
+export { sanitizeTranscription }
 
 export class ParakeetTranscriber {
-  private readonly executable: string
-  private readonly model: string
+  readonly executable: string
+  readonly model: string
+  readonly mmproj: string
+  private readonly runtime: Lfm3Runtime
+  private readonly ownsRuntime: boolean
 
-  constructor(resourcesPath: string, private readonly tempPath: string) {
-    this.executable = join(resourcesPath, 'runtime', 'whisper', 'bin', 'Release', 'parakeet-cli.exe')
-    this.model = join(
-      resourcesPath,
-      'runtime',
-      'whisper',
-      'models',
-      'ggml-parakeet-tdt-0.6b-v3-q8_0.bin'
-    )
+  constructor(resourcesPath: string, _tempRoot?: string, sharedRuntime?: Lfm3Runtime) {
+    this.executable = join(resourcesPath, 'runtime', 'lfm3', 'bin', 'llama-mtmd-cli.exe')
+    this.model = join(resourcesPath, 'runtime', 'lfm3', 'models', LFM3_MODEL_FILE)
+    this.mmproj = join(resourcesPath, 'runtime', 'lfm3', 'models', LFM3_MMPROJ_FILE)
+    this.runtime = sharedRuntime ?? new Lfm3Runtime(resourcesPath)
+    this.ownsRuntime = !sharedRuntime
   }
 
-  async transcribe(wavAudio: ArrayBuffer, signal?: AbortSignal): Promise<VoiceTranscription> {
+  async transcribe(
+    audioBuffer: ArrayBuffer,
+    signal?: AbortSignal,
+    language: VoiceLanguage = 'pt'
+  ): Promise<VoiceTranscription> {
     throwIfAborted(signal)
-    const bytes = Buffer.from(wavAudio)
-    validateAudio(bytes)
-    await Promise.all([access(this.executable), access(this.model)]).catch(() => {
-      throw new Error('O motor local de voz ainda não foi preparado. Execute a preparação do runtime de voz.')
-    })
-    const id = `titi-voice-${randomUUID()}`
-    const inputPath = join(this.tempPath, `${id}.wav`)
-    const outputBase = join(this.tempPath, id)
-    const outputPath = `${outputBase}.txt`
-    const startedAt = performance.now()
+    assertValidWavBuffer(audioBuffer)
+    return this.runtime.transcribeWav(audioBuffer, { language, signal })
+  }
 
-    try {
-      await writeFile(inputPath, bytes)
-      throwIfAborted(signal)
-      await runParakeet(
-        this.executable,
-        parakeetArguments(this.model, inputPath, outputBase),
-        signal
-      )
-      throwIfAborted(signal)
-      const text = sanitizeTranscription(await readFile(outputPath, 'utf8'))
-      return {
-        text,
-        processingTimeMs: Math.round(performance.now() - startedAt)
-      }
-    } finally {
-      await Promise.allSettled([unlink(inputPath), unlink(outputPath)])
+  dispose(): void {
+    if (this.ownsRuntime) {
+      this.runtime.dispose()
     }
   }
 }
 
-export function parakeetArguments(model: string, inputPath: string, outputBase: string): string[] {
+export { ParakeetTranscriber as Lfm3Transcriber }
+
+export function parakeetArguments(
+  model: string,
+  inputPath: string,
+  outputBase: string,
+  language: VoiceLanguage = 'pt'
+): string[] {
   return [
-    '--model', model,
-    '--file', inputPath,
-    '--threads', '6',
-    '--no-gpu',
-    '--no-prints',
+    '--model',
+    model,
+    '--file',
+    inputPath,
+    '--output-file',
+    outputBase,
     '--output-txt',
-    '--output-file', outputBase
+    '--language',
+    language,
+    '--no-gpu',
+    '--no-prints'
   ]
-}
-
-const NON_SPEECH_WORDS = [
-  'aplausos?',
-  'inaud[ií]vel',
-  'm[uú]sica',
-  'music',
-  'noise',
-  'ru[ií]do',
-  'sil[eê]ncio',
-  'silence',
-  'som de fundo',
-  'background sound'
-].join('|')
-const NON_SPEECH_ANNOTATION = new RegExp(
-  `(?:\\[[^\\]\\r\\n]{0,60}(?:${NON_SPEECH_WORDS})[^\\]\\r\\n]{0,60}\\]|\\([^\\)\\r\\n]{0,60}(?:${NON_SPEECH_WORDS})[^\\)\\r\\n]{0,60}\\)|[♪♫]+)`,
-  'giu'
-)
-
-export function sanitizeTranscription(value: string): string {
-  const text = value
-    .replace(/^\uFEFF/, '')
-    .replace(NON_SPEECH_ANNOTATION, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-
-  if (!text || !/[\p{L}\p{N}]/u.test(text)) {
-    throw new Error('Não identifiquei voz humana nessa gravação. Fale mais perto do microfone e tente novamente.')
-  }
-  return text
-}
-
-function validateAudio(bytes: Buffer): void {
-  if (bytes.byteLength < 48) throw new Error('A gravação ficou curta demais.')
-  if (bytes.byteLength > 32 * 1024 * 1024) throw new Error('A gravação excedeu o limite de 32 MB.')
-  if (bytes.toString('ascii', 0, 4) !== 'RIFF' || bytes.toString('ascii', 8, 12) !== 'WAVE') {
-    throw new Error('O áudio recebido não está no formato WAV esperado.')
-  }
-}
-
-function runParakeet(executable: string, args: string[], signal?: AbortSignal): Promise<void> {
-  return new Promise((resolve, reject) => {
-    throwIfAborted(signal)
-    const child = spawn(executable, args, {
-      windowsHide: true,
-      stdio: ['ignore', 'pipe', 'pipe']
-    })
-    let stderr = ''
-    let settled = false
-    let terminationError: Error | null = null
-    const finish = (error?: Error): void => {
-      if (settled) return
-      settled = true
-      clearTimeout(timeout)
-      signal?.removeEventListener('abort', abort)
-      error ? reject(error) : resolve()
-    }
-    const abort = (): void => {
-      terminationError = abortError(signal)
-      if (!child.kill()) finish(terminationError)
-    }
-    const timeout = setTimeout(() => {
-      terminationError = new Error('A transcrição local excedeu dois minutos.')
-      if (!child.kill()) finish(terminationError)
-    }, 120_000)
-    signal?.addEventListener('abort', abort, { once: true })
-
-    child.stderr.setEncoding('utf8')
-    child.stderr.on('data', (chunk: string) => {
-      stderr = `${stderr}${chunk}`.slice(-4000)
-    })
-    child.on('error', (error) => finish(error))
-    child.on('close', (code) => {
-      if (terminationError) {
-        finish(terminationError)
-        return
-      }
-      if (code === 0) finish()
-      else finish(new Error(`Falha na transcrição local (${code ?? 'sem código'}). ${lastLine(stderr)}`))
-    })
-  })
-}
-
-function throwIfAborted(signal?: AbortSignal): void {
-  if (signal?.aborted) throw abortError(signal)
-}
-
-function abortError(signal?: AbortSignal): Error {
-  if (signal?.reason instanceof Error) return signal.reason
-  const error = new Error('A transcrição foi interrompida.')
-  error.name = 'AbortError'
-  return error
-}
-
-function lastLine(value: string): string {
-  return value.trim().split(/\r?\n/).filter(Boolean).at(-1) ?? ''
 }

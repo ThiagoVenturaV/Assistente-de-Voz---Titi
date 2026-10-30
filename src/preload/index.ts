@@ -116,6 +116,14 @@ const api: TitiDesktopApi = {
       ipcRenderer.invoke('voice:synthesize', requestId, text, rate),
     cancelSynthesis: (requestId: string) =>
       ipcRenderer.invoke('voice:cancel-synthesis', requestId),
+    onSynthesisChunk: (callback) => {
+      const listener = (
+        _event: Electron.IpcRendererEvent,
+        chunk: import('../shared/contracts').VoiceSynthesisChunk
+      ): void => callback(chunk)
+      ipcRenderer.on('voice:synthesis-chunk', listener)
+      return () => ipcRenderer.removeListener('voice:synthesis-chunk', listener)
+    },
     setLiveMode: (enabled: boolean) => ipcRenderer.invoke('voice:set-live-mode', enabled),
     onLiveModeChanged: (callback) => {
       const listener = (_event: Electron.IpcRendererEvent, enabled: boolean): void => callback(enabled)

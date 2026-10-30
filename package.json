@@ -1,6 +1,6 @@
 {
   "name": "titi-desktop",
-  "version": "0.2.0-beta.9",
+  "version": "0.2.0-beta.10",
   "packageManager": "pnpm@10.22.0",
   "description": "Assistente local para Windows com chat, voz, ferramentas e o mascote Titi.",
   "main": "./out/main/index.js",
@@ -51,21 +51,29 @@
     },
     "asarUnpack": [
       "node_modules/koffi/**/*",
-      "node_modules/@koromix/koffi-win32-x64/**/*",
-      "node_modules/sherpa-onnx-node/**/*",
-      "node_modules/sherpa-onnx-win-x64/**/*"
+      "node_modules/@koromix/koffi-win32-x64/**/*"
     ],
     "extraResources": [
       {
-        "from": "runtime/whisper",
-        "to": "runtime/whisper",
+        "from": "runtime/lfm3",
+        "to": "runtime/lfm3",
         "filter": [
-          "bin/Release/parakeet-cli.exe",
-          "bin/Release/parakeet.dll",
-          "bin/Release/ggml.dll",
-          "bin/Release/ggml-base.dll",
-          "bin/Release/ggml-cpu-*.dll",
-          "models/ggml-parakeet-tdt-0.6b-v3-q8_0.bin"
+          "bin/llama-server.exe",
+          "bin/llama-server-impl.dll",
+          "bin/llama-tts.exe",
+          "bin/llama-mtmd-cli.exe",
+          "bin/llama-common.dll",
+          "bin/llama.dll",
+          "bin/mtmd.dll",
+          "bin/ggml.dll",
+          "bin/ggml-base.dll",
+          "bin/ggml-cpu-*.dll",
+          "bin/libomp.dll",
+          "bin/LICENSE",
+          "bin/LICENSE-LLVM-OpenMP",
+          "models/LFM3-Audio-2B-Q4_K_M.gguf",
+          "models/mmproj-LFM3-Audio-2B-Q8_0.gguf",
+          "models/LICENSE"
         ]
       },
       {
@@ -73,46 +81,6 @@
         "to": "runtime/windows-ui-automation",
         "filter": [
           "windows-ui-automation.ps1"
-        ]
-      },
-      {
-        "from": "runtime/supertonic/model-extracted/sherpa-onnx-supertonic-3-tts-int8-2026-05-11",
-        "to": "runtime/supertonic/model-extracted/sherpa-onnx-supertonic-3-tts-int8-2026-05-11",
-        "filter": [
-          "duration_predictor.int8.onnx",
-          "text_encoder.int8.onnx",
-          "vector_estimator.int8.onnx",
-          "vocoder.int8.onnx",
-          "tts.json",
-          "unicode_indexer.bin",
-          "voice.bin",
-          "LICENSE"
-        ]
-      },
-      {
-        "from": "runtime/supertonic/directml",
-        "to": "runtime/supertonic/directml",
-        "filter": [
-          "licenses/*.txt",
-          "NOTICE.md"
-        ]
-      },
-      {
-        "from": "runtime/supertonic/directml/node_modules/sherpa-onnx-node",
-        "to": "runtime/supertonic/directml/node_modules/sherpa-onnx-node",
-        "filter": [
-          "*.js",
-          "package.json"
-        ]
-      },
-      {
-        "from": "runtime/supertonic/directml/node_modules/sherpa-onnx-win-x64",
-        "to": "runtime/supertonic/directml/node_modules/sherpa-onnx-win-x64",
-        "filter": [
-          "*.dll",
-          "*.node",
-          "index.js",
-          "package.json"
         ]
       }
     ],

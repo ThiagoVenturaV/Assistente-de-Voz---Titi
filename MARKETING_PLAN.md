@@ -1,10 +1,10 @@
 # Plano de marketing e lançamento do Titi
 
-Atualizado em 20/08/2026 para a pré-release pública `v0.2.0-beta.9`. Este documento governa aquisição, mensagem, feedback e promoção. O princípio central é: **nenhuma campanha pode avançar mais rápido que a evidência do produto instalado**.
+Atualizado em 20/08/2026 para a pré-release pública `v0.2.0-beta.10`. Este documento governa aquisição, mensagem, feedback e promoção. O princípio central é: **nenhuma campanha pode avançar mais rápido que a evidência do produto instalado**.
 
 ## Decisão executiva
 
-A `v0.2.0-beta.9` está pública, instalada e sincronizada com a landing: conversa comum ganhou uma rota mais natural em pt-BR e a voz local passou a preparar números, datas, valores, unidades, siglas e marcas para pronúncia, com qualidade maior. CIs, ativos públicos, instalação preservada e Sites v23 estão validados; promoção ampla continua bloqueada por assinatura, matriz multiplataforma e avaliação humana prolongada de voz.
+A `v0.2.0-beta.10` está pública, instalada e sincronizada com a landing: conversa comum ganhou uma rota mais natural em pt-BR e a voz local passou a preparar números, datas, valores, unidades, siglas e marcas para pronúncia, com qualidade maior. CIs, ativos públicos, instalação preservada e Sites v23 estão validados; promoção ampla continua bloqueada por assinatura, matriz multiplataforma e avaliação humana prolongada de voz.
 
 O instalador continua sem assinatura pública; cliente remoto e modo reunião foram intencionalmente excluídos. Não há evidência conhecida de exploração ou perda de dados.
 
@@ -57,7 +57,7 @@ O README está tecnicamente detalhado e reconhece limites importantes; ainda des
 4. limites e riscos conhecidos;
 5. como atualizar, voltar ou relatar um problema sem dados pessoais.
 
-### Pré-release pública `v0.2.0-beta.9`
+### Pré-release pública `v0.2.0-beta.10`
 
 As notas da beta 9 explicam a separação entre conversa e ação, a projeção de fala pt-BR, o aumento de qualidade do Supertonic e os limites do produto. Hash, tamanho, manifesto, instalação e landing estão registrados; assinatura e avaliação humana ampla permanecem explícitas como limites.
 

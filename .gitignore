@@ -21,6 +21,8 @@ credentials.json
 secrets.json
 
 # Binários e modelos locais são baixados pelo script de preparação.
+runtime/lfm3/bin/
+runtime/lfm3/models/
 runtime/whisper/bin/
 runtime/whisper/models/*.bin
 runtime/supertonic/*

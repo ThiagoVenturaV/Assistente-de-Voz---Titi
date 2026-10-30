@@ -25,7 +25,7 @@ Princípios obrigatórios:
 - **P2:** evolução após os fluxos essenciais estarem estáveis.
 - **P3:** última prioridade deliberada.
 
-## Auditoria multidisciplinar atual — `0.2.0-beta.9`
+## Auditoria multidisciplinar atual — `0.2.0-beta.10`
 
 Auditoria atualizada em 20/08/2026 por frentes de Produto/QA, PO, marketing e copy, com verificação do repositório, candidato, instalação e landing. Este bloco prevalece sobre os registros históricos abaixo.
 

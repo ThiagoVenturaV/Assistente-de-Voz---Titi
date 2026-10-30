@@ -18,7 +18,10 @@ export const DEFAULT_SETTINGS: TitiSettings = {
     pushToTalkShortcut: 'CommandOrControl+Shift+Space',
     liveMode: false,
     speechRate: 1,
-    inputDeviceId: ''
+    inputDeviceId: '',
+    mode: 'streaming',
+    gender: 'female',
+    language: 'pt'
   },
   games: {
     standbyEnabled: true,

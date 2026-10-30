@@ -5,7 +5,8 @@ import type {
   MascotState,
   RuntimeSetupProgress,
   RuntimeStatus,
-  TitiSettings
+  TitiSettings,
+  VoiceMode
 } from '../../shared/contracts'
 import { Composer } from './components/Composer'
 import { EmptyState } from './components/EmptyState'
@@ -315,7 +316,8 @@ export function App(): React.JSX.Element {
           await speakText(
             response.assistantMessage.content,
             activeSettings.voice.speechRate,
-            speechController.signal
+            speechController.signal,
+            activeSettings.voice.mode ?? 'streaming'
           )
         } catch (speechError) {
           if (!speechController.signal.aborted) {
@@ -753,6 +755,9 @@ export function App(): React.JSX.Element {
           busy={sending || voiceProcessing || gameStandby}
           listening={listening}
           liveMode={settings.voice.liveMode}
+          voiceMode={settings.voice.mode ?? 'streaming'}
+          voiceGender={settings.voice.gender ?? 'female'}
+          voiceLanguage={settings.voice.language ?? 'pt'}
           onChange={setDraft}
           onSend={() => sendMessage()}
           onStop={() => stopCurrentInteraction()}
@@ -762,6 +767,15 @@ export function App(): React.JSX.Element {
             setNotice('Tempo de escuta excedido. Fale novamente para reabrir o microfone.')
           }}
           onToggleLive={toggleLiveMode}
+          onVoiceModeChange={(mode) => {
+            void saveSettings({ voice: { ...settings.voice, mode } })
+          }}
+          onVoiceGenderChange={(gender) => {
+            void saveSettings({ voice: { ...settings.voice, gender } })
+          }}
+          onVoiceLanguageChange={(language) => {
+            void saveSettings({ voice: { ...settings.voice, language } })
+          }}
         />
       </main>
 
@@ -797,17 +811,33 @@ export function App(): React.JSX.Element {
   )
 }
 
-async function speakText(content: string, rate: number, signal?: AbortSignal): Promise<void> {
+async function speakText(
+  content: string,
+  rate: number,
+  signal?: AbortSignal,
+  mode: VoiceMode = 'streaming'
+): Promise<void> {
   if (signal?.aborted) return
   const requestId = crypto.randomUUID()
   let audio: HTMLAudioElement | null = null
   let objectUrl: string | null = null
   let settled = false
   let timeout = 0
+  let audioContext: AudioContext | null = null as AudioContext | null
+  let nextStartTime = 0
+  let streamedChunks = 0
+  let lastSource: AudioBufferSourceNode | null = null as AudioBufferSourceNode | null
+  let unsubscribeChunks: (() => void) | null = null
 
   const cleanup = (): void => {
     window.clearTimeout(timeout)
     signal?.removeEventListener('abort', abort)
+    unsubscribeChunks?.()
+    unsubscribeChunks = null
+    if (audioContext) {
+      void audioContext.close().catch(() => undefined)
+      audioContext = null
+    }
     if (objectUrl) URL.revokeObjectURL(objectUrl)
     objectUrl = null
   }
@@ -816,12 +846,74 @@ async function speakText(content: string, rate: number, signal?: AbortSignal): P
     audio?.pause()
     audio = null
     cleanup()
+    void window.titi.mascot.setState('idle')
   }
   signal?.addEventListener('abort', abort, { once: true })
+
+  if (
+    mode === 'streaming'
+    && typeof window.AudioContext === 'function'
+    && typeof window.titi.voice.onSynthesisChunk === 'function'
+  ) {
+    unsubscribeChunks = window.titi.voice.onSynthesisChunk((chunk) => {
+      if (chunk.requestId !== requestId || signal?.aborted) return
+      try {
+        const samples = new Float32Array(chunk.pcmAudio)
+        if (!samples.length) return
+        if (!audioContext) {
+          audioContext = new window.AudioContext({ sampleRate: chunk.sampleRate })
+          nextStartTime = audioContext.currentTime
+          void window.titi.mascot.setState('speaking')
+        }
+        if (audioContext.state === 'suspended') {
+          void audioContext.resume().catch(() => undefined)
+        }
+        const buffer = audioContext.createBuffer(1, samples.length, chunk.sampleRate)
+        buffer.copyToChannel(samples, 0)
+        const source = audioContext.createBufferSource()
+        source.buffer = buffer
+        source.connect(audioContext.destination)
+        const startAt = Math.max(audioContext.currentTime, nextStartTime)
+        source.start(startAt)
+        nextStartTime = startAt + buffer.duration
+        lastSource = source
+        streamedChunks += 1
+      } catch {
+        // Fallback to full WAV playback if WebAudio streaming is unavailable.
+      }
+    })
+  }
 
   try {
     const synthesis = await window.titi.voice.synthesize(requestId, content, rate)
     if (signal?.aborted) return
+
+    const activeCtx = audioContext
+    const finalSource = lastSource
+    if (streamedChunks > 0 && activeCtx) {
+      unsubscribeChunks?.()
+      unsubscribeChunks = null
+      const remainingMs = Math.max(0, (nextStartTime - activeCtx.currentTime) * 1_000)
+      if (remainingMs > 20 && finalSource) {
+        await new Promise<void>((resolve) => {
+          const finishStreamPlayback = (): void => {
+            if (settled) return
+            settled = true
+            signal?.removeEventListener('abort', finishStreamPlayback)
+            resolve()
+          }
+          signal?.addEventListener('abort', finishStreamPlayback, { once: true })
+          finalSource.onended = finishStreamPlayback
+          timeout = window.setTimeout(
+            finishStreamPlayback,
+            Math.max(2_000, Math.min(300_000, Math.ceil(remainingMs) + 3_000))
+          )
+        })
+      }
+      void window.titi.mascot.setState('idle')
+      return
+    }
+
     objectUrl = URL.createObjectURL(new Blob([synthesis.wavAudio], { type: 'audio/wav' }))
     audio = new Audio(objectUrl)
     await new Promise<void>((resolve, reject) => {

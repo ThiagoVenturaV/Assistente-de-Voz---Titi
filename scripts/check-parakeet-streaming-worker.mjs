@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
-import { readFile } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
+import { readFile, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { Worker } from 'node:worker_threads'
 
@@ -8,26 +9,37 @@ const audioPath = resolve(process.argv[2] || `${process.env.TEMP}/titi-voice-lon
 const maximumSeconds = Number(process.argv[3] || 15)
 const resourcesPath = process.argv[4] ? resolve(process.argv[4]) : null
 const runtimePath = resourcesPath
-  ? join(resourcesPath, 'runtime', 'whisper', 'bin', 'Release')
-  : resolve('runtime/whisper/bin/Release')
+  ? join(resourcesPath, 'runtime', 'lfm3', 'bin')
+  : resolve('runtime/lfm3/bin')
 const modelPath = resourcesPath
-  ? join(resourcesPath, 'runtime', 'whisper', 'models', 'ggml-parakeet-tdt-0.6b-v3-q8_0.bin')
-  : resolve('runtime/whisper/models/ggml-parakeet-tdt-0.6b-v3-q8_0.bin')
+  ? join(resourcesPath, 'runtime', 'lfm3', 'models', 'LFM3-Audio-2B-Q4_K_M.gguf')
+  : resolve('runtime/lfm3/models/LFM3-Audio-2B-Q4_K_M.gguf')
 const workerPath = resourcesPath
   ? join(resourcesPath, 'app.asar', 'out', 'main', 'parakeet-streaming-worker.js')
   : resolve('out/main/parakeet-streaming-worker.js')
+const ttsWorkerPath = resourcesPath
+  ? join(resourcesPath, 'app.asar', 'out', 'main', 'supertonic-worker.js')
+  : resolve('out/main/supertonic-worker.js')
+
+if (!existsSync(audioPath)) {
+  await generateSampleWav(audioPath, resourcesPath, ttsWorkerPath)
+}
+
 const worker = new Worker(workerPath, {
   workerData: { runtimePath, modelPath, threads: 6 }
 })
 const sessionId = '5599faba-382a-4b73-849f-47ac40bcca36'
 
 try {
-  await waitForMessage((message) => message.type === 'ready')
-  worker.postMessage({ type: 'start', sessionId })
+  await waitForMessage(worker, (message) => message.type === 'ready')
+  worker.postMessage({ type: 'start', sessionId, language: 'pt' })
 
   const wav = await readFile(audioPath)
-  const allSamples = decodeMonoPcm16Wav(wav)
-  const samples = allSamples.subarray(0, Math.min(allSamples.length, maximumSeconds * 16_000))
+  const { samples: allSamples, sampleRate } = decodeMonoPcm16Wav(wav)
+  const samples16k = sampleRate === 16_000
+    ? allSamples
+    : resampleTo16k(allSamples, sampleRate)
+  const samples = samples16k.subarray(0, Math.min(samples16k.length, maximumSeconds * 16_000))
   const chunkSamples = 24_000
   const partials = []
   for (let offset = 0; offset < samples.length; offset += chunkSamples) {
@@ -36,7 +48,9 @@ try {
     chunk.set(source)
     worker.postMessage({ type: 'audio', sessionId, samples: chunk.buffer }, [chunk.buffer])
     const partial = await waitForMessage(
-      (message) => message.type === 'partial' && message.sessionId === sessionId
+      worker,
+      (message) => message.type === 'partial' && message.sessionId === sessionId,
+      60_000
     )
     partials.push(partial)
     console.log(`[${(partial.audioTimeMs / 1000).toFixed(1)} s / ${partial.processingTimeMs} ms] ${partial.text}`)
@@ -44,19 +58,51 @@ try {
 
   worker.postMessage({ type: 'finish', sessionId })
   const final = await waitForMessage(
-    (message) => message.type === 'final' && message.sessionId === sessionId
+    worker,
+    (message) => message.type === 'final' && message.sessionId === sessionId,
+    60_000
   )
-  if (!final.text || partials.length < 2) throw new Error('O worker não produziu revisões suficientes.')
+  if (!final.text || partials.length < 2) throw new Error('O worker LFM3 não produziu revisões suficientes.')
   console.log(JSON.stringify({ partials: partials.length, final }, null, 2))
 } finally {
   await worker.terminate()
 }
 
-function waitForMessage(predicate, timeoutMs = 30_000) {
+async function generateSampleWav(targetPath, resourcesRoot, synthesizerWorkerPath) {
+  const ttsWorker = new Worker(synthesizerWorkerPath, {
+    workerData: {
+      resourcesPath: resourcesRoot ?? resolve('.'),
+      backend: 'lfm3'
+    }
+  })
+  try {
+    await waitForMessage(ttsWorker, (message) => message.type === 'ready', 60_000)
+    const requestId = '5599faba-382a-4b73-849f-47ac40bcca39'
+    ttsWorker.postMessage({
+      type: 'synthesize',
+      requestId,
+      text: 'Olá, eu sou o assistente Titi falando em português com o novo modelo local LFM3 para testar a transcrição incremental.',
+      rate: 1.0,
+      mode: 'tts',
+      gender: 'female',
+      language: 'pt'
+    })
+    const result = await waitForMessage(
+      ttsWorker,
+      (message) => message.type === 'result' && message.requestId === requestId,
+      60_000
+    )
+    await writeFile(targetPath, Buffer.from(result.wavAudio))
+  } finally {
+    await ttsWorker.terminate()
+  }
+}
+
+function waitForMessage(targetWorker, predicate, timeoutMs = 45_000) {
   return new Promise((resolveMessage, reject) => {
     const timeout = setTimeout(() => {
       cleanup()
-      reject(new Error('Tempo excedido aguardando o worker incremental.'))
+      reject(new Error('Tempo excedido aguardando o worker LFM3.'))
     }, timeoutMs)
     const message = (value) => {
       if (value.type === 'error') {
@@ -73,28 +119,39 @@ function waitForMessage(predicate, timeoutMs = 30_000) {
     }
     const cleanup = () => {
       clearTimeout(timeout)
-      worker.off('message', message)
-      worker.off('error', error)
+      targetWorker.off('message', message)
+      targetWorker.off('error', error)
     }
-    worker.on('message', message)
-    worker.on('error', error)
+    targetWorker.on('message', message)
+    targetWorker.on('error', error)
   })
 }
 
 function decodeMonoPcm16Wav(wav) {
+  const sampleRate = wav.readUInt32LE(24)
   let offset = 12
   while (offset + 8 <= wav.length) {
     const id = wav.toString('ascii', offset, offset + 4)
     const size = wav.readUInt32LE(offset + 4)
     if (id === 'data') {
       const data = wav.subarray(offset + 8, offset + 8 + size)
-      const output = new Float32Array(data.length / 2)
-      for (let index = 0; index < output.length; index += 1) {
-        output[index] = data.readInt16LE(index * 2) / 32768
+      const samples = new Float32Array(data.length / 2)
+      for (let index = 0; index < samples.length; index += 1) {
+        samples[index] = data.readInt16LE(index * 2) / 32768
       }
-      return output
+      return { samples, sampleRate }
     }
     offset += 8 + size + (size % 2)
   }
   throw new Error('Bloco PCM ausente no WAV.')
+}
+
+function resampleTo16k(samples, sourceRate) {
+  const ratio = sourceRate / 16_000
+  const targetLength = Math.floor(samples.length / ratio)
+  const output = new Float32Array(targetLength)
+  for (let i = 0; i < targetLength; i += 1) {
+    output[i] = samples[Math.min(samples.length - 1, Math.floor(i * ratio))]
+  }
+  return output
 }

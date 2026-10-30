@@ -7,39 +7,41 @@ const resourcesPath = resolve(process.argv[2] || 'release/win-unpacked/resources
 const workerPath = resolve(
   process.argv[3] || join(resourcesPath, 'app.asar', 'out', 'main', 'supertonic-worker.js')
 )
-const modelRoot = join(
-  resourcesPath,
-  'runtime',
-  'supertonic',
-  'model-extracted',
-  'sherpa-onnx-supertonic-3-tts-int8-2026-05-11'
-)
-const directmlRoot = join(resourcesPath, 'runtime', 'supertonic', 'directml')
 const requestId = '5599faba-382a-4b73-849f-47ac40bcca36'
 const repeatRequestId = '5599faba-382a-4b73-849f-47ac40bcca37'
 const worker = new Worker(workerPath, {
-  workerData: { modelRoot, directmlRoot, backend: 'directml' }
+  workerData: { resourcesPath, backend: 'lfm3-streaming' }
 })
-const timeout = setTimeout(() => finish(new Error('O worker empacotado do Supertonic excedeu 30 segundos.')), 30_000)
+const timeout = setTimeout(() => finish(new Error('O worker empacotado do LFM3 excedeu 60 segundos.')), 60_000)
 let settled = false
 let coldGenerationMs = 0
+let streamingChunks = 0
 
 worker.on('message', (message) => {
   if (message.type === 'ready') {
-    if (message.backend !== 'directml') {
+    if (!['lfm3-streaming', 'lfm3-tts', 'lfm3'].includes(message.backend)) {
       finish(new Error(`O worker empacotado iniciou em ${message.backend || 'backend desconhecido'}.`))
       return
     }
     worker.postMessage({
       type: 'synthesize',
       requestId,
-      text: 'Olá, Tiago. A voz neural local do Titi está funcionando.',
-      rate: 1.02
+      text: 'Olá, Tiago. A voz neural local LFM3 do Titi está funcionando.',
+      rate: 1.0,
+      mode: 'tts',
+      gender: 'female',
+      language: 'pt'
     })
     return
   }
+  if (message.type === 'chunk') {
+    if (message.requestId === repeatRequestId) {
+      streamingChunks += 1
+    }
+    return
+  }
   if (message.type === 'error') {
-    finish(new Error(message.message || 'O worker empacotado não sintetizou a voz.'))
+    finish(new Error(message.message || 'O worker empacotado LFM3 não sintetizou a voz.'))
     return
   }
   if (message.type !== 'result' || ![requestId, repeatRequestId].includes(message.requestId)) return
@@ -47,7 +49,7 @@ worker.on('message', (message) => {
     finish(new Error('O worker empacotado retornou um WAV inválido.'))
     return
   }
-  if (message.backend !== 'directml') {
+  if (!['lfm3-streaming', 'lfm3-tts', 'lfm3'].includes(message.backend)) {
     finish(new Error(`A síntese empacotada usou ${message.backend || 'backend desconhecido'}.`))
     return
   }
@@ -80,17 +82,21 @@ worker.on('message', (message) => {
     worker.postMessage({
       type: 'synthesize',
       requestId: repeatRequestId,
-      text: 'Olá, Tiago. A voz neural local do Titi está funcionando.',
-      rate: 1.02
+      text: 'Hello, Tiago. Streaming male voice synthesis is active.',
+      rate: 1.0,
+      mode: 'streaming',
+      gender: 'male',
+      language: 'en'
     })
     return
   }
-  if (message.processingTimeMs >= message.audioDurationMs) {
-    finish(new Error('A síntese DirectML aquecida não ficou mais rápida que o áudio gerado.'))
+  if (streamingChunks < 1) {
+    finish(new Error('O modo streaming do LFM3 não emitiu blocos incrementais de áudio.'))
     return
   }
   console.log(JSON.stringify({
     backend: message.backend,
+    streamingChunks,
     audioSeconds: Number((message.audioDurationMs / 1000).toFixed(2)),
     coldGenerationSeconds: Number((coldGenerationMs / 1000).toFixed(2)),
     warmGenerationSeconds: Number((message.processingTimeMs / 1000).toFixed(2)),

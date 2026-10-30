@@ -1,9 +1,13 @@
-import type {
-  ChatRequest,
-  GameStandbyDecision,
-  GameStandbyDecisionResponse,
-  MascotState,
-  TitiSettings
+import {
+  VOICE_LANGUAGE_OPTIONS,
+  type ChatRequest,
+  type GameStandbyDecision,
+  type GameStandbyDecisionResponse,
+  type MascotState,
+  type TitiSettings,
+  type VoiceGender,
+  type VoiceLanguage,
+  type VoiceMode
 } from '../../shared/contracts'
 import { isSafePushToTalkShortcut } from '../voice/global-push-to-talk'
 
@@ -13,6 +17,9 @@ const MASCOT_STATES = new Set<MascotState>([
   'idle', 'listening', 'thinking', 'speaking', 'success', 'error', 'standby', 'review'
 ])
 const GAME_STANDBY_DECISIONS = new Set<GameStandbyDecision>(['complete', 'cancel', 'defer'])
+const VOICE_MODES = new Set<VoiceMode>(['streaming', 'tts'])
+const VOICE_GENDERS = new Set<VoiceGender>(['female', 'male'])
+const VOICE_LANGUAGES = new Set<VoiceLanguage>(VOICE_LANGUAGE_OPTIONS.map((item) => item.code))
 
 export function validatedConversationId(value: unknown): string {
   if (typeof value !== 'string' || !ID_PATTERN.test(value)) {
@@ -179,7 +186,16 @@ function validatedProvider(value: unknown): TitiSettings['provider'] {
 
 function validatedVoice(value: unknown): TitiSettings['voice'] {
   if (!isRecord(value)) throw new Error('Configurações de voz inválidas.')
-  rejectUnknownKeys(value, ['enabled', 'pushToTalkShortcut', 'liveMode', 'speechRate', 'inputDeviceId'])
+  rejectUnknownKeys(value, [
+    'enabled',
+    'pushToTalkShortcut',
+    'liveMode',
+    'speechRate',
+    'inputDeviceId',
+    'mode',
+    'gender',
+    'language'
+  ])
   if (typeof value.enabled !== 'boolean' || typeof value.liveMode !== 'boolean') {
     throw new Error('Estado da voz inválido.')
   }
@@ -197,12 +213,27 @@ function validatedVoice(value: unknown): TitiSettings['voice'] {
   ) {
     throw new Error('Dispositivo de entrada inválido.')
   }
+  const mode = value.mode === undefined ? 'streaming' : value.mode
+  if (typeof mode !== 'string' || !VOICE_MODES.has(mode as VoiceMode)) {
+    throw new Error('Modo de voz inválido.')
+  }
+  const gender = value.gender === undefined ? 'female' : value.gender
+  if (typeof gender !== 'string' || !VOICE_GENDERS.has(gender as VoiceGender)) {
+    throw new Error('Voz selecionada inválida.')
+  }
+  const language = value.language === undefined ? 'pt' : value.language
+  if (typeof language !== 'string' || !VOICE_LANGUAGES.has(language as VoiceLanguage)) {
+    throw new Error('Idioma de voz inválido.')
+  }
   return {
     enabled: value.enabled,
     liveMode: value.liveMode,
     pushToTalkShortcut: value.pushToTalkShortcut.trim(),
     speechRate: value.speechRate,
-    inputDeviceId: value.inputDeviceId
+    inputDeviceId: value.inputDeviceId,
+    mode: mode as VoiceMode,
+    gender: gender as VoiceGender,
+    language: language as VoiceLanguage
   }
 }
 

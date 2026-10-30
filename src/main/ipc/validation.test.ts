@@ -23,16 +23,32 @@ describe('IPC validation', () => {
     { ...DEFAULT_SETTINGS, voice: { ...DEFAULT_SETTINGS.voice, pushToTalkShortcut: 'Space' } },
     { ...DEFAULT_SETTINGS, voice: { ...DEFAULT_SETTINGS.voice, speechRate: 99 } },
     { ...DEFAULT_SETTINGS, voice: { ...DEFAULT_SETTINGS.voice, inputDeviceId: 'x'.repeat(513) } },
+    { ...DEFAULT_SETTINGS, voice: { ...DEFAULT_SETTINGS.voice, mode: 'invalid-mode' } },
+    { ...DEFAULT_SETTINGS, voice: { ...DEFAULT_SETTINGS.voice, gender: 'invalid-gender' } },
+    { ...DEFAULT_SETTINGS, voice: { ...DEFAULT_SETTINGS.voice, language: 'invalid-lang' } },
     { ...DEFAULT_SETTINGS, games: { standbyEnabled: true, executables: ['C:\\Jogos\\jogo.exe'] } },
     { ...DEFAULT_SETTINGS, games: { standbyEnabled: true, executables: ['jogo.exe', 42] } }
   ])('rejects malformed or externally routed settings', (value) => {
     expect(() => validatedSettingsPatch(value)).toThrow()
   })
 
-  it('preserva um identificador válido de microfone', () => {
+  it('preserva um identificador válido de microfone e preferências do LFM3 (modo, gênero e idioma)', () => {
     expect(validatedSettingsPatch({
-      voice: { ...DEFAULT_SETTINGS.voice, inputDeviceId: 'microfone-usb-123' }
-    })).toMatchObject({ voice: { inputDeviceId: 'microfone-usb-123' } })
+      voice: {
+        ...DEFAULT_SETTINGS.voice,
+        inputDeviceId: 'microfone-usb-123',
+        mode: 'tts',
+        gender: 'male',
+        language: 'en-gb'
+      }
+    })).toMatchObject({
+      voice: {
+        inputDeviceId: 'microfone-usb-123',
+        mode: 'tts',
+        gender: 'male',
+        language: 'en-gb'
+      }
+    })
   })
 
   it('aceita somente booleano para o opt-in de controle do computador', () => {

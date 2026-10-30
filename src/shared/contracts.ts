@@ -30,6 +30,59 @@ export interface Conversation extends ConversationSummary {
 
 export type ProviderKind = 'ollama'
 
+export type VoiceMode = 'streaming' | 'tts'
+
+export type VoiceGender = 'female' | 'male'
+
+export type VoiceLanguage =
+  | 'pt'
+  | 'en'
+  | 'en-gb'
+  | 'es'
+  | 'fr'
+  | 'de'
+  | 'it'
+  | 'ja'
+  | 'ko'
+  | 'zh'
+  | 'ar'
+  | 'da'
+  | 'el'
+  | 'fi'
+  | 'he'
+  | 'nl'
+  | 'pl'
+  | 'sv'
+  | 'tr'
+
+export interface VoiceLanguageOption {
+  code: VoiceLanguage
+  label: string
+  englishName: string
+}
+
+export const VOICE_LANGUAGE_OPTIONS: readonly VoiceLanguageOption[] = [
+  { code: 'pt', label: 'Português (Brasil / Portugal)', englishName: 'Portuguese' },
+  { code: 'en', label: 'Inglês (EUA)', englishName: 'American English' },
+  { code: 'en-gb', label: 'Inglês (Reino Unido)', englishName: 'British English' },
+  { code: 'es', label: 'Espanhol', englishName: 'Spanish' },
+  { code: 'fr', label: 'Francês', englishName: 'French' },
+  { code: 'de', label: 'Alemão', englishName: 'German' },
+  { code: 'it', label: 'Italiano', englishName: 'Italian' },
+  { code: 'ja', label: 'Japonês', englishName: 'Japanese' },
+  { code: 'ko', label: 'Coreano', englishName: 'Korean' },
+  { code: 'zh', label: 'Chinês', englishName: 'Chinese' },
+  { code: 'ar', label: 'Árabe', englishName: 'Arabic' },
+  { code: 'da', label: 'Dinamarquês', englishName: 'Danish' },
+  { code: 'el', label: 'Grego', englishName: 'Greek' },
+  { code: 'fi', label: 'Finlandês', englishName: 'Finnish' },
+  { code: 'he', label: 'Hebraico', englishName: 'Hebrew' },
+  { code: 'nl', label: 'Holandês', englishName: 'Dutch' },
+  { code: 'pl', label: 'Polonês', englishName: 'Polish' },
+  { code: 'sv', label: 'Sueco', englishName: 'Swedish' },
+  { code: 'tr', label: 'Turco', englishName: 'Turkish' }
+] as const
+
 export interface TitiSettings {
   version: 1
   onboardingComplete: boolean
@@ -49,6 +102,9 @@ export interface TitiSettings {
     liveMode: boolean
     speechRate: number
     inputDeviceId: string
+    mode?: VoiceMode
+    gender?: VoiceGender
+    language?: VoiceLanguage
   }
   games: {
     standbyEnabled: boolean
@@ -100,7 +156,14 @@ export interface VoiceSynthesis {
   wavAudio: ArrayBuffer
   processingTimeMs: number
   audioDurationMs: number
-  backend: 'directml' | 'cpu'
+  backend: 'lfm3-streaming' | 'lfm3-tts' | 'directml' | 'cpu'
+}
+
+export interface VoiceSynthesisChunk {
+  requestId: string
+  pcmAudio: ArrayBuffer
+  sampleRate: number
+  final: boolean
 }
 
 export interface DiagnosticSummary {
@@ -259,6 +322,7 @@ export interface TitiDesktopApi {
     onPartialTranscription(callback: (partial: VoicePartialTranscription) => void): () => void
     synthesize(requestId: string, text: string, rate: number): Promise<VoiceSynthesis>
     cancelSynthesis(requestId: string): Promise<void>
+    onSynthesisChunk?(callback: (chunk: VoiceSynthesisChunk) => void): () => void
     setLiveMode(enabled: boolean): Promise<TitiSettings>
     onLiveModeChanged(callback: (enabled: boolean) => void): () => void
     onPushToTalkRequested(callback: () => void): () => void

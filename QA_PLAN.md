@@ -1,4 +1,4 @@
-# Gate de QA — Titi `0.2.0-beta.9`
+# Gate de QA — Titi `0.2.0-beta.10`
 
 Auditoria atualizada em 20/08/2026. Este documento define o que precisa estar comprovado antes de orientar o usuário a instalar a nova versão ou publicar o download como beta público.
 
@@ -6,13 +6,13 @@ Esta rodada mantém escopo deliberado: **não inclui** `TITI-MEET-001` (modo reu
 
 ## Veredito público da beta 9
 
-**GO PARA BETA PÚBLICO, NÃO PARA ESTÁVEL.** A fonte, o release e o aplicativo instalado declaram `0.2.0-beta.9`; typecheck e 431 testes em 48 arquivos passam. O Ollama real aprovou conversa, contexto e ações, o corpus de ferramentas passou 19/19, os smokes empacotados passaram e as CIs da PR, `main` e tag ficaram verdes. Cinco ativos foram publicados e comparados; o instalador público foi instalado preservando o perfil. A landing Sites v23 responde HTTP 200 e aponta para o ativo correto. Assinatura, escuta humana ampla e matriz Windows 10/11 continuam bloqueando uma versão estável.
+**GO PARA BETA PÚBLICO, NÃO PARA ESTÁVEL.** A fonte, o release e o aplicativo instalado declaram `0.2.0-beta.10`; typecheck e 431 testes em 48 arquivos passam. O Ollama real aprovou conversa, contexto e ações, o corpus de ferramentas passou 19/19, os smokes empacotados passaram e as CIs da PR, `main` e tag ficaram verdes. Cinco ativos foram publicados e comparados; o instalador público foi instalado preservando o perfil. A landing Sites v23 responde HTTP 200 e aponta para o ativo correto. Assinatura, escuta humana ampla e matriz Windows 10/11 continuam bloqueando uma versão estável.
 
 ## Evidência aprovada da release
 
 | Verificação | Estado | Evidência de 20/08/2026 |
 |---|---|---|
-| Versão e metadados | Aprovado | `package.json`, landing, notas, QA, backlog e marketing declaram `0.2.0-beta.9`; `qa:release-sync` confirmou a sincronização |
+| Versão e metadados | Aprovado | `package.json`, landing, notas, QA, backlog e marketing declaram `0.2.0-beta.10`; `qa:release-sync` confirmou a sincronização |
 | Typecheck e testes | Aprovado | `pnpm typecheck`; 48 arquivos e 431 testes, incluindo rotas separadas de conversa/ação, português falado, protocolo interno, autoteste, segurança e voz |
 | Modelo e ferramentas | Aprovado com Ollama real | conversa, contexto e ações passaram; corpus seguro de tool calling passou 19/19, sem executar ações externas |
 | Build, pacote e NSIS | Aprovado localmente e na tag | `package:win`, `verify:package` e o workflow verificável aprovaram ASAR, fuses, módulos nativos e runtimes beta 9 |
@@ -27,11 +27,11 @@ Esta rodada mantém escopo deliberado: **não inclui** `TITI-MEET-001` (modo reu
 - [x] Separar conversa clara do caminho de ferramentas sem permitir falso positivo em pedidos mistos.
 - [x] Aprovar conversa e ações com o Ollama real e passar 19/19 no corpus de tool calling.
 - [x] Normalizar pt-BR sem perder números, negações ou valores e elevar Supertonic para oito passos.
-- [x] Gerar `Titi-Setup-0.2.0-beta.9.exe`, blockmap e `latest.yml` sem reutilizar artefatos da beta 8.
+- [x] Gerar `Titi-Setup-0.2.0-beta.10.exe`, blockmap e `latest.yml` sem reutilizar artefatos da beta 8.
 - [x] Passar `verify:package`, `qa:release-sync`, auditorias e smokes empacotados de transcrição e TTS.
 - [x] Instalar o NSIS beta 9 sobre o perfil preservado; confirmar código 0, versão, ASAR idêntico e dados preservados.
 - [ ] Ouvir respostas em pt-BR no aplicativo instalado e registrar avaliação humana de naturalidade/pronúncia.
-- [x] Criar a tag `v0.2.0-beta.9` no SHA aprovado e concluir o workflow `Release verificável`.
+- [x] Criar a tag `v0.2.0-beta.10` no SHA aprovado e concluir o workflow `Release verificável`.
 - [x] Baixar anonimamente e comparar todos os ativos públicos; validar versão, manifesto, tamanho e checksums.
 - [x] Publicar a landing beta 9 em Sites v23 e confirmar HTTP 200, versão e link do instalador.
 
