@@ -177,7 +177,9 @@ app.whenReady().then(async () => {
           appCatalog,
           computerController,
           async () => (await settingsStore.get()).computerControlEnabled,
-          visualComputerAgent
+          visualComputerAgent,
+          undefined,
+          layaRuntime
         ),
         async (prompt, context) => {
           setMascotState('review')

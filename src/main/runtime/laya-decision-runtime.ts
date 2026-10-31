@@ -31,7 +31,40 @@ export interface LayaToolNeedDecision {
   durationMs: number
 }
 
-export interface ToolNeedDecisionRouter {
+export interface LayaCandidateControl {
+  id: string
+  name: string
+  controlType: string
+  automationId?: string
+  enabled?: boolean
+}
+
+export interface LayaTargetDecisionResult {
+  choice: string
+  confidence: number
+  probabilities: Record<string, number>
+  durationMs: number
+}
+
+export interface LayaDeciderMetrics {
+  model: string
+  calls: number
+  inferenceSeconds: number
+  loadSeconds: number
+  remoteTokens: null
+}
+
+export interface LayaTargetDecisionRouter {
+  chooseTarget(
+    instruction: string,
+    candidates: LayaCandidateControl[],
+    windowTitle: string,
+    signal?: AbortSignal
+  ): Promise<LayaTargetDecisionResult>
+  metrics(): LayaDeciderMetrics
+}
+
+export interface ToolNeedDecisionRouter extends Partial<LayaTargetDecisionRouter> {
   decideToolNeed(
     userRequest: string,
     signal?: AbortSignal
@@ -57,15 +90,116 @@ export const LAYA_INTENT_QUESTIONS = {
   }
 } as const
 
+interface OllayaChoiceAnswer {
+  choice?: string
+  confidence?: number
+  probabilities?: Record<string, number>
+}
+
 interface OllayaDecideResponse {
   answers?: {
-    intent?: {
-      choice?: string
-      confidence?: number
+    intent?: OllayaChoiceAnswer & {
       probabilities?: Partial<Record<LayaIntentCategory, number>>
     }
+    target?: OllayaChoiceAnswer
   }
   eval_duration?: number
+}
+
+const STOP_WORDS = new Set([
+  'the', 'and', 'for', 'with', 'from', 'find', 'open', 'stop', 'when', 'page', 'are', 'this',
+  'qual', 'quais', 'para', 'com', 'uma', 'uns', 'umas', 'dos', 'das', 'nos', 'nas', 'por',
+  'controle', 'botao', 'seleciona', 'aciona', 'clica', 'clicar', 'abrir', 'janela'
+])
+
+function foldText(text: string): string {
+  return text
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+}
+
+function significantWords(text: string): Set<string> {
+  const result = new Set<string>()
+  for (const word of foldText(text).split(' ')) {
+    if (!word) continue
+    const stem = word.slice(0, 5)
+    if ((word.length > 2 || /^\d+$/.test(word)) && !STOP_WORDS.has(word) && !STOP_WORDS.has(stem)) {
+      result.add(stem)
+    }
+  }
+  return result
+}
+
+export function shortlistControls<T extends { name: string; controlType: string; automationId?: string }>(
+  candidates: readonly T[],
+  queryText: string,
+  limit = 20
+): T[] {
+  if (candidates.length <= limit) return [...candidates]
+  const targetWords = significantWords(queryText)
+  const scored = candidates.map((item, index) => {
+    const itemWords = significantWords(`${item.controlType} ${item.name} ${item.automationId ?? ''}`)
+    let overlap = 0
+    for (const w of itemWords) {
+      if (targetWords.has(w)) overlap += 1
+    }
+    return { item, index, score: overlap }
+  })
+  scored.sort((a, b) => (b.score !== a.score ? b.score - a.score : a.index - b.index))
+  const keptIndices = new Set(scored.slice(0, limit).map((entry) => entry.index))
+  return candidates.filter((_, index) => keptIndices.has(index))
+}
+
+export function validateLayaChoiceAnswer(
+  answer: OllayaChoiceAnswer | undefined,
+  candidateIds: readonly string[]
+): { choice: string; confidence: number; probabilities: Record<string, number> } {
+  if (!candidateIds.length || candidateIds.length > 20) {
+    throw new Error('O Laya requer entre 1 e 20 candidatos observados; refine o seletor.')
+  }
+  const idSet = new Set(candidateIds)
+  if (idSet.size !== candidateIds.length) {
+    throw new Error('IDs de candidatos duplicados.')
+  }
+  if (!answer || typeof answer !== 'object') {
+    throw new Error('Decisão local inválida; nenhuma ação executada.')
+  }
+  const choice = String(answer.choice ?? '')
+  const confidence = Number(answer.confidence)
+  const rawProbabilities = answer.probabilities
+  if (!rawProbabilities || typeof rawProbabilities !== 'object') {
+    throw new Error('Decisão local sem distribuição de probabilidades.')
+  }
+  const probKeys = Object.keys(rawProbabilities)
+  if (probKeys.length !== idSet.size || !probKeys.every((k) => idSet.has(k)) || !idSet.has(choice)) {
+    throw new Error('Decisão local retornou candidato fora do conjunto observado.')
+  }
+
+  const probabilities: Record<string, number> = {}
+  let sum = 0
+  let maxProb = -1
+  for (const id of candidateIds) {
+    const value = Number(rawProbabilities[id])
+    if (!Number.isFinite(value) || value < 0 || value > 1) {
+      throw new Error('Probabilidade fora do intervalo válido na decisão local.')
+    }
+    probabilities[id] = value
+    sum += value
+    if (value > maxProb) maxProb = value
+  }
+  if (!Number.isFinite(confidence) || confidence < 0 || confidence > 1) {
+    throw new Error('Confiança inválida na decisão local.')
+  }
+  if (Math.abs(sum - 1) >= 0.02) {
+    throw new Error('Soma das probabilidades inválida na decisão local.')
+  }
+  if (probabilities[choice] < maxProb - 1e-6) {
+    throw new Error('A escolha retornada pelo Laya não corresponde à maior probabilidade.')
+  }
+  return { choice, confidence, probabilities }
 }
 
 interface OllayaTagsResponse {
@@ -143,13 +277,16 @@ export function interpretLayaIntentProbabilities(
   }
 }
 
-export class LayaDecisionRuntime implements ToolNeedDecisionRouter {
+export class LayaDecisionRuntime implements ToolNeedDecisionRouter, LayaTargetDecisionRouter {
   private readonly resourcesPath?: string
   private readonly endpoint: string
   private ownedProcess: ChildProcess | null = null
   private startingPromise: Promise<boolean> | null = null
   private setupPromise: Promise<void> | null = null
   private modelReadyCache = false
+  private callCount = 0
+  private inferenceMsTotal = 0
+  private loadMsTotal = 0
 
   constructor(resourcesPath?: string, endpoint = OLLAYA_DEFAULT_ENDPOINT) {
     this.resourcesPath = resourcesPath
@@ -301,13 +438,102 @@ export class LayaDecisionRuntime implements ToolNeedDecisionRouter {
       if (!probabilities) return null
 
       this.modelReadyCache = true
+      const durationMs = Math.max(1, Math.round(performance.now() - startedAt))
+      this.callCount += 1
+      this.inferenceMsTotal += durationMs
       const interpreted = interpretLayaIntentProbabilities(probabilities)
       return {
         ...interpreted,
-        durationMs: Math.max(1, Math.round(performance.now() - startedAt))
+        durationMs
       }
     } catch {
       return null
+    }
+  }
+
+  async chooseTarget(
+    instruction: string,
+    candidates: LayaCandidateControl[],
+    windowTitle: string,
+    signal?: AbortSignal
+  ): Promise<LayaTargetDecisionResult> {
+    throwIfAborted(signal)
+    if (!candidates.length || candidates.length > 20) {
+      throw new Error('O Laya requer entre 1 e 20 candidatos observados; refine o seletor.')
+    }
+    const ids = candidates.map((item) => String(item.id))
+    if (new Set(ids).size !== ids.length) {
+      throw new Error('IDs de candidatos duplicados.')
+    }
+
+    if (!this.hasBinaryInstalled()) {
+      throw new Error('O motor local de decisão Laya (Ollaya) não está instalado.')
+    }
+    const loadStarted = performance.now()
+    const running = await this.ensureServer(signal)
+    if (!running) {
+      throw new Error('Não foi possível conectar ao servidor local Laya (Ollaya).')
+    }
+    this.loadMsTotal += Math.max(0, performance.now() - loadStarted)
+
+    const criteria: Record<string, string> = {}
+    for (const item of candidates) {
+      const role = String(item.controlType || '').replace(/^AX/, '').trim()
+      const label = String(item.name || '').trim().slice(0, 120)
+      criteria[String(item.id)] = `${role} ${label}`.trim()
+    }
+
+    const cleanWindow = String(windowTitle || '').trim().slice(0, 200)
+    const cleanInstruction = String(instruction || '').trim().slice(0, 1000)
+    const state = cleanWindow
+      ? `Janela: ${cleanWindow}\nInstrução: ${cleanInstruction}`
+      : `Instrução: ${cleanInstruction}`
+
+    const questions = {
+      target: {
+        type: 'choice',
+        instructions: 'Which control matches the instruction?',
+        criteria
+      }
+    }
+
+    const startedAt = performance.now()
+    const response = await fetch(`${this.endpoint}/api/decide`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: LAYA_DEFAULT_MODEL,
+        state,
+        questions,
+        keep_alive: '5m'
+      }),
+      signal: signal ?? AbortSignal.timeout(5_000)
+    })
+
+    if (!response.ok) {
+      throw new Error(`Falha na decisão local Laya (HTTP ${response.status}).`)
+    }
+
+    const payload = (await response.json()) as OllayaDecideResponse
+    const durationMs = Math.max(1, Math.round(performance.now() - startedAt))
+    this.callCount += 1
+    this.inferenceMsTotal += durationMs
+    this.modelReadyCache = true
+
+    const validated = validateLayaChoiceAnswer(payload.answers?.target, ids)
+    return {
+      ...validated,
+      durationMs
+    }
+  }
+
+  metrics(): LayaDeciderMetrics {
+    return {
+      model: LAYA_DEFAULT_MODEL,
+      calls: this.callCount,
+      inferenceSeconds: Number((this.inferenceMsTotal / 1000).toFixed(3)),
+      loadSeconds: Number((this.loadMsTotal / 1000).toFixed(3)),
+      remoteTokens: null
     }
   }
 

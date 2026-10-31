@@ -6,6 +6,8 @@ import {
   LayaDecisionRuntime,
   interpretLayaIntentProbabilities,
   resolveOllayaRuntimeDir,
+  shortlistControls,
+  validateLayaChoiceAnswer,
   type ToolNeedDecisionRouter
 } from './laya-decision-runtime'
 
@@ -117,5 +119,49 @@ describe('LayaDecisionRuntime (System 1 router)', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1)
     const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))
     expect(body.tools).toBeUndefined()
+  })
+
+  it('valida estritamente a distribuição de probabilidades do LayaDecider e rejeita escolhas inconsistentes', () => {
+    const valid = validateLayaChoiceAnswer(
+      {
+        choice: '1',
+        confidence: 0.98,
+        probabilities: { '0': 0.01, '1': 0.98, '2': 0.01 }
+      },
+      ['0', '1', '2']
+    )
+    expect(valid.choice).toBe('1')
+
+    expect(() =>
+      validateLayaChoiceAnswer(
+        {
+          choice: '0',
+          confidence: 0.98,
+          probabilities: { '0': 0.1, '1': 0.9 }
+        },
+        ['0', '1']
+      )
+    ).toThrow('maior probabilidade')
+
+    expect(() =>
+      validateLayaChoiceAnswer(
+        {
+          choice: '99',
+          confidence: 0.98,
+          probabilities: { '0': 0.5, '1': 0.5 }
+        },
+        ['0', '1']
+      )
+    ).toThrow('fora do conjunto observado')
+  })
+
+  it('reduz mais de 20 candidatos mantendo a ordem original e priorizando relevância textual (shortlistControls)', () => {
+    const controls = Array.from({ length: 25 }, (_, index) => ({
+      name: index === 22 ? 'Bluetooth e dispositivos' : `Item genérico ${index}`,
+      controlType: 'TabItem'
+    }))
+    const shortlisted = shortlistControls(controls, 'Abrir Bluetooth e dispositivos', 20)
+    expect(shortlisted).toHaveLength(20)
+    expect(shortlisted.some((item) => item.name === 'Bluetooth e dispositivos')).toBe(true)
   })
 })

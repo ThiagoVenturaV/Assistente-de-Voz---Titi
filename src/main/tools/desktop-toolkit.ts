@@ -22,6 +22,16 @@ import type {
 } from './windows-ui-automation'
 import type { VisualComputerAgent } from './visual-computer-agent'
 import { knownWebsiteUrl } from './website-destination'
+import {
+  shortlistControls,
+  type LayaTargetDecisionRouter
+} from '../runtime/laya-decision-runtime'
+import {
+  analyzePreflightPlan,
+  LayaComputerPlanManager,
+  type LayaRunResult
+} from './laya-computer-plan'
+import { assessToolRisk } from './confirmation-tool-executor'
 
 type KnownApplication = 'chrome' | 'brave' | 'spotify' | 'codex' | 'antigravity'
 type BrowserChoice = 'default' | 'chrome' | 'brave'
@@ -44,14 +54,20 @@ export class DesktopToolkit implements ToolExecutor {
     observation: ComputerObservation
     observedAt: number
   }>()
+  private readonly planManager: LayaComputerPlanManager | null
 
   constructor(
     private readonly appCatalog: ApplicationCatalog = new WindowsAppCatalog(),
     private readonly computerController?: ComputerController,
     private readonly isComputerControlEnabled: () => Promise<boolean> = async () => false,
     private readonly visualComputerAgent?: VisualComputerAgent,
-    private readonly mediaKeyController: MediaKeyController = pressWindowsMediaKey
-  ) {}
+    private readonly mediaKeyController: MediaKeyController = pressWindowsMediaKey,
+    private readonly layaDecisionRouter?: LayaTargetDecisionRouter
+  ) {
+    this.planManager = computerController
+      ? new LayaComputerPlanManager(computerController, layaDecisionRouter)
+      : null
+  }
 
   readonly definitions: ToolDefinition[] = [
     {
@@ -228,18 +244,54 @@ export class DesktopToolkit implements ToolExecutor {
       execution: { timeoutMs: 10_000, sideEffect: 'external' },
       function: {
         name: 'computer_action',
-        description: 'Aciona por acessibilidade, após confirmação explícita, exatamente o controle e a janela observados nesta interação. Sempre rejeita alvos ambíguos ou alterados.',
+        description: 'Aciona por acessibilidade, após confirmação explícita, exatamente o controle e a janela observados nesta interação. Quando houver múltiplos controles candidatos, o Laya pode desambiguar pela instrução.',
         parameters: {
           type: 'object',
           required: ['action', 'application', 'target'],
           properties: {
             action: { type: 'string', enum: ['click'] },
             application: { type: 'string', description: 'Aplicativo já aberto.' },
-            target: { type: 'string', description: 'Nome acessível exato retornado por computer_observe.' },
+            target: { type: 'string', description: 'Nome acessível observado por computer_observe.' },
             controlType: {
               type: 'string',
               enum: ['Button', 'CheckBox', 'Hyperlink', 'ListItem', 'MenuItem', 'RadioButton', 'TabItem'],
               description: 'Tipo exato do controle observado, quando disponível.'
+            },
+            instruction: {
+              type: 'string',
+              description: 'Pergunta ou instrução curta para o decisor local Laya desambiguar entre candidatos observados.'
+            }
+          }
+        }
+      }
+    },
+    {
+      type: 'function',
+      risk: 'reversible',
+      execution: { timeoutMs: 120_000, sideEffect: 'external' },
+      function: {
+        name: 'computer_plan',
+        description: 'Executa um plano estruturado de múltiplas etapas na interface do aplicativo usando decisões tipadas locais do Laya e verificação explícita de predicados a cada etapa, sem precisar chamar o LLM principal a cada clique. Em caso de obstáculo, retorna rescue_needed com contexto compacto para reparo mínimo via mode=resume.',
+        parameters: {
+          type: 'object',
+          required: ['mode'],
+          properties: {
+            mode: {
+              type: 'string',
+              enum: ['preflight', 'run', 'resume', 'status', 'stop'],
+              description: 'Operação do controlador de plano local (run executa o plano; preflight valida estaticamente; resume retoma um rescue_needed com version + 1).'
+            },
+            plan: {
+              type: 'object',
+              description: 'Plano estruturado contendo version, goal, application e steps (id, instruction, action, target, preconditions, success, next_step, on_failure).'
+            },
+            run_id: {
+              type: 'string',
+              description: 'Identificador da execução retornado por run, necessário para resume, status ou stop.'
+            },
+            expected_version: {
+              type: 'integer',
+              description: 'Versão anterior do plano antes do reparo (obrigatório em mode=resume).'
             }
           }
         }
@@ -281,6 +333,8 @@ export class DesktopToolkit implements ToolExecutor {
           return await this.lookAtComputer(args, context)
         case 'computer_action':
           return await this.actOnComputer(args, context)
+        case 'computer_plan':
+          return await this.executeComputerPlan(args, context)
         case 'focus_window':
           return await this.focusWindow(args, context)
         case 'minimize_window':
@@ -520,6 +574,7 @@ export class DesktopToolkit implements ToolExecutor {
     requiredEnum(args.action, ['click'], 'action')
     const application = requiredString(args.application, 'application')
     const target = requiredString(args.target, 'target')
+    const instruction = optionalString(args.instruction)
     const controlType = optionalEnum(args.controlType, [
       'Button',
       'CheckBox',
@@ -537,8 +592,15 @@ export class DesktopToolkit implements ToolExecutor {
         details: { observationRequired: true }
       }
     }
-    const expected = this.recentlyObservedIdentity(context.chainId, application, target, controlType)
-    if (!expected) {
+    const resolved = await this.resolveObservedControl(
+      context.chainId,
+      application,
+      target,
+      controlType,
+      instruction,
+      context.signal
+    )
+    if (!resolved) {
       return {
         ok: false,
         status: 'failed',
@@ -549,9 +611,9 @@ export class DesktopToolkit implements ToolExecutor {
     this.recentUiObservations.delete(context.chainId)
     const invocation = await this.computerController!.invoke(
       application,
-      target,
-      controlType,
-      expected,
+      resolved.control.name,
+      resolved.control.controlType,
+      resolved.identity,
       context.signal
     )
     throwIfAborted(context.signal)
@@ -562,10 +624,68 @@ export class DesktopToolkit implements ToolExecutor {
       message: `O controle “${invocation.control.name}” foi acionado; o efeito final não pôde ser garantido.`,
       details: {
         effectState: 'dispatched_unverified',
+        ...(resolved.decidedByLaya ? { method: 'laya_typed_decision' } : {}),
         invocation: publicInvocation(invocation),
         observation: observation ? publicObservation(observation) : null
       }
     }
+  }
+
+  private async executeComputerPlan(
+    args: Record<string, unknown>,
+    context?: ToolExecutionContext
+  ): Promise<ToolExecutionResult> {
+    const mode = optionalEnum(args.mode, ['preflight', 'run', 'resume', 'status', 'stop']) ?? 'run'
+    if (mode === 'preflight') {
+      const preflight = analyzePreflightPlan(args.plan)
+      return {
+        ok: preflight.status === 'valid',
+        status: preflight.status === 'valid' ? 'confirmed' : 'failed',
+        message: preflight.status === 'valid'
+          ? `Plano validado estaticamente (${preflight.recommendation}).`
+          : `Plano inválido: ${preflight.issues.map((i) => i.message ?? i.code).join('; ')}.`,
+        details: preflight as unknown as Record<string, unknown>
+      }
+    }
+
+    const disabled = await this.computerControlUnavailable()
+    if (disabled) return disabled
+    if (!this.planManager) {
+      return {
+        ok: false,
+        status: 'failed',
+        message: 'O controlador de planos locais não está disponível nesta instalação.'
+      }
+    }
+
+    if (mode === 'status') {
+      const runId = requiredString(args.run_id, 'run_id')
+      const state = this.planManager.getRun(runId)
+      return formatPlanRunOutcome(state)
+    }
+
+    if (mode === 'stop') {
+      const runId = requiredString(args.run_id, 'run_id')
+      const state = this.planManager.stopRun(runId)
+      return formatPlanRunOutcome(state)
+    }
+
+    if (mode === 'resume') {
+      const runId = requiredString(args.run_id, 'run_id')
+      const expectedVersion = typeof args.expected_version === 'number' && Number.isInteger(args.expected_version)
+        ? args.expected_version
+        : (() => { throw new Error('Valor inválido para expected_version.') })()
+      const state = await this.planManager.resumePlan(
+        runId,
+        expectedVersion,
+        args.plan,
+        context?.signal
+      )
+      return formatPlanRunOutcome(state)
+    }
+
+    const state = await this.planManager.runPlan(args.plan, context?.signal)
+    return formatPlanRunOutcome(state)
   }
 
   private async focusWindow(
@@ -771,12 +891,18 @@ export class DesktopToolkit implements ToolExecutor {
     }
   }
 
-  private recentlyObservedIdentity(
+  private async resolveObservedControl(
     chainId: string,
     application: string,
     target: string,
-    controlType?: string
-  ): UiInvocationIdentity | null {
+    controlType?: string,
+    instruction?: string,
+    signal?: AbortSignal
+  ): Promise<{
+    control: UiControlSnapshot
+    identity: UiInvocationIdentity
+    decidedByLaya: boolean
+  } | null> {
     const observation = this.recentUiObservations.get(chainId)
     if (!observation || Date.now() - observation.observedAt > 30_000) {
       this.recentUiObservations.delete(chainId)
@@ -784,12 +910,96 @@ export class DesktopToolkit implements ToolExecutor {
     }
     if (observation.application !== normalizeUiLabel(application)) return null
     const normalizedTarget = normalizeUiLabel(target)
-    const matches = observation.observation.controls.filter((control) => (
+    const exactMatches = observation.observation.controls.filter((control) => (
       normalizeUiLabel(control.name) === normalizedTarget
       && (!controlType || control.controlType === controlType)
     ))
-    if (matches.length !== 1) return null
-    return invocationIdentity(observation.observation, matches[0])
+    if (exactMatches.length === 1) {
+      return {
+        control: exactMatches[0],
+        identity: invocationIdentity(observation.observation, exactMatches[0]),
+        decidedByLaya: false
+      }
+    }
+
+    if (!this.layaDecisionRouter) return null
+
+    const pool = exactMatches.length > 1
+      ? exactMatches
+      : observation.observation.controls.filter((control) => (
+        control.enabled
+        && (!controlType || control.controlType === controlType)
+        && (
+          Boolean(instruction)
+          || normalizeUiLabel(control.name).includes(normalizedTarget)
+        )
+      ))
+
+    if (pool.length === 0) return null
+    const narrowed = shortlistControls(pool, `${instruction ?? ''} ${target}`, 20)
+    try {
+      const decision = await this.layaDecisionRouter.chooseTarget(
+        instruction ?? `Qual controle corresponde a ${target}?`,
+        narrowed.map((item, idx) => ({
+          id: String(idx),
+          name: item.name,
+          controlType: item.controlType,
+          automationId: item.automationId,
+          enabled: item.enabled
+        })),
+        observation.observation.windowTitle,
+        signal
+      )
+      const chosen = narrowed[Number(decision.choice)]
+      if (!chosen) return null
+      const safety = assessToolRisk('computer_action', {
+        action: 'click',
+        application,
+        target: chosen.name,
+        controlType: chosen.controlType
+      })
+      if (safety.kind !== 'safe') return null
+      return {
+        control: chosen,
+        identity: invocationIdentity(observation.observation, chosen),
+        decidedByLaya: true
+      }
+    } catch {
+      return null
+    }
+  }
+}
+
+function formatPlanRunOutcome(state: LayaRunResult): ToolExecutionResult {
+  if (state.status === 'completed' && state.verification === 'satisfied') {
+    return {
+      ok: true,
+      status: 'confirmed',
+      message: `Plano concluído e verificado localmente (${state.completed_steps.length} etapa${state.completed_steps.length === 1 ? '' : 's'}, ${state.metrics.decisions} decisão${state.metrics.decisions === 1 ? '' : 'ões'} Laya).`,
+      details: state as unknown as Record<string, unknown>
+    }
+  }
+  if (state.status === 'rescue_needed') {
+    return {
+      ok: false,
+      status: 'failed',
+      message: `O plano pausou em rescue_needed na etapa "${state.current_step ?? ''}" (${state.reason ?? 'obstáculo'}). Use computer_plan com mode="resume" e version=${state.plan_version + 1} para reparar o trecho pendente.`,
+      details: state as unknown as Record<string, unknown>
+    }
+  }
+  if (state.status === 'stopped') {
+    return {
+      ok: false,
+      status: 'cancelled',
+      message: 'A execução do plano local foi interrompida.',
+      details: state as unknown as Record<string, unknown>
+    }
+  }
+  return {
+    ok: false,
+    status: 'failed',
+    message: `O plano local encerrou com status ${state.status} (${state.reason ?? 'bloqueado'}).`,
+    details: state as unknown as Record<string, unknown>
   }
 }
 

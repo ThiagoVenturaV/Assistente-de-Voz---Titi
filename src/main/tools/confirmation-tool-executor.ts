@@ -315,6 +315,41 @@ export function assessToolRisk(name: string, argumentsValue: unknown): ToolRiskA
       }
       return { kind: 'safe' }
     }
+    case 'computer_plan': {
+      const mode = optionalString(args.mode) ?? 'run'
+      if (!['preflight', 'run', 'resume', 'status', 'stop'].includes(mode)) {
+        return blocked('O modo solicitado para computer_plan não é permitido.')
+      }
+      if (mode === 'status' || mode === 'stop' || mode === 'preflight') {
+        return { kind: 'safe' }
+      }
+      const plan = isRecord(args.plan) ? args.plan : null
+      if (!plan) {
+        return blocked('O plano estruturado é obrigatório para executar ou retomar computer_plan.')
+      }
+      const application = safeApplicationName(plan.application)
+      if (!application || isBlockedUiApplication(application)) {
+        return blocked('O Titi não pode executar planos neste aplicativo por segurança.')
+      }
+      const steps = Array.isArray(plan.steps) ? plan.steps : []
+      for (const rawStep of steps) {
+        if (!isRecord(rawStep)) continue
+        const target = isRecord(rawStep.target) ? rawStep.target : null
+        const label = optionalString(target?.label_contains)
+        if (label) {
+          if (isSensitiveComputerTarget(label)) {
+            return blocked('O plano foi bloqueado por conter alvo de alto risco.')
+          }
+          if (looksLikePromptInjection(label)) {
+            return blocked('O plano foi bloqueado por conter texto suspeito no seletor.')
+          }
+        }
+      }
+      if (ANTIGRAVITY_APPLICATION_NAMES.has(normalizeApplicationName(application))) {
+        return antigravityConfirmation('computer_plan', 'executar plano no Antigravity')
+      }
+      return { kind: 'safe' }
+    }
     case 'focus_window':
     case 'minimize_window': {
       const application = safeApplicationName(args.application)
