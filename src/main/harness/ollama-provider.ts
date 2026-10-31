@@ -276,7 +276,7 @@ export class OllamaProvider implements AssistantProvider {
         if (
           content
           && toolRuns.length > 0
-          && toolRuns.every((run) => run.tool === 'web_search' && run.result.ok)
+          && toolRuns.every((run) => SYNTHESIZABLE_HARNESS_TOOLS.has(run.tool) && run.result.ok)
         ) {
           return renderSynthesizedWebSearchAnswer(content, toolRuns)
         }
@@ -630,6 +630,17 @@ function stableStringify(value: unknown): string {
   return JSON.stringify(value) ?? String(value)
 }
 
+const SYNTHESIZABLE_HARNESS_TOOLS = new Set([
+  'web_search',
+  'terminal_execute',
+  'read_file',
+  'write_file',
+  'edit_file',
+  'list_directory',
+  'search_files',
+  'rea_inspect'
+])
+
 function renderSynthesizedWebSearchAnswer(
   rawContent: string,
   runs: ToolRunLedgerEntry[]
@@ -750,8 +761,9 @@ function systemPrompt(mascotName: string): string {
     'Comece pela informação ou pelo resultado mais importante. Em respostas simples, prefira poucas frases e não repita a pergunta, não use saudações automáticas nem comece sempre com “Claro” ou “Com certeza”.',
     'Use parágrafos curtos e listas somente quando ajudarem de verdade. Não use emojis, salvo se o usuário pedir.',
     'Quando algo estiver ambíguo ou incerto, faça uma pergunta curta ou declare o limite em vez de inventar.',
-    'Você possui ferramentas reais para abrir aplicativos, pesquisar na internet em tempo real (web_search), abrir páginas no navegador (open_web), controlar mídia, observar controles acessíveis, enxergar todos os monitores pelo modelo local e consultar a hora.',
-    'Quando o usuário pedir para pesquisar algo na internet ou perguntar fatos/notícias atuais da web, use web_search para buscar e ler os resultados reais antes de responder. Use open_web quando o usuário pedir para abrir um site ou busca diretamente na janela do navegador.',
+    'Você possui um harness completo de agente autônomo local (no nível de Codex, Claude Code, Antigravity, Cursor, OpenCode e REA): executar comandos no terminal PowerShell (terminal_execute), ler arquivos com hash SHA-256 (read_file), criar/sobrescrever arquivos de forma atômica (write_file), fazer edições cirúrgicas em código (edit_file), listar diretórios (list_directory), buscar em arquivos e código (search_files), fazer engenharia reversa e inspeção de binários PE/ASAR/Electron com o REA (rea_inspect), pesquisar na internet em tempo real (web_search), abrir páginas no navegador (open_web), abrir aplicativos (open_application), controlar mídia (spotify), operar interfaces com o Laya (computer_observe, computer_action, computer_plan), enxergar todos os monitores (computer_look) e consultar a hora (current_datetime).',
+    'Quando o usuário pedir para rodar um comando de terminal, use terminal_execute. Para ler, criar, editar ou buscar código e arquivos, use read_file, write_file, edit_file, list_directory e search_files. Para inspecionar executáveis (.exe/.dll), pacotes .asar ou artefatos binários, use rea_inspect. Quando pedir para pesquisar na internet ou perguntar fatos atuais da web, use web_search.',
+    'Quando o usuário apenas perguntar se você consegue rodar comandos de terminal, editar arquivos, programar ou analisar binários, responda que SIM com segurança e explique que basta ele informar o comando, caminho ou tarefa que você executa diretamente pelo seu harness.',
     'Interprete o pedido pela linguagem natural e pelo contexto da conversa, incluindo referências, correções e pedidos compostos.',
     'Quando o usuário corrigir ou substituir o pedido anterior, trate o turno mais recente como uma nova ação: use a ferramenta com o alvo corrigido e não repita o alvo anterior.',
     'Sempre chame uma ou mais ferramentas adequadas quando o usuário pedir uma ação ou observação do computador; não responda apenas com uma promessa.',
@@ -776,7 +788,7 @@ function systemPrompt(mascotName: string): string {
 
 function hasExplicitActionVerb(value: string): boolean {
   const request = normalizeForInference(value)
-  return /\b(?:abra|abre|abrir|feche|fecha|fechar|inicie|inicia|iniciar|execute|executa|executar|clique|clica|clicar|toque|toca|tocar|reproduza|reproduzir|pause|pausa|pausar|pesquise|pesquisa|pesquisar|procurar|procure|busque|busca|buscar|navegue|digite|escreva|envie|manda|mude|troque|controle|observe|captur[ae]|tire (?:uma )?captura|que horas sao|qual a data|na internet|na web)\b/u.test(request)
+  return /\b(?:abra|abre|abrir|feche|fecha|fechar|inicie|inicia|iniciar|execute|executa|executar|rode|roda|rodar|terminal|powershell|comando|clique|clica|clicar|toque|toca|tocar|reproduza|reproduzir|pause|pausa|pausar|pesquise|pesquisa|pesquisar|procurar|procure|busque|busca|buscar|navegue|digite|escreva|edite|editar|crie|criar|leia|ler|liste|listar|inspecione|inspecionar|analise|analisar|rea|envie|manda|mude|troque|controle|observe|captur[ae]|tire (?:uma )?captura|que horas sao|qual a data|na internet|na web)\b/u.test(request)
 }
 
 function isClearlyConversationalRequest(value: string): boolean {
@@ -999,8 +1011,9 @@ async function requestConversationChat(
 
 function conversationSystemPrompt(mascotName: string): string {
   return [
-    `Você é ${mascotName}, um assistente pessoal local para Windows.`,
-    'Este turno é somente conversa, explicação ou escrita: não há ferramentas disponíveis e você nunca deve prometer que fará uma ação no computador.',
+    `Você é ${mascotName}, um assistente e agente autônomo local para Windows (com capacidades completas no estilo Codex, Claude Code, Antigravity, Cursor, OpenCode e REA).`,
+    'Este turno específico foi classificado como conversa ou dúvida conceitual: nesta chamada não há ferramentas disponíveis para disparo imediato e você não deve afirmar que já executou uma ação agora.',
+    'IMPORTANTE: Você POSSUI ferramentas reais no seu harness para executar comandos no terminal PowerShell (terminal_execute), ler/criar/editar arquivos e código-fonte (read_file, write_file, edit_file, list_directory, search_files), inspecionar binários e pacotes Electron/ASAR com engenharia reversa REA (rea_inspect), pesquisar na internet em tempo real (web_search), abrir aplicativos e controlar janelas/interface no Windows. Se o usuário perguntar se você consegue rodar comandos de terminal, programar, manipular arquivos ou usar o REA, responda que SIM e diga para ele enviar o comando ou tarefa que você executa.',
     'Responda em português brasileiro natural e correto. Acompanhe o grau de formalidade do usuário sem imitar erros de digitação ou transcrição e sem forçar gírias.',
     'Comece diretamente pela resposta. Não repita a pergunta, não use saudação automática e evite aberturas genéricas como “Claro” ou “Com certeza”.',
     'Por padrão, use de um a três parágrafos curtos. Aprofunde quando a pergunta exigir ou quando o usuário pedir detalhes.',

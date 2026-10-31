@@ -32,6 +32,7 @@ import {
   type LayaRunResult
 } from './laya-computer-plan'
 import { assessToolRisk } from './confirmation-tool-executor'
+import { ReaHarnessToolkit } from './rea-harness-toolkit'
 import { WebSearchClient } from './web-search'
 
 type KnownApplication = 'chrome' | 'brave' | 'spotify' | 'codex' | 'antigravity'
@@ -57,6 +58,7 @@ export class DesktopToolkit implements ToolExecutor {
   }>()
   private readonly planManager: LayaComputerPlanManager | null
   private readonly webSearchClient: WebSearchClient
+  private readonly reaHarnessToolkit = new ReaHarnessToolkit()
 
   constructor(
     private readonly appCatalog: ApplicationCatalog = new WindowsAppCatalog(),
@@ -332,6 +334,142 @@ export class DesktopToolkit implements ToolExecutor {
         description: 'Obtém a data e a hora atuais deste computador.',
         parameters: { type: 'object', properties: {} }
       }
+    },
+    {
+      type: 'function',
+      risk: 'reversible',
+      execution: { timeoutMs: 60_000, sideEffect: 'external' },
+      function: {
+        name: 'terminal_execute',
+        description: 'Executa um comando no terminal PowerShell com supervisão de processo e captura limitada de head/tail (padrão REA BoundedOutputExcerpt). Use quando o usuário pedir para rodar comandos de terminal, scripts, git, npm/pnpm, builds, diagnósticos ou automações CLI.',
+        parameters: {
+          type: 'object',
+          required: ['command'],
+          properties: {
+            command: {
+              type: 'string',
+              description: 'Comando PowerShell ou CLI a ser executado.'
+            },
+            cwd: {
+              type: 'string',
+              description: 'Diretório de trabalho opcional para executar o comando.'
+            },
+            timeoutMs: {
+              type: 'integer',
+              description: 'Tempo limite em milissegundos (1000 a 120000, padrão 30000).'
+            }
+          }
+        }
+      }
+    },
+    {
+      type: 'function',
+      risk: 'read',
+      execution: { timeoutMs: 15_000, sideEffect: 'none' },
+      function: {
+        name: 'read_file',
+        description: 'Lê o conteúdo de um arquivo com numeração de linhas, paginação (startLine/endLine) e identidade SHA-256 verificada (REA StableFileHash).',
+        parameters: {
+          type: 'object',
+          required: ['path'],
+          properties: {
+            path: { type: 'string', description: 'Caminho do arquivo a ser lido.' },
+            startLine: { type: 'integer', description: 'Linha inicial (base 1, opcional).' },
+            endLine: { type: 'integer', description: 'Linha final inclusiva (opcional).' }
+          }
+        }
+      }
+    },
+    {
+      type: 'function',
+      risk: 'reversible',
+      execution: { timeoutMs: 15_000, sideEffect: 'external' },
+      function: {
+        name: 'write_file',
+        description: 'Cria ou sobrescreve um arquivo de forma atômica (REA OwnedStagedOutput) verificando tamanho e hash SHA-256 antes de publicar.',
+        parameters: {
+          type: 'object',
+          required: ['path', 'content'],
+          properties: {
+            path: { type: 'string', description: 'Caminho do arquivo a criar ou sobrescrever.' },
+            content: { type: 'string', description: 'Conteúdo completo a gravar no arquivo.' }
+          }
+        }
+      }
+    },
+    {
+      type: 'function',
+      risk: 'reversible',
+      execution: { timeoutMs: 15_000, sideEffect: 'external' },
+      function: {
+        name: 'edit_file',
+        description: 'Realiza edição cirúrgica em um arquivo existente substituindo o trecho exato target por replacement de forma atômica, retornando os hashes SHA-256 antes e depois.',
+        parameters: {
+          type: 'object',
+          required: ['path', 'target', 'replacement'],
+          properties: {
+            path: { type: 'string', description: 'Caminho do arquivo a editar.' },
+            target: { type: 'string', description: 'Trecho exato atual que será substituído.' },
+            replacement: { type: 'string', description: 'Novo trecho que substituirá target.' },
+            replaceAll: { type: 'boolean', description: 'Se verdadeiro, substitui todas as ocorrências de target.' }
+          }
+        }
+      }
+    },
+    {
+      type: 'function',
+      risk: 'read',
+      execution: { timeoutMs: 15_000, sideEffect: 'none' },
+      function: {
+        name: 'list_directory',
+        description: 'Lista arquivos e pastas de um diretório (opcionalmente recursivo), informando tamanhos em bytes.',
+        parameters: {
+          type: 'object',
+          properties: {
+            path: { type: 'string', description: 'Caminho do diretório (padrão: diretório atual).' },
+            recursive: { type: 'boolean', description: 'Lista subpastas recursivamente quando verdadeiro.' },
+            maxEntries: { type: 'integer', description: 'Limite máximo de entradas retornadas (padrão 80).' }
+          }
+        }
+      }
+    },
+    {
+      type: 'function',
+      risk: 'read',
+      execution: { timeoutMs: 20_000, sideEffect: 'none' },
+      function: {
+        name: 'search_files',
+        description: 'Busca rápida no código e em arquivos (estilo grep/glob de Codex, Claude Code, Cursor e Antigravity), retornando arquivo, número da linha e trecho correspondente.',
+        parameters: {
+          type: 'object',
+          required: ['query'],
+          properties: {
+            query: { type: 'string', description: 'Texto ou identificador a procurar nos arquivos e nomes.' },
+            path: { type: 'string', description: 'Diretório raiz onde buscar (padrão: diretório atual).' },
+            filePattern: { type: 'string', description: 'Filtro opcional de extensão ou nome (ex: .ts, .json).' },
+            maxResults: { type: 'integer', description: 'Máximo de resultados (1 a 100, padrão 30).' }
+          }
+        }
+      }
+    },
+    {
+      type: 'function',
+      risk: 'read',
+      execution: { timeoutMs: 30_000, sideEffect: 'none' },
+      function: {
+        name: 'rea_inspect',
+        description: 'Inspeciona binários nativos Windows PE (.exe/.dll), pacotes Electron (.asar), diretórios de aplicativos ou artefatos locais usando o motor REA (Reverse Engineer Anything: identidade SHA-256, cabeçalhos PE/COFF, entropia de seções, DLLs importadas, strings e inventário ASAR).',
+        parameters: {
+          type: 'object',
+          required: ['path'],
+          properties: {
+            path: {
+              type: 'string',
+              description: 'Caminho do executável, DLL, arquivo .asar, pacote ou diretório a analisar.'
+            }
+          }
+        }
+      }
     }
   ]
 
@@ -371,6 +509,20 @@ export class DesktopToolkit implements ToolExecutor {
           return await this.closeWindow(args, context)
         case 'current_datetime':
           return currentDateTime()
+        case 'terminal_execute':
+          return await this.reaHarnessToolkit.executeTerminal(args, context?.signal)
+        case 'read_file':
+          return await this.reaHarnessToolkit.readFileTool(args, context?.signal)
+        case 'write_file':
+          return await this.reaHarnessToolkit.writeFileTool(args, context?.signal)
+        case 'edit_file':
+          return await this.reaHarnessToolkit.editFileTool(args, context?.signal)
+        case 'list_directory':
+          return await this.reaHarnessToolkit.listDirectoryTool(args, context?.signal)
+        case 'search_files':
+          return await this.reaHarnessToolkit.searchFilesTool(args, context?.signal)
+        case 'rea_inspect':
+          return await this.reaHarnessToolkit.inspectArtifactRea(args, context?.signal)
         default:
           return { ok: false, status: 'failed', message: `Ferramenta desconhecida: ${name}.` }
       }

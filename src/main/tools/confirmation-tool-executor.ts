@@ -5,6 +5,7 @@ import type {
   ToolExecutionResult,
   ToolExecutor
 } from './contracts'
+import { isProtectedSystemPath } from './rea-harness-toolkit'
 
 export type ToolConfirmationDecisionStatus = 'approved' | 'denied' | 'expired' | 'cancelled'
 
@@ -379,6 +380,73 @@ export function assessToolRisk(name: string, argumentsValue: unknown): ToolRiskA
       const query = optionalString(args.query)
       if (!query || query.length > 300 || /[\u0000-\u001f\u007f]/.test(query)) {
         return blocked('A pesquisa na internet foi bloqueada porque o termo de busca é inválido.')
+      }
+      return { kind: 'safe' }
+    }
+    case 'terminal_execute': {
+      const command = optionalString(args.command)
+      if (!command || command.length > 4_000 || /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(command)) {
+        return blocked('O comando de terminal informado é inválido.')
+      }
+      if (
+        /\b(?:format\s+[a-z]:|diskpart|bcdedit|cipher\s+\/w|vssadmin\s+delete)\b/i.test(command) ||
+        /\b(?:remove-item|rd|rmdir|del)\b[^\n]*c:\\windows/i.test(command)
+      ) {
+        return blocked('O comando de terminal foi bloqueado por conter operação destrutiva crítica do sistema.')
+      }
+      if (
+        /\b(?:remove-item\b[^\n]*-recurse|rm\s+-rf\b|del\s+\/[fsq]|stop-computer|restart-computer|reg\s+delete)\b/i.test(command)
+      ) {
+        return sensitive(
+          'terminal_execute',
+          'Permitir comando sensível no terminal?',
+          `O Titi quer executar no terminal: ${safeLabel(command, 120)}`,
+          [
+            'Este comando pode remover arquivos recursivamente ou alterar o estado do sistema.',
+            'Confirme somente se você solicitou essa operação.'
+          ]
+        )
+      }
+      return { kind: 'safe' }
+    }
+    case 'read_file':
+    case 'rea_inspect': {
+      const targetPath = optionalString(args.path)
+      if (!targetPath || isProtectedSystemPath(targetPath)) {
+        return blocked('O caminho informado é inválido ou pertence a credenciais protegidas do sistema.')
+      }
+      return { kind: 'safe' }
+    }
+    case 'list_directory': {
+      const targetPath = optionalString(args.path)
+      if (targetPath && isProtectedSystemPath(targetPath)) {
+        return blocked('O diretório informado é protegido pelo sistema.')
+      }
+      return { kind: 'safe' }
+    }
+    case 'search_files': {
+      const query = optionalString(args.query)
+      const targetPath = optionalString(args.path)
+      if (!query || query.length > 300) {
+        return blocked('O termo de busca nos arquivos é inválido.')
+      }
+      if (targetPath && isProtectedSystemPath(targetPath)) {
+        return blocked('O diretório informado para busca é protegido pelo sistema.')
+      }
+      return { kind: 'safe' }
+    }
+    case 'write_file': {
+      const targetPath = optionalString(args.path)
+      if (!targetPath || isProtectedSystemPath(targetPath) || typeof args.content !== 'string') {
+        return blocked('A gravação de arquivo foi bloqueada porque o caminho é protegido ou o conteúdo é inválido.')
+      }
+      return { kind: 'safe' }
+    }
+    case 'edit_file': {
+      const targetPath = optionalString(args.path)
+      const target = optionalString(args.target)
+      if (!targetPath || !target || isProtectedSystemPath(targetPath) || typeof args.replacement !== 'string') {
+        return blocked('A edição de arquivo foi bloqueada porque o caminho é protegido ou os parâmetros são inválidos.')
       }
       return { kind: 'safe' }
     }
