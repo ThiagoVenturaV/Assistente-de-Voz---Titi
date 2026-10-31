@@ -71,8 +71,6 @@
           "bin/libomp.dll",
           "bin/LICENSE",
           "bin/LICENSE-LLVM-OpenMP",
-          "models/LFM3-Audio-2B-Q4_K_M.gguf",
-          "models/mmproj-LFM3-Audio-2B-Q8_0.gguf",
           "models/LICENSE"
         ]
       },

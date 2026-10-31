@@ -1,4 +1,7 @@
 import { spawn, type ChildProcess } from 'node:child_process'
+import { createHash } from 'node:crypto'
+import { statSync } from 'node:fs'
+import { mkdir, open, rename, unlink } from 'node:fs/promises'
 import { createServer } from 'node:net'
 import { availableParallelism } from 'node:os'
 import { join } from 'node:path'
@@ -17,6 +20,12 @@ export const LFM3_SAMPLE_RATE = 24_000
 export const LFM3_INPUT_SAMPLE_RATE = 16_000
 export const LFM3_MODEL_FILE = 'LFM3-Audio-2B-Q4_K_M.gguf'
 export const LFM3_MMPROJ_FILE = 'mmproj-LFM3-Audio-2B-Q8_0.gguf'
+export const LFM3_MODEL_SHA256 = '9a773289bd321ed879cd3a76545f6aca506e403851a45fb315420aee45625be2'
+export const LFM3_MMPROJ_SHA256 = '2b6648b1fd48af16aa0877b0592b144d15070783673e038a379fdbc51d40e365'
+export const LFM3_MODEL_URL = 'https://huggingface.co/LiquidAI/LFM3-Audio-2B-GGUF/resolve/main/LFM3-Audio-2B-Q4_K_M.gguf'
+export const LFM3_MMPROJ_URL = 'https://huggingface.co/LiquidAI/LFM3-Audio-2B-GGUF/resolve/main/mmproj-LFM3-Audio-2B-Q8_0.gguf'
+export const LFM3_MODEL_MIN_BYTES = 1_000_000_000
+export const LFM3_MMPROJ_MIN_BYTES = 300_000_000
 
 const LANGUAGE_ENGLISH_NAMES = new Map<VoiceLanguage, string>(
   VOICE_LANGUAGE_OPTIONS.map((option) => [option.code, option.englishName])
@@ -138,29 +147,145 @@ export interface Lfm3TranscribeOptions {
   signal?: AbortSignal
 }
 
+export function resolveLfm3ModelsDir(resourcesPath: string): string {
+  const override = process.env.TITI_LFM3_MODELS_DIR?.trim()
+  if (override) return override
+
+  const bundledDir = join(resourcesPath, 'runtime', 'lfm3', 'models')
+  if (
+    hasMinimumFileSize(join(bundledDir, LFM3_MODEL_FILE), LFM3_MODEL_MIN_BYTES) &&
+    hasMinimumFileSize(join(bundledDir, LFM3_MMPROJ_FILE), LFM3_MMPROJ_MIN_BYTES)
+  ) {
+    return bundledDir
+  }
+
+  const localAppData = process.env.LOCALAPPDATA?.trim()
+  if (localAppData) {
+    return join(localAppData, 'Titi', 'models', 'lfm3')
+  }
+
+  return bundledDir
+}
+
+function hasMinimumFileSize(filePath: string, minimumBytes: number): boolean {
+  try {
+    const metadata = statSync(filePath)
+    return metadata.isFile() && metadata.size >= minimumBytes
+  } catch {
+    return false
+  }
+}
+
 export class Lfm3Runtime {
+  private readonly resourcesPath: string
   readonly binDir: string
-  readonly modelsDir: string
   readonly serverExecutable: string
   readonly ttsExecutable: string
   readonly mtmdExecutable: string
-  readonly modelPath: string
-  readonly mmprojPath: string
 
   private process: ChildProcess | null = null
   private port: number | null = null
   private startupPromise: Promise<string> | null = null
+  private downloadPromise: Promise<void> | null = null
   private disposed = false
   private requestLock: Promise<void> = Promise.resolve()
 
   constructor(resourcesPath: string) {
+    this.resourcesPath = resourcesPath
     this.binDir = join(resourcesPath, 'runtime', 'lfm3', 'bin')
-    this.modelsDir = join(resourcesPath, 'runtime', 'lfm3', 'models')
     this.serverExecutable = join(this.binDir, 'llama-server.exe')
     this.ttsExecutable = join(this.binDir, 'llama-tts.exe')
     this.mtmdExecutable = join(this.binDir, 'llama-mtmd-cli.exe')
-    this.modelPath = join(this.modelsDir, LFM3_MODEL_FILE)
-    this.mmprojPath = join(this.modelsDir, LFM3_MMPROJ_FILE)
+  }
+
+  get modelsDir(): string {
+    return resolveLfm3ModelsDir(this.resourcesPath)
+  }
+
+  get modelPath(): string {
+    return join(this.modelsDir, LFM3_MODEL_FILE)
+  }
+
+  get mmprojPath(): string {
+    return join(this.modelsDir, LFM3_MMPROJ_FILE)
+  }
+
+  hasModelsInstalled(): boolean {
+    return (
+      hasMinimumFileSize(this.modelPath, LFM3_MODEL_MIN_BYTES) &&
+      hasMinimumFileSize(this.mmprojPath, LFM3_MMPROJ_MIN_BYTES)
+    )
+  }
+
+  async ensureModels(
+    onProgress?: (percent: number, label: string) => void,
+    signal?: AbortSignal
+  ): Promise<void> {
+    throwIfAborted(signal)
+    if (this.hasModelsInstalled()) return
+    if (this.downloadPromise) {
+      return waitForPromiseWithSignal(this.downloadPromise, signal)
+    }
+
+    const download = this.downloadMissingModels(onProgress, signal)
+    this.downloadPromise = download
+    try {
+      await waitForPromiseWithSignal(download, signal)
+    } finally {
+      if (this.downloadPromise === download) {
+        this.downloadPromise = null
+      }
+    }
+  }
+
+  private async downloadMissingModels(
+    onProgress?: (percent: number, label: string) => void,
+    signal?: AbortSignal
+  ): Promise<void> {
+    const targetDir = this.modelsDir
+    await mkdir(targetDir, { recursive: true })
+
+    const files = [
+      {
+        label: 'modelo de voz LFM3 Audio 2B (1/2)',
+        url: LFM3_MODEL_URL,
+        destination: join(targetDir, LFM3_MODEL_FILE),
+        minimumBytes: LFM3_MODEL_MIN_BYTES,
+        sha256: LFM3_MODEL_SHA256,
+        weight: 0.76
+      },
+      {
+        label: 'projetor de áudio LFM3 (2/2)',
+        url: LFM3_MMPROJ_URL,
+        destination: join(targetDir, LFM3_MMPROJ_FILE),
+        minimumBytes: LFM3_MMPROJ_MIN_BYTES,
+        sha256: LFM3_MMPROJ_SHA256,
+        weight: 0.24
+      }
+    ] as const
+
+    let completedWeight = 0
+    for (const file of files) {
+      throwIfAborted(signal)
+      if (!hasMinimumFileSize(file.destination, file.minimumBytes)) {
+        await downloadVerifiedFile(
+          file.url,
+          file.destination,
+          file.sha256,
+          file.minimumBytes,
+          (filePercent) => {
+            const overallPercent = Math.min(
+              99,
+              Math.max(0, Math.round((completedWeight + (filePercent / 100) * file.weight) * 100))
+            )
+            onProgress?.(overallPercent, file.label)
+          },
+          signal
+        )
+      }
+      completedWeight += file.weight
+    }
+    onProgress?.(100, 'modelo de voz LFM3 Audio 2B')
   }
 
   async prepare(): Promise<void> {
@@ -397,6 +522,7 @@ export class Lfm3Runtime {
   }
 
   private async spawnServer(): Promise<string> {
+    await this.ensureModels()
     const port = await allocateLoopbackPort()
     const args = lfm3ServerArguments(this.modelPath, this.mmprojPath, port)
     const child = spawn(this.serverExecutable, args, {
@@ -512,4 +638,68 @@ export function throwIfAborted(signal?: AbortSignal): void {
 
 export function createAbortError(): Error {
   return Object.assign(new Error('Operação de voz cancelada.'), { name: 'AbortError' })
+}
+
+async function downloadVerifiedFile(
+  url: string,
+  destinationPath: string,
+  expectedSha256: string,
+  minimumBytes: number,
+  onProgress?: (percent: number) => void,
+  signal?: AbortSignal
+): Promise<void> {
+  throwIfAborted(signal)
+  const tempPath = `${destinationPath}.${process.pid}.part`
+  await unlink(tempPath).catch(() => undefined)
+  try {
+    const response = await fetch(url, { redirect: 'follow', signal })
+    if (!response.ok || !response.body) {
+      throw new Error(`Falha ao baixar modelo LFM3 (${response.status} ${response.statusText}).`)
+    }
+
+    const totalBytes = Number(response.headers.get('content-length') ?? 0)
+    const digest = createHash('sha256')
+    const file = await open(tempPath, 'w')
+    let receivedBytes = 0
+    let lastReportedPercent = -1
+
+    try {
+      const reader = response.body.getReader()
+      while (true) {
+        throwIfAborted(signal)
+        const { done, value } = await reader.read()
+        if (done) break
+        if (!value || value.byteLength === 0) continue
+
+        await file.write(value)
+        digest.update(value)
+        receivedBytes += value.byteLength
+
+        if (totalBytes > 0 && onProgress) {
+          const percent = Math.min(99, Math.max(0, Math.round((receivedBytes / totalBytes) * 100)))
+          if (percent !== lastReportedPercent) {
+            lastReportedPercent = percent
+            onProgress(percent)
+          }
+        }
+      }
+    } finally {
+      await file.close()
+    }
+
+    if (receivedBytes < minimumBytes) {
+      throw new Error(`Download incompleto do modelo LFM3 (${receivedBytes} bytes).`)
+    }
+
+    const actualSha256 = digest.digest('hex').toLowerCase()
+    if (actualSha256 !== expectedSha256.toLowerCase()) {
+      throw new Error(`Integridade SHA-256 inválida para o modelo LFM3 baixado (${destinationPath}).`)
+    }
+
+    await rename(tempPath, destinationPath)
+    onProgress?.(100)
+  } catch (error) {
+    await unlink(tempPath).catch(() => undefined)
+    throw error
+  }
 }

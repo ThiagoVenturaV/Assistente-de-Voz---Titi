@@ -189,13 +189,14 @@ app.whenReady().then(async () => {
     ),
     memoryStore
   )
+  lfm3Runtime = new Lfm3Runtime(runtimeResourcesPath)
   runtimeManager = new OllamaRuntimeManager(
     settingsStore,
     () => harness.status(),
     (progress) => broadcast('runtime:setup-progress', progress),
-    app.getPath('temp')
+    app.getPath('temp'),
+    lfm3Runtime
   )
-  lfm3Runtime = new Lfm3Runtime(runtimeResourcesPath)
   transcriber = new ParakeetTranscriber(
     runtimeResourcesPath,
     app.getPath('temp'),
@@ -203,9 +204,11 @@ app.whenReady().then(async () => {
   )
   streamingTranscriber = new ParakeetStreamingTranscriber(runtimeResourcesPath, lfm3Runtime)
   speechSynthesizer = new SupertonicSynthesizer(runtimeResourcesPath, lfm3Runtime)
-  void speechSynthesizer.prepare().catch(() => {
-    // A síntese repetirá a inicialização e exibirá o erro apenas se ambos os backends falharem.
-  })
+  if (lfm3Runtime.hasModelsInstalled()) {
+    void speechSynthesizer.prepare().catch(() => {
+      // A síntese repetirá a inicialização sob demanda.
+    })
+  }
   transcriptionRefiner = new LocalTranscriptionRefiner(
     () => settingsStore.get(),
     () => appCatalog.recognitionVocabulary()
@@ -761,10 +764,16 @@ function registerIpcHandlers(): void {
     requireRenderer(event, 'main')
     return runtimeManager.status()
   })
-  ipcMain.handle('runtime:prepare', (event) => {
+  ipcMain.handle('runtime:prepare', async (event) => {
     requireRenderer(event, 'main')
     assertNotInGameStandby()
-    return runtimeManager.prepare()
+    const status = await runtimeManager.prepare()
+    if (lfm3Runtime.hasModelsInstalled()) {
+      void speechSynthesizer.prepare().catch(() => {
+        // Warmup best-effort after on-demand download.
+      })
+    }
+    return status
   })
   ipcMain.handle('runtime:cancel', (event) => {
     requireRenderer(event, 'main')

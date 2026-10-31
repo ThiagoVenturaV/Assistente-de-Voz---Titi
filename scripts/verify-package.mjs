@@ -81,6 +81,8 @@ for (const marker of [
   'voice:synthesis-chunk',
   'LFM3-Audio-2B-Q4_K_M.gguf',
   'mmproj-LFM3-Audio-2B-Q8_0.gguf',
+  '9a773289bd321ed879cd3a76545f6aca506e403851a45fb315420aee45625be2',
+  '2b6648b1fd48af16aa0877b0592b144d15070783673e038a379fdbc51d40e365',
   'llama-server.exe',
   'DADOS LOCAIS CURADOS',
   'windowsHide',
@@ -170,16 +172,6 @@ const requiredResources = [
     minimumBytes: 1,
     sha256
   })),
-  {
-    path: join(resourcesPath, 'runtime', 'lfm3', 'models', 'LFM3-Audio-2B-Q4_K_M.gguf'),
-    minimumBytes: 1_000_000_000,
-    sha256: '9a773289bd321ed879cd3a76545f6aca506e403851a45fb315420aee45625be2'
-  },
-  {
-    path: join(resourcesPath, 'runtime', 'lfm3', 'models', 'mmproj-LFM3-Audio-2B-Q8_0.gguf'),
-    minimumBytes: 300_000_000,
-    sha256: '2b6648b1fd48af16aa0877b0592b144d15070783673e038a379fdbc51d40e365'
-  },
   {
     path: join(resourcesPath, 'runtime', 'lfm3', 'models', 'LICENSE'),
     minimumBytes: 10_000,

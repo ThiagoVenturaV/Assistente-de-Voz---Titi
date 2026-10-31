@@ -94,9 +94,11 @@ export function Onboarding({
 }
 
 function onboardingRuntimeText(runtime: RuntimeStatus | null): string {
-  if (runtime?.setupAction === 'ready') return `${runtime.model} pronto para usar`
+  if (runtime?.setupAction === 'ready') return `${runtime.model} e voz LFM3 prontos para usar`
   if (runtime?.setupAction === 'download-model') {
-    return `${runtime.model} precisa ser baixado (${localModelDownloadLabel(runtime.model)})`
+    return runtime.availableModels.includes(runtime.model)
+      ? 'Modelo de voz LFM3 Audio 2B precisa ser baixado (~1,5 GB)'
+      : `${runtime.model} (${localModelDownloadLabel(runtime.model)}) e voz LFM3 (~1,5 GB) precisam ser baixados`
   }
   if (runtime?.setupAction === 'start-engine') return 'Ollama instalado; serviço será iniciado'
   if (runtime?.setupAction === 'install-engine') return 'Ollama e o modelo precisam ser instalados'

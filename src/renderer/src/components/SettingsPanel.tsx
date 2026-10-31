@@ -605,7 +605,11 @@ function runtimeDescription(runtime: RuntimeStatus | null): string {
   if (!runtime) return 'Ainda não verificado.'
   if (runtime.setupAction === 'install-engine') return 'Instale o mecanismo oficial para usar modelos locais.'
   if (runtime.setupAction === 'start-engine') return 'O Titi pode iniciar o serviço local para você.'
-  if (runtime.setupAction === 'download-model') return `${runtime.model} ainda não está baixado neste computador.`
+  if (runtime.setupAction === 'download-model') {
+    return runtime.availableModels.includes(runtime.model)
+      ? 'Modelo de voz LFM3 Audio 2B (~1,5 GB) será baixado sob demanda.'
+      : `${runtime.model} e o modelo de voz LFM3 serão baixados neste computador.`
+  }
   return runtime.message
 }
 

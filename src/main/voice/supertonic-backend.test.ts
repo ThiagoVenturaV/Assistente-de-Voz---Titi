@@ -84,4 +84,21 @@ describe('backend LFM3 de voz local', () => {
 
     synthesizer.dispose()
   })
+
+  it('resolve o diretório de download sob demanda em LOCALAPPDATA quando os modelos não estão no bundle', () => {
+    const previousLocalAppData = process.env.LOCALAPPDATA
+    const previousOverride = process.env.TITI_LFM3_MODELS_DIR
+    try {
+      delete process.env.TITI_LFM3_MODELS_DIR
+      process.env.LOCALAPPDATA = 'C:\\Users\\qa\\AppData\\Local'
+      const runtime = new Lfm3Runtime('C:\\Titi\\resources-sem-bundle')
+      expect(runtime.modelsDir).toBe('C:\\Users\\qa\\AppData\\Local\\Titi\\models\\lfm3')
+      expect(runtime.hasModelsInstalled()).toBe(false)
+    } finally {
+      if (previousLocalAppData === undefined) delete process.env.LOCALAPPDATA
+      else process.env.LOCALAPPDATA = previousLocalAppData
+      if (previousOverride === undefined) delete process.env.TITI_LFM3_MODELS_DIR
+      else process.env.TITI_LFM3_MODELS_DIR = previousOverride
+    }
+  })
 })

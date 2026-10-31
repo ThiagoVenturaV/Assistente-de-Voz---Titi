@@ -13,6 +13,14 @@ import { readLimitedJsonResponse } from '../security/limited-json-response'
 type StatusReader = () => Promise<RuntimeStatus>
 type ProgressReporter = (progress: RuntimeSetupProgress) => void
 
+export interface VoiceModelRuntime {
+  hasModelsInstalled: () => boolean
+  ensureModels: (
+    onProgress?: (percent: number, label: string) => void,
+    signal?: AbortSignal
+  ) => Promise<void>
+}
+
 export class OllamaRuntimeManager {
   private startingEngine: Promise<boolean> | null = null
   private startingEngineController: AbortController | null = null
@@ -25,7 +33,8 @@ export class OllamaRuntimeManager {
     private readonly settings: SettingsStore,
     private readonly readProviderStatus: StatusReader,
     private readonly report: ProgressReporter,
-    private readonly temporaryPath: string
+    private readonly temporaryPath: string,
+    private readonly voiceRuntime?: VoiceModelRuntime
   ) {}
 
   async status(signal?: AbortSignal): Promise<RuntimeStatus> {
@@ -38,7 +47,9 @@ export class OllamaRuntimeManager {
   async enrich(status: RuntimeStatus, signal?: AbortSignal): Promise<RuntimeStatus> {
     const settings = await waitWithAbort(this.settings.get(), signal)
     const executable = findOllamaExecutable()
-    const modelInstalled = status.availableModels.includes(settings.provider.model)
+    const ollamaModelInstalled = status.availableModels.includes(settings.provider.model)
+    const voiceModelInstalled = this.voiceRuntime ? this.voiceRuntime.hasModelsInstalled() : true
+    const modelInstalled = ollamaModelInstalled && voiceModelInstalled
     return {
       ...status,
       engineInstalled: Boolean(executable),
@@ -207,9 +218,23 @@ export class OllamaRuntimeManager {
       }
 
       status = await this.status(signal)
-      if (!status.modelInstalled) {
-        const settings = await waitWithAbort(this.settings.get(), signal)
+      const settings = await waitWithAbort(this.settings.get(), signal)
+      if (!status.availableModels.includes(settings.provider.model)) {
         await this.pullModel(settings, signal)
+      }
+      if (this.voiceRuntime && !this.voiceRuntime.hasModelsInstalled()) {
+        this.report({
+          stage: 'downloading-model',
+          message: 'Baixando modelo de voz LFM3 Audio 2B…',
+          percent: 0
+        })
+        await this.voiceRuntime.ensureModels((percent, label) => {
+          this.report({
+            stage: 'downloading-model',
+            message: `Baixando ${label} — ${percent}%`,
+            percent
+          })
+        }, signal)
       }
 
       status = await this.status(signal)

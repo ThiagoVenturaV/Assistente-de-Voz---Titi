@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
-    [switch]$Force
+    [switch]$Force,
+    [switch]$IncludeModels
 )
 
 $ErrorActionPreference = 'Stop'
@@ -158,6 +159,9 @@ foreach ($entry in $requiredBinFiles.GetEnumerator()) {
 
 foreach ($modelEntry in $requiredModelFiles.GetEnumerator()) {
     $fileName = $modelEntry.Key
+    if (-not $IncludeModels -and $fileName.EndsWith('.gguf')) {
+        continue
+    }
     $info = $modelEntry.Value
     $targetPath = Join-Path $modelRoot $fileName
     if ($Force -or -not (Test-ExpectedHash -Path $targetPath -Expected $info.Sha256)) {
