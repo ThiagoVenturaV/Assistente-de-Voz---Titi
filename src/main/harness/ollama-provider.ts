@@ -273,6 +273,13 @@ export class OllamaProvider implements AssistantProvider {
 
       if (!toolCalls.length) {
         const content = messageContent
+        if (
+          content
+          && toolRuns.length > 0
+          && toolRuns.every((run) => run.tool === 'web_search' && run.result.ok)
+        ) {
+          return renderSynthesizedWebSearchAnswer(content, toolRuns)
+        }
         if (hasExecutedToolRun(toolRuns)) return renderToolLedger(toolRuns)
         if (toolRuns.length) return renderToolLedger(toolRuns)
         if (content) {
@@ -623,6 +630,28 @@ function stableStringify(value: unknown): string {
   return JSON.stringify(value) ?? String(value)
 }
 
+function renderSynthesizedWebSearchAnswer(
+  rawContent: string,
+  runs: ToolRunLedgerEntry[]
+): string {
+  const cleaned = stripNoToolNeededPrefix(rawContent) ?? rawContent.trim()
+  const urls: string[] = []
+  for (const run of runs) {
+    const details = isRecord(run.result.details) ? run.result.details : null
+    const results = details && Array.isArray(details.results) ? details.results : []
+    for (const item of results) {
+      if (isRecord(item) && typeof item.url === 'string' && item.url.startsWith('http')) {
+        if (!urls.includes(item.url) && !cleaned.includes(item.url)) {
+          urls.push(item.url)
+        }
+      }
+      if (urls.length >= 2) break
+    }
+  }
+  if (urls.length === 0) return cleaned
+  return `${cleaned}\n\nFontes: ${urls.join(' | ')}`
+}
+
 function renderToolLedger(
   runs: ToolRunLedgerEntry[],
   note?: string
@@ -721,7 +750,8 @@ function systemPrompt(mascotName: string): string {
     'Comece pela informação ou pelo resultado mais importante. Em respostas simples, prefira poucas frases e não repita a pergunta, não use saudações automáticas nem comece sempre com “Claro” ou “Com certeza”.',
     'Use parágrafos curtos e listas somente quando ajudarem de verdade. Não use emojis, salvo se o usuário pedir.',
     'Quando algo estiver ambíguo ou incerto, faça uma pergunta curta ou declare o limite em vez de inventar.',
-    'Você possui ferramentas reais para abrir aplicativos, navegar na web, controlar mídia, observar controles acessíveis, enxergar todos os monitores pelo modelo local e consultar a hora.',
+    'Você possui ferramentas reais para abrir aplicativos, pesquisar na internet em tempo real (web_search), abrir páginas no navegador (open_web), controlar mídia, observar controles acessíveis, enxergar todos os monitores pelo modelo local e consultar a hora.',
+    'Quando o usuário pedir para pesquisar algo na internet ou perguntar fatos/notícias atuais da web, use web_search para buscar e ler os resultados reais antes de responder. Use open_web quando o usuário pedir para abrir um site ou busca diretamente na janela do navegador.',
     'Interprete o pedido pela linguagem natural e pelo contexto da conversa, incluindo referências, correções e pedidos compostos.',
     'Quando o usuário corrigir ou substituir o pedido anterior, trate o turno mais recente como uma nova ação: use a ferramenta com o alvo corrigido e não repita o alvo anterior.',
     'Sempre chame uma ou mais ferramentas adequadas quando o usuário pedir uma ação ou observação do computador; não responda apenas com uma promessa.',
@@ -746,7 +776,7 @@ function systemPrompt(mascotName: string): string {
 
 function hasExplicitActionVerb(value: string): boolean {
   const request = normalizeForInference(value)
-  return /\b(?:abra|abre|abrir|feche|fecha|fechar|inicie|inicia|iniciar|execute|executa|executar|clique|clica|clicar|toque|toca|tocar|reproduza|reproduzir|pause|pausa|pausar|pesquise|pesquisa|procurar|procure|navegue|digite|escreva|envie|manda|mude|troque|controle|observe|captur[ae]|tire (?:uma )?captura|que horas sao|qual a data)\b/u.test(request)
+  return /\b(?:abra|abre|abrir|feche|fecha|fechar|inicie|inicia|iniciar|execute|executa|executar|clique|clica|clicar|toque|toca|tocar|reproduza|reproduzir|pause|pausa|pausar|pesquise|pesquisa|pesquisar|procurar|procure|busque|busca|buscar|navegue|digite|escreva|envie|manda|mude|troque|controle|observe|captur[ae]|tire (?:uma )?captura|que horas sao|qual a data|na internet|na web)\b/u.test(request)
 }
 
 function isClearlyConversationalRequest(value: string): boolean {

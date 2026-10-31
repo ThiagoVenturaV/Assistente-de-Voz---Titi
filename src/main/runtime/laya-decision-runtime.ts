@@ -77,7 +77,7 @@ export const LAYA_INTENT_QUESTIONS = {
     instructions: 'Qual é o tipo de pedido do usuário?',
     criteria: {
       open_app_or_site:
-        'Comando imperativo para abrir um aplicativo instalado no Windows ou acessar um site específico no navegador',
+        'Comando imperativo para abrir um aplicativo instalado no Windows, acessar um site no navegador ou pesquisar na internet',
       control_media_or_screen:
         'Comando imperativo para tocar/pausar música no Spotify ou clicar/observar a tela do Windows',
       system_datetime:

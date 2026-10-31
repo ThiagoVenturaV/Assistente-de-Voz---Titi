@@ -32,6 +32,7 @@ import {
   type LayaRunResult
 } from './laya-computer-plan'
 import { assessToolRisk } from './confirmation-tool-executor'
+import { WebSearchClient } from './web-search'
 
 type KnownApplication = 'chrome' | 'brave' | 'spotify' | 'codex' | 'antigravity'
 type BrowserChoice = 'default' | 'chrome' | 'brave'
@@ -55,6 +56,7 @@ export class DesktopToolkit implements ToolExecutor {
     observedAt: number
   }>()
   private readonly planManager: LayaComputerPlanManager | null
+  private readonly webSearchClient: WebSearchClient
 
   constructor(
     private readonly appCatalog: ApplicationCatalog = new WindowsAppCatalog(),
@@ -67,6 +69,7 @@ export class DesktopToolkit implements ToolExecutor {
     this.planManager = computerController
       ? new LayaComputerPlanManager(computerController, layaDecisionRouter)
       : null
+    this.webSearchClient = new WebSearchClient(fetch, layaDecisionRouter)
   }
 
   readonly definitions: ToolDefinition[] = [
@@ -95,7 +98,7 @@ export class DesktopToolkit implements ToolExecutor {
       execution: { timeoutMs: 10_000, sideEffect: 'external' },
       function: {
         name: 'open_web',
-        description: 'Abre um endereço ou pesquisa na web. Use url para navegar diretamente ou query para pesquisar. Nunca invente que abriu a página sem chamar esta ferramenta.',
+        description: 'Abre um endereço ou pesquisa no navegador do Windows. Use url para navegar diretamente ou query para abrir uma busca no Google. Para pesquisar na internet e ler o conteúdo dos resultados para responder ao usuário, prefira web_search. Nunca invente que abriu a página sem chamar esta ferramenta.',
         parameters: {
           type: 'object',
           properties: {
@@ -105,6 +108,29 @@ export class DesktopToolkit implements ToolExecutor {
               type: 'string',
               enum: ['default', 'chrome', 'brave'],
               description: 'Navegador preferido. O padrão usa a escolha do Windows.'
+            }
+          }
+        }
+      }
+    },
+    {
+      type: 'function',
+      risk: 'read',
+      execution: { timeoutMs: 15_000, sideEffect: 'none' },
+      function: {
+        name: 'web_search',
+        description: 'Pesquisa na internet em tempo real (DuckDuckGo e Wikipédia), seleciona o melhor resultado com o decisor local Laya quando disponível e retorna títulos, resumos, links e trecho da página principal para responder dúvidas atuais ou pesquisas.',
+        parameters: {
+          type: 'object',
+          required: ['query'],
+          properties: {
+            query: {
+              type: 'string',
+              description: 'Termo ou pergunta para pesquisar na internet.'
+            },
+            maxResults: {
+              type: 'integer',
+              description: 'Quantidade máxima de resultados (1 a 10, padrão 5).'
             }
           }
         }
@@ -325,6 +351,8 @@ export class DesktopToolkit implements ToolExecutor {
           )
         case 'open_web':
           return await this.openWeb(args, context?.signal)
+        case 'web_search':
+          return await this.searchWeb(args, context?.signal)
         case 'spotify':
           return await this.controlSpotify(args, context?.signal)
         case 'computer_observe':
@@ -418,6 +446,21 @@ export class DesktopToolkit implements ToolExecutor {
         ...(observation ? { observation: windowEvidence(observation) } : {})
       }
     }
+  }
+
+  private async searchWeb(
+    args: Record<string, unknown>,
+    signal?: AbortSignal
+  ): Promise<ToolExecutionResult> {
+    const query = optionalString(args.query)
+    if (!query) {
+      return { ok: false, status: 'failed', message: 'Informe um termo ou pergunta para pesquisar na internet.' }
+    }
+    const maxResults = typeof args.maxResults === 'number' && Number.isFinite(args.maxResults)
+      ? Math.max(1, Math.min(10, Math.trunc(args.maxResults)))
+      : 5
+    const response = await this.webSearchClient.search(query, maxResults, signal)
+    return this.webSearchClient.formatToolResult(response)
   }
 
   private async confirmDispatchedWindow(

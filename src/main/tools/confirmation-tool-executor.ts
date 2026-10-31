@@ -375,6 +375,13 @@ export function assessToolRisk(name: string, argumentsValue: unknown): ToolRiskA
     }
     case 'open_web':
       return assessWebNavigation(args)
+    case 'web_search': {
+      const query = optionalString(args.query)
+      if (!query || query.length > 300 || /[\u0000-\u001f\u007f]/.test(query)) {
+        return blocked('A pesquisa na internet foi bloqueada porque o termo de busca é inválido.')
+      }
+      return { kind: 'safe' }
+    }
     default:
       return blocked(`A ferramenta “${safeLabel(name)}” não é permitida pelo Titi.`)
   }
