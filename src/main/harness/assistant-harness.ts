@@ -19,6 +19,7 @@ import { resolveDeterministicIntent } from './deterministic-intent'
 import { OllamaProvider } from './ollama-provider'
 import type { AssistantProvider } from './provider'
 import { selectMessagesForContext } from './context-window'
+import type { ToolNeedDecisionRouter } from '../runtime/laya-decision-runtime'
 
 export class AssistantHarness {
   private readonly provider: AssistantProvider
@@ -34,9 +35,10 @@ export class AssistantHarness {
     private readonly settings: SettingsStore,
     private readonly conversations: ConversationStore,
     private readonly tools: ToolExecutor = new DesktopToolkit(),
-    private readonly memory?: LocalMemoryStore
+    private readonly memory?: LocalMemoryStore,
+    decisionRouter?: ToolNeedDecisionRouter
   ) {
-    this.provider = new OllamaProvider(tools)
+    this.provider = new OllamaProvider(tools, decisionRouter)
   }
 
   async status(): Promise<RuntimeStatus> {

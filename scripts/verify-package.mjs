@@ -84,6 +84,8 @@ for (const marker of [
   '9a773289bd321ed879cd3a76545f6aca506e403851a45fb315420aee45625be2',
   '2b6648b1fd48af16aa0877b0592b144d15070783673e038a379fdbc51d40e365',
   'llama-server.exe',
+  'laya:multilingual',
+  'ollaya.exe',
   'DADOS LOCAIS CURADOS',
   'windowsHide',
   'keep_alive'

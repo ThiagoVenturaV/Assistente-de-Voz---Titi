@@ -12,11 +12,16 @@ import type {
 } from '../tools/contracts'
 import { executeToolWithControl } from '../tools/tool-execution-controller'
 import { readLimitedJsonResponse } from '../security/limited-json-response'
+import type {
+  LayaToolNeedDecision,
+  ToolNeedDecisionRouter
+} from '../runtime/laya-decision-runtime'
 
 const MAX_TOOL_ROUNDS = 5
 const MAX_TOOL_CALLS_PER_ROUND = 8
 const NO_TOOL_NEEDED_PREFIX = '[SEM_FERRAMENTA]'
 const TOOL_RECOVERY_CONFIDENCE = 0.55
+const LAYA_DIRECT_CONVERSATION_CONFIDENCE = 0.70
 const CORRECTION_MARKERS = [
   'na verdade',
   'na real',
@@ -101,7 +106,10 @@ interface ToolRunLedgerEntry {
 }
 
 export class OllamaProvider implements AssistantProvider {
-  constructor(private readonly tools: ToolExecutor) {}
+  constructor(
+    private readonly tools: ToolExecutor,
+    private readonly decisionRouter?: ToolNeedDecisionRouter
+  ) {}
 
   async status(settings: TitiSettings): Promise<RuntimeStatus> {
     const endpoint = normalizeEndpoint(settings.provider.endpoint)
@@ -163,6 +171,25 @@ export class OllamaProvider implements AssistantProvider {
       )
     }
 
+    let cachedLayaDecision: LayaToolNeedDecision | null = null
+    if (this.decisionRouter && !isCorrectionMarkerPresent(latestUserRequest)) {
+      cachedLayaDecision = await this.decisionRouter
+        .decideToolNeed(latestUserRequest, signal)
+        .catch(() => null)
+      if (
+        cachedLayaDecision?.decision === 'respond' &&
+        cachedLayaDecision.confidence >= LAYA_DIRECT_CONVERSATION_CONFIDENCE &&
+        !hasExplicitActionVerb(latestUserRequest)
+      ) {
+        return requestConversationChat(
+          endpoint,
+          settings,
+          conversationMessages,
+          signal
+        )
+      }
+    }
+
     const agentMessages: OllamaMessage[] = [
       { role: 'system', content: systemPrompt(settings.mascotName) },
       ...conversationMessages
@@ -219,11 +246,11 @@ export class OllamaProvider implements AssistantProvider {
       ) {
         let decision: ToolNeedDecision
         try {
-          decision = await requestToolNeedDecision(
+          decision = await this.resolveToolNeedDecision(
             endpoint,
             settings,
             latestUserRequest,
-            this.tools,
+            cachedLayaDecision,
             signal
           )
         } catch (error) {
@@ -283,11 +310,11 @@ export class OllamaProvider implements AssistantProvider {
 
         let decision: ToolNeedDecision
         try {
-          decision = await requestToolNeedDecision(
+          decision = await this.resolveToolNeedDecision(
             endpoint,
             settings,
             latestUserRequest,
-            this.tools,
+            cachedLayaDecision,
             signal
           )
         } catch (error) {
@@ -396,6 +423,39 @@ export class OllamaProvider implements AssistantProvider {
     return renderToolLedger(
       toolRuns,
       `Interrompi as chamadas de ferramentas após ${MAX_TOOL_ROUNDS} rodadas para evitar um ciclo sem fim. Tente dividir o pedido em uma ação por vez.`
+    )
+  }
+
+  private async resolveToolNeedDecision(
+    endpoint: string,
+    settings: TitiSettings,
+    userRequest: string,
+    cachedLayaDecision: LayaToolNeedDecision | null,
+    signal?: AbortSignal
+  ): Promise<ToolNeedDecision> {
+    if (cachedLayaDecision) {
+      return {
+        decision: cachedLayaDecision.decision,
+        confidence: cachedLayaDecision.confidence
+      }
+    }
+    if (this.decisionRouter) {
+      const layaResult = await this.decisionRouter
+        .decideToolNeed(userRequest, signal)
+        .catch(() => null)
+      if (layaResult) {
+        return {
+          decision: layaResult.decision,
+          confidence: layaResult.confidence
+        }
+      }
+    }
+    return requestToolNeedDecision(
+      endpoint,
+      settings,
+      userRequest,
+      this.tools,
+      signal
     )
   }
 }
@@ -684,17 +744,17 @@ function systemPrompt(mascotName: string): string {
   ].join(' ')
 }
 
+function hasExplicitActionVerb(value: string): boolean {
+  const request = normalizeForInference(value)
+  return /\b(?:abra|abre|abrir|feche|fecha|fechar|inicie|inicia|iniciar|execute|executa|executar|clique|clica|clicar|toque|toca|tocar|reproduza|reproduzir|pause|pausa|pausar|pesquise|pesquisa|procurar|procure|navegue|digite|escreva|envie|manda|mude|troque|controle|observe|captur[ae]|tire (?:uma )?captura|que horas sao|qual a data)\b/u.test(request)
+}
+
 function isClearlyConversationalRequest(value: string): boolean {
-  const request = value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLocaleLowerCase('pt-BR')
-    .replace(/\s+/g, ' ')
-    .trim()
+  const request = normalizeForInference(value)
   const conversationalOpening = /^(?:(?:oi|ei) titi[,!:; -]*)?(?:oi|ola|bom dia|boa tarde|boa noite|obrigad[oa]|valeu|tudo bem|quem e voce|o que voce pode fazer|me (?:explique|explica)|explique|explica|fale sobre|o que (?:e|sao)|qual (?:e|seria|a diferenca|o significado)|quais (?:sao|as diferencas)|como funciona|por que|porque|voce acha|o que voce acha)\b/u.test(request)
   if (!conversationalOpening) return false
 
-  return !/\b(?:abra|abre|abrir|feche|fecha|fechar|inicie|inicia|iniciar|execute|executa|executar|clique|clica|clicar|toque|toca|tocar|reproduza|reproduzir|pause|pausa|pausar|pesquise|pesquisa|procurar|procure|navegue|digite|escreva|envie|manda|mude|troque|controle|observe|captur[ae]|tire (?:uma )?captura)\b/u.test(request)
+  return !hasExplicitActionVerb(request)
 }
 
 function normalizeForInference(value: string): string {

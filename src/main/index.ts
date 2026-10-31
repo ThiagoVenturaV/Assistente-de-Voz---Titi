@@ -57,6 +57,7 @@ import {
 } from './security/media-permission'
 import { LocalMemoryStore, type MemoryEntry } from './memory'
 import { OllamaRuntimeManager } from './runtime/ollama-runtime-manager'
+import { LayaDecisionRuntime } from './runtime/laya-decision-runtime'
 import { ConversationStore } from './storage/conversation-store'
 import { ActionLogStore } from './storage/action-log-store'
 import { SettingsStore } from './storage/settings-store'
@@ -95,6 +96,7 @@ let harness: AssistantHarness
 let runtimeManager: OllamaRuntimeManager
 let gameStandbyMonitor: GameStandbyMonitor
 let lfm3Runtime: Lfm3Runtime
+let layaRuntime: LayaDecisionRuntime
 let transcriber: ParakeetTranscriber
 let streamingTranscriber: ParakeetStreamingTranscriber
 let transcriptionRefiner: LocalTranscriptionRefiner
@@ -164,6 +166,8 @@ app.whenReady().then(async () => {
     45_000,
     (requestId) => broadcast('tools:confirmation-dismissed', requestId)
   )
+  lfm3Runtime = new Lfm3Runtime(runtimeResourcesPath)
+  layaRuntime = new LayaDecisionRuntime(runtimeResourcesPath)
   harness = new AssistantHarness(
     settingsStore,
     conversationStore,
@@ -187,15 +191,16 @@ app.whenReady().then(async () => {
       actionLogStore,
       async () => (await settingsStore.get()).keepHistory
     ),
-    memoryStore
+    memoryStore,
+    layaRuntime
   )
-  lfm3Runtime = new Lfm3Runtime(runtimeResourcesPath)
   runtimeManager = new OllamaRuntimeManager(
     settingsStore,
     () => harness.status(),
     (progress) => broadcast('runtime:setup-progress', progress),
     app.getPath('temp'),
-    lfm3Runtime
+    lfm3Runtime,
+    layaRuntime
   )
   transcriber = new ParakeetTranscriber(
     runtimeResourcesPath,
@@ -207,6 +212,11 @@ app.whenReady().then(async () => {
   if (lfm3Runtime.hasModelsInstalled()) {
     void speechSynthesizer.prepare().catch(() => {
       // A síntese repetirá a inicialização sob demanda.
+    })
+  }
+  if (layaRuntime.hasBinaryInstalled()) {
+    void layaRuntime.ensureServer().catch(() => {
+      // O roteador Laya iniciará sob demanda na próxima decisão.
     })
   }
   transcriptionRefiner = new LocalTranscriptionRefiner(
@@ -276,6 +286,7 @@ app.on('before-quit', () => {
   streamingTranscriber?.dispose()
   speechSynthesizer?.dispose()
   lfm3Runtime?.dispose()
+  layaRuntime?.dispose()
   confirmationBroker?.cancelAll()
   globalPushToTalk?.dispose()
   void gameStandbyMonitor?.stop({ restore: false })
@@ -303,6 +314,8 @@ async function enterGameStandby(app: ForegroundApplication): Promise<boolean> {
     mascotWindow?.hide()
     broadcast('game:standby-changed', true)
     lfm3Runtime?.dispose()
+    await layaRuntime?.unload().catch(() => undefined)
+    layaRuntime?.dispose()
     await runtimeManager.unloadSelectedModel().catch(() => undefined)
     return true
   } finally {

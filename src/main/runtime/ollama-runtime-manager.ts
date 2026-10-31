@@ -34,7 +34,8 @@ export class OllamaRuntimeManager {
     private readonly readProviderStatus: StatusReader,
     private readonly report: ProgressReporter,
     private readonly temporaryPath: string,
-    private readonly voiceRuntime?: VoiceModelRuntime
+    private readonly voiceRuntime?: VoiceModelRuntime,
+    private readonly decisionRuntime?: VoiceModelRuntime
   ) {}
 
   async status(signal?: AbortSignal): Promise<RuntimeStatus> {
@@ -229,6 +230,20 @@ export class OllamaRuntimeManager {
           percent: 0
         })
         await this.voiceRuntime.ensureModels((percent, label) => {
+          this.report({
+            stage: 'downloading-model',
+            message: `Baixando ${label} — ${percent}%`,
+            percent
+          })
+        }, signal)
+      }
+      if (this.decisionRuntime && !this.decisionRuntime.hasModelsInstalled()) {
+        this.report({
+          stage: 'downloading-model',
+          message: 'Baixando roteador de decisão Laya (System 1)…',
+          percent: 0
+        })
+        await this.decisionRuntime.ensureModels((percent, label) => {
           this.report({
             stage: 'downloading-model',
             message: `Baixando ${label} — ${percent}%`,
