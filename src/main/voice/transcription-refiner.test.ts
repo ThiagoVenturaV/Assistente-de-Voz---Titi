@@ -93,6 +93,10 @@ describe('transcription name guards', () => {
       'pod5, Google Trome e anti-dravite',
       glossary
     )).toBe('Spotify, Google Chrome e Antigravity')
+    expect(replaceKnownPhoneticAliases(
+      'antidrive cli, cloud code e no curso',
+      glossary
+    )).toBe('Antigravity, Claude Code e Cursor')
     expect(replaceKnownPhoneticAliases('anti-dravite', ['Spotify'])).toBe('anti-dravite')
   })
 

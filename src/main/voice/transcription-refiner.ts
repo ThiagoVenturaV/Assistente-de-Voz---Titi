@@ -70,7 +70,22 @@ const BUILTIN_ALIASES: ReadonlyArray<{
     patterns: [
       /(?<![\p{L}\p{N}])anti[\s-]+dravite(?![\p{L}\p{N}])/giu,
       /(?<![\p{L}\p{N}])anti[\s-]+gravite(?![\p{L}\p{N}])/giu,
-      /(?<![\p{L}\p{N}])antigravite(?![\p{L}\p{N}])/giu
+      /(?<![\p{L}\p{N}])antigravite(?![\p{L}\p{N}])/giu,
+      /(?<![\p{L}\p{N}])antidrive(?:\s+cli)?(?![\p{L}\p{N}])/giu,
+      /(?<![\p{L}\p{N}])antidrive(?![\p{L}\p{N}])/giu
+    ]
+  },
+  {
+    target: 'Claude Code',
+    patterns: [
+      /(?<![\p{L}\p{N}])cloud\s+code(?![\p{L}\p{N}])/giu,
+      /(?<![\p{L}\p{N}])claud\s+code(?![\p{L}\p{N}])/giu
+    ]
+  },
+  {
+    target: 'Cursor',
+    patterns: [
+      /(?<![\p{L}\p{N}])(?:no|app)\s+curso(?![\p{L}\p{N}])/giu
     ]
   },
   {
@@ -88,7 +103,9 @@ export class LocalTranscriptionRefiner {
 
   async refine(rawText: string, signal?: AbortSignal): Promise<string> {
     throwIfAborted(signal)
-    const raw = rawText.trim()
+    const sanitized = rawText
+      .replace(/(?<![\p{L}\p{N}])tomando\s+de\s+terminal(?![\p{L}\p{N}])/giu, 'comando de terminal')
+    const raw = sanitized.trim()
     if (!raw) return raw
 
     try {
@@ -162,7 +179,10 @@ export function recognitionGlossary(settings: TitiSettings, vocabulary: string[]
     'Ollama',
     'Codex',
     'ChatGPT',
-    'Antigravity'
+    'Antigravity',
+    'Claude Code',
+    'Cursor',
+    'OpenCode'
   ]
   const unique = new Map<string, string>()
   for (const value of [...base, ...vocabulary]) {

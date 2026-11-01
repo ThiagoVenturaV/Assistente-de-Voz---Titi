@@ -32,7 +32,7 @@ import {
   type LayaRunResult
 } from './laya-computer-plan'
 import { assessToolRisk } from './confirmation-tool-executor'
-import { ReaHarnessToolkit } from './rea-harness-toolkit'
+import { CodingAgentToolkit } from './coding-agent-toolkit'
 import { WebSearchClient } from './web-search'
 
 type KnownApplication = 'chrome' | 'brave' | 'spotify' | 'codex' | 'antigravity'
@@ -58,7 +58,7 @@ export class DesktopToolkit implements ToolExecutor {
   }>()
   private readonly planManager: LayaComputerPlanManager | null
   private readonly webSearchClient: WebSearchClient
-  private readonly reaHarnessToolkit = new ReaHarnessToolkit()
+  private readonly codingAgentToolkit = new CodingAgentToolkit()
 
   constructor(
     private readonly appCatalog: ApplicationCatalog = new WindowsAppCatalog(),
@@ -451,25 +451,6 @@ export class DesktopToolkit implements ToolExecutor {
           }
         }
       }
-    },
-    {
-      type: 'function',
-      risk: 'read',
-      execution: { timeoutMs: 30_000, sideEffect: 'none' },
-      function: {
-        name: 'rea_inspect',
-        description: 'Inspeciona binários nativos Windows PE (.exe/.dll), pacotes Electron (.asar), diretórios de aplicativos ou artefatos locais usando o motor REA (Reverse Engineer Anything: identidade SHA-256, cabeçalhos PE/COFF, entropia de seções, DLLs importadas, strings e inventário ASAR).',
-        parameters: {
-          type: 'object',
-          required: ['path'],
-          properties: {
-            path: {
-              type: 'string',
-              description: 'Caminho do executável, DLL, arquivo .asar, pacote ou diretório a analisar.'
-            }
-          }
-        }
-      }
     }
   ]
 
@@ -510,19 +491,17 @@ export class DesktopToolkit implements ToolExecutor {
         case 'current_datetime':
           return currentDateTime()
         case 'terminal_execute':
-          return await this.reaHarnessToolkit.executeTerminal(args, context?.signal)
+          return await this.codingAgentToolkit.executeTerminal(args, context?.signal)
         case 'read_file':
-          return await this.reaHarnessToolkit.readFileTool(args, context?.signal)
+          return await this.codingAgentToolkit.readFileTool(args, context?.signal)
         case 'write_file':
-          return await this.reaHarnessToolkit.writeFileTool(args, context?.signal)
+          return await this.codingAgentToolkit.writeFileTool(args, context?.signal)
         case 'edit_file':
-          return await this.reaHarnessToolkit.editFileTool(args, context?.signal)
+          return await this.codingAgentToolkit.editFileTool(args, context?.signal)
         case 'list_directory':
-          return await this.reaHarnessToolkit.listDirectoryTool(args, context?.signal)
+          return await this.codingAgentToolkit.listDirectoryTool(args, context?.signal)
         case 'search_files':
-          return await this.reaHarnessToolkit.searchFilesTool(args, context?.signal)
-        case 'rea_inspect':
-          return await this.reaHarnessToolkit.inspectArtifactRea(args, context?.signal)
+          return await this.codingAgentToolkit.searchFilesTool(args, context?.signal)
         default:
           return { ok: false, status: 'failed', message: `Ferramenta desconhecida: ${name}.` }
       }

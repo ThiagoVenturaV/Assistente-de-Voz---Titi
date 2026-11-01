@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process'
 import { createHash, randomUUID } from 'node:crypto'
 import {
+  access,
   mkdir,
   open,
   readdir,
@@ -9,23 +10,23 @@ import {
   stat,
   unlink
 } from 'node:fs/promises'
-import { basename, dirname, extname, isAbsolute, join, relative, resolve } from 'node:path'
+import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import type { ToolExecutionResult } from './contracts'
 
 /**
- * Metadata marker ported from REA (`src/server/toolResultEncoding.ts`)
- * tagging tool outputs that contain untrusted target/file/process content.
+ * Metadata marker tagging tool outputs that originate from the local project,
+ * workspace files, or child processes, preventing prompt injection.
  */
-export const TARGET_CONTENT_RESULT_META = Object.freeze({
+export const UNTRUSTED_WORKSPACE_DATA_META = Object.freeze({
   provenance: Object.freeze({
     untrusted_content: true,
-    source: 'analysis_target'
+    source: 'workspace_execution'
   })
 })
 
 /**
- * Byte-bounded head and tail output buffer ported from REA
- * (`src/process/BoundedOutputExcerpt.ts`).
+ * Byte-bounded head and tail buffer for process streams.
+ * Prevents memory exhaustion while retaining the initial startup evidence and latest failures/diagnostics.
  */
 export class BoundedOutputExcerpt {
   private head: Buffer = Buffer.alloc(0)
@@ -67,7 +68,7 @@ export class BoundedOutputExcerpt {
 
   get text(): string {
     return this.truncated
-      ? `${this.head.toString('utf8')} … [output omitted] … ${this.tail.toString('utf8')}`
+      ? `${this.head.toString('utf8')} … [saída intermediária omitida] … ${this.tail.toString('utf8')}`
       : Buffer.concat([this.head, this.tail]).toString('utf8')
   }
 }
@@ -85,37 +86,7 @@ export interface StableFileObservation {
   readonly path: string
   readonly sha256: string
   readonly bytes: number
-  readonly magicHex: string
-  readonly formatHint: 'pe-executable' | 'zip-archive' | 'elf-binary' | 'asar-archive' | 'pdf' | 'utf8-text' | 'binary'
-}
-
-export interface PeBinaryInspection {
-  readonly machine: string
-  readonly subsystem: string
-  readonly is64Bit: boolean
-  readonly characteristics: string[]
-  readonly timestampIso: string | null
-  readonly entryPointRva: string
-  readonly imageBase: string
-  readonly sections: Array<{
-    name: string
-    virtualSize: number
-    rawSize: number
-    entropy: number
-  }>
-  readonly importedDlls: string[]
-  readonly notableStrings: string[]
-}
-
-export interface AsarArchiveInspection {
-  readonly headerSize: number
-  readonly totalEntries: number
-  readonly sampleFiles: string[]
-  readonly packageJson?: {
-    name?: string
-    version?: string
-    main?: string
-  }
+  readonly isBinary: boolean
 }
 
 const DEFAULT_OUTPUT_LIMIT_BYTES = 32 * 1024
@@ -131,12 +102,46 @@ const IGNORED_DIRECTORIES = new Set([
   'release',
   '.next',
   '.turbo',
-  'coverage'
+  'coverage',
+  '.gemini',
+  '.codex'
 ])
 
+const RULE_FILE_CANDIDATES = [
+  'TITI.md',
+  'AGENTS.md',
+  '.cursorrules',
+  'GEMINI.md'
+]
+
 /**
- * Redacts common inline bearer tokens or credential assignments in diagnostic output,
- * inspired by REA's `ProviderDiagnosticRedaction.ts`.
+ * Automatically discovers workspace guidelines/rules files (e.g. TITI.md, AGENTS.md, .cursorrules, GEMINI.md)
+ * walking up to the project root, mirroring Cursor, Codex, and Antigravity.
+ */
+export async function discoverWorkspaceRules(startDir = process.cwd()): Promise<string | null> {
+  try {
+    let current = resolve(startDir)
+    for (let depth = 0; depth < 5; depth += 1) {
+      for (const candidate of RULE_FILE_CANDIDATES) {
+        const fullPath = join(current, candidate)
+        const content = await readFile(fullPath, 'utf8').catch(() => null)
+        if (content && content.trim()) {
+          const excerpt = content.trim().slice(0, 4_000)
+          return `Diretrizes do projeto descobertas em ${candidate}:\n${excerpt}`
+        }
+      }
+      const parent = dirname(current)
+      if (parent === current) break
+      current = parent
+    }
+  } catch {
+    // Ignore discovery errors
+  }
+  return null
+}
+
+/**
+ * Redacts common inline tokens or passwords in command output.
  */
 export function redactSensitiveDiagnosticText(text: string): string {
   return text
@@ -151,29 +156,7 @@ export function redactSensitiveDiagnosticText(text: string): string {
 }
 
 /**
- * Computes Shannon byte entropy (0.00 to 8.00 bits/byte) as used in REA's
- * binary/section entropy analysis (`registerByteEntropyTool.ts`).
- */
-export function computeByteEntropy(buffer: Buffer): number {
-  if (buffer.byteLength === 0) return 0
-  const counts = new Uint32Array(256)
-  for (let i = 0; i < buffer.byteLength; i += 1) {
-    counts[buffer[i]!] += 1
-  }
-  let entropy = 0
-  const len = buffer.byteLength
-  for (let i = 0; i < 256; i += 1) {
-    const count = counts[i]!
-    if (count === 0) continue
-    const p = count / len
-    entropy -= p * Math.log2(p)
-  }
-  return Number(entropy.toFixed(3))
-}
-
-/**
- * Observes a file's stable byte identity (SHA-256), size, and magic header bytes
- * from a single file descriptor, following REA's `StableFileHash.ts`.
+ * Reads a file's stable byte identity (SHA-256) and binary check from its descriptor.
  */
 export async function observeStableFile(
   targetPath: string,
@@ -188,7 +171,7 @@ export async function observeStableFile(
     }
     const hash = createHash('sha256')
     const chunk = Buffer.allocUnsafe(64 * 1024)
-    const header = Buffer.alloc(Math.min(16, initial.size))
+    const header = Buffer.alloc(Math.min(512, initial.size))
     let position = 0
 
     while (position < initial.size) {
@@ -204,48 +187,21 @@ export async function observeStableFile(
       position += bytesRead
     }
 
-    const magicHex = header.subarray(0, 8).toString('hex')
-    const formatHint = classifyMagicHeader(header)
-
+    const isBinary = header.includes(0x00)
     return {
       path: resolved,
       sha256: hash.digest('hex'),
       bytes: position,
-      magicHex,
-      formatHint
+      isBinary
     }
   } finally {
     await handle.close().catch(() => undefined)
   }
 }
 
-function classifyMagicHeader(header: Buffer): StableFileObservation['formatHint'] {
-  if (header.byteLength >= 2 && header[0] === 0x4d && header[1] === 0x5a) {
-    return 'pe-executable'
-  }
-  if (header.byteLength >= 4 && header[0] === 0x50 && header[1] === 0x4b && header[2] === 0x03 && header[3] === 0x04) {
-    return 'zip-archive'
-  }
-  if (header.byteLength >= 4 && header[0] === 0x7f && header[1] === 0x45 && header[2] === 0x4c && header[3] === 0x46) {
-    return 'elf-binary'
-  }
-  if (header.byteLength >= 4 && header[0] === 0x25 && header[1] === 0x50 && header[2] === 0x44 && header[3] === 0x46) {
-    return 'pdf'
-  }
-  if (header.byteLength >= 8 && header.readUInt32LE(0) === 4) {
-    const jsonSize = header.readUInt32LE(4)
-    if (jsonSize > 8 && jsonSize < 64 * 1024 * 1024) {
-      return 'asar-archive'
-    }
-  }
-  const hasNullByte = header.includes(0x00)
-  return hasNullByte ? 'binary' : 'utf8-text'
-}
-
 /**
- * Staged atomic file write ported from REA's `OwnedStagedOutput.ts`.
- * Writes to a sibling `.tmp` file, verifies descriptor size & SHA-256, closes the handle,
- * and renames atomically into the target path.
+ * Staged atomic file write (write to temporary sibling, verify descriptor, rename).
+ * Eliminates race conditions and prevents partial/corrupted files.
  */
 export async function writeStagedAtomicFile(
   targetPath: string,
@@ -290,7 +246,7 @@ export async function writeStagedAtomicFile(
 }
 
 /**
- * Supervised command execution with REA's `BoundedOutputExcerpt` and Windows process-tree cleanup.
+ * Supervised process execution with bounded output capture and process-tree termination.
  */
 export async function execSupervisedCommand(
   command: string,
@@ -392,196 +348,10 @@ export async function execSupervisedCommand(
 }
 
 /**
- * Inspects a Windows PE (`.exe` / `.dll`) binary header, sections, entropy, imports, and strings,
- * following REA's PE inspection contracts (`registerPeImportsTool.ts`, `registerByteEntropyTool.ts`).
+ * Coding Agent Toolkit for Titi.
+ * Provides the same core capabilities as Codex, Claude Code, Antigravity, and Cursor.
  */
-export function inspectPeBinaryBuffer(buffer: Buffer): PeBinaryInspection | null {
-  if (buffer.byteLength < 0x40 || buffer[0] !== 0x4d || buffer[1] !== 0x5a) {
-    return null
-  }
-  const peOffset = buffer.readUInt32LE(0x3c)
-  if (peOffset + 24 > buffer.byteLength) return null
-  if (
-    buffer[peOffset] !== 0x50 ||
-    buffer[peOffset + 1] !== 0x45 ||
-    buffer[peOffset + 2] !== 0x00 ||
-    buffer[peOffset + 3] !== 0x00
-  ) {
-    return null
-  }
-
-  const coffOffset = peOffset + 4
-  const machineCode = buffer.readUInt16LE(coffOffset)
-  const numberOfSections = buffer.readUInt16LE(coffOffset + 2)
-  const timeDateStamp = buffer.readUInt32LE(coffOffset + 4)
-  const sizeOfOptionalHeader = buffer.readUInt16LE(coffOffset + 16)
-  const characteristicsBits = buffer.readUInt16LE(coffOffset + 18)
-
-  const machineMap: Record<number, string> = {
-    0x8664: 'x64 (IMAGE_FILE_MACHINE_AMD64)',
-    0x014c: 'x86 (IMAGE_FILE_MACHINE_I386)',
-    0xaa64: 'ARM64 (IMAGE_FILE_MACHINE_ARM64)'
-  }
-  const machine = machineMap[machineCode] ?? `0x${machineCode.toString(16)}`
-
-  const characteristics: string[] = []
-  if (characteristicsBits & 0x0002) characteristics.push('EXECUTABLE_IMAGE')
-  if (characteristicsBits & 0x0020) characteristics.push('LARGE_ADDRESS_AWARE')
-  if (characteristicsBits & 0x2000) characteristics.push('DLL')
-
-  const optionalOffset = coffOffset + 20
-  let is64Bit = false
-  let entryPointRva = '0x0'
-  let imageBase = '0x0'
-  let subsystem = 'unknown'
-
-  if (sizeOfOptionalHeader >= 24 && optionalOffset + sizeOfOptionalHeader <= buffer.byteLength) {
-    const magic = buffer.readUInt16LE(optionalOffset)
-    is64Bit = magic === 0x20b
-    const entryPoint = buffer.readUInt32LE(optionalOffset + 16)
-    entryPointRva = `0x${entryPoint.toString(16)}`
-    if (is64Bit && optionalOffset + 72 <= buffer.byteLength) {
-      const base = buffer.readBigUInt64LE(optionalOffset + 24)
-      imageBase = `0x${base.toString(16)}`
-      const subsysCode = buffer.readUInt16LE(optionalOffset + 68)
-      subsystem = formatPeSubsystem(subsysCode)
-    } else if (!is64Bit && optionalOffset + 72 <= buffer.byteLength) {
-      const base = buffer.readUInt32LE(optionalOffset + 28)
-      imageBase = `0x${base.toString(16)}`
-      const subsysCode = buffer.readUInt16LE(optionalOffset + 68)
-      subsystem = formatPeSubsystem(subsysCode)
-    }
-  }
-
-  const sectionTableOffset = optionalOffset + sizeOfOptionalHeader
-  const sections: PeBinaryInspection['sections'] = []
-  for (let i = 0; i < Math.min(numberOfSections, 16); i += 1) {
-    const secOffset = sectionTableOffset + i * 40
-    if (secOffset + 40 > buffer.byteLength) break
-    const rawName = buffer.subarray(secOffset, secOffset + 8)
-    const zeroIdx = rawName.indexOf(0)
-    const name = rawName.subarray(0, zeroIdx >= 0 ? zeroIdx : 8).toString('utf8').trim() || `sec_${i}`
-    const virtualSize = buffer.readUInt32LE(secOffset + 8)
-    const rawSize = buffer.readUInt32LE(secOffset + 16)
-    const rawPtr = buffer.readUInt32LE(secOffset + 20)
-    const sliceEnd = Math.min(buffer.byteLength, rawPtr + Math.min(rawSize, 256 * 1024))
-    const sectionSlice = rawPtr < sliceEnd ? buffer.subarray(rawPtr, sliceEnd) : Buffer.alloc(0)
-    sections.push({
-      name,
-      virtualSize,
-      rawSize,
-      entropy: computeByteEntropy(sectionSlice)
-    })
-  }
-
-  const textSample = buffer.subarray(0, Math.min(buffer.byteLength, 2 * 1024 * 1024)).toString('latin1')
-  const dllMatches = textSample.match(/\b[A-Za-z0-9_-]{2,40}\.dll\b/gi) ?? []
-  const importedDlls = [...new Set(dllMatches.map((d) => d.toLowerCase()))].slice(0, 25)
-
-  const asciiMatches = textSample.match(/[A-Za-z0-9_./:\\-]{8,90}/g) ?? []
-  const notableStrings = [...new Set(
-    asciiMatches.filter((s) => (
-      /https?:\/\/|\.asar|electron|FuseV1|pdb|Microsoft|Windows|llama|ollaya|laya/i.test(s)
-    ))
-  )].slice(0, 20)
-
-  return {
-    machine,
-    subsystem,
-    is64Bit,
-    characteristics,
-    timestampIso: timeDateStamp > 0 ? new Date(timeDateStamp * 1000).toISOString() : null,
-    entryPointRva,
-    imageBase,
-    sections,
-    importedDlls,
-    notableStrings
-  }
-}
-
-function formatPeSubsystem(code: number): string {
-  switch (code) {
-    case 2: return 'WINDOWS_GUI'
-    case 3: return 'WINDOWS_CUI (Console)'
-    default: return `0x${code.toString(16)}`
-  }
-}
-
-/**
- * Inspects an Electron ASAR archive header JSON inventory, following REA's
- * `analyze_javascript_application` / Electron archive inspection.
- */
-export async function inspectAsarArchive(filePath: string): Promise<AsarArchiveInspection | null> {
-  const handle = await open(filePath, 'r')
-  try {
-    const prefix = Buffer.alloc(16)
-    const { bytesRead } = await handle.read(prefix, 0, 16, 0)
-    if (bytesRead < 16) return null
-    const headerPayloadSize = prefix.readUInt32LE(4)
-    const jsonLength = prefix.readUInt32LE(12)
-    if (jsonLength <= 0 || jsonLength > 32 * 1024 * 1024 || jsonLength > headerPayloadSize) {
-      return null
-    }
-    const jsonBuf = Buffer.alloc(jsonLength)
-    await handle.read(jsonBuf, 0, jsonLength, 16)
-    const headerObj = JSON.parse(jsonBuf.toString('utf8')) as {
-      files?: Record<string, unknown>
-    }
-    const sampleFiles: string[] = []
-    let totalEntries = 0
-    let pkgMeta: AsarArchiveInspection['packageJson']
-
-    const walk = (node: Record<string, unknown>, currentPrefix: string): void => {
-      for (const [name, value] of Object.entries(node)) {
-        totalEntries += 1
-        const relPath = currentPrefix ? `${currentPrefix}/${name}` : name
-        if (sampleFiles.length < 30) {
-          sampleFiles.push(relPath)
-        }
-        if (value && typeof value === 'object' && 'files' in value && value.files && typeof value.files === 'object') {
-          walk(value.files as Record<string, unknown>, relPath)
-        }
-      }
-    }
-
-    if (headerObj.files && typeof headerObj.files === 'object') {
-      walk(headerObj.files, '')
-      const pkgEntry = headerObj.files['package.json'] as { offset?: string | number; size?: number } | undefined
-      if (pkgEntry && pkgEntry.size && pkgEntry.size > 0 && pkgEntry.size < 128 * 1024 && pkgEntry.offset !== undefined) {
-        const dataOffset = 8 + headerPayloadSize + Number(pkgEntry.offset)
-        const pkgBuf = Buffer.alloc(pkgEntry.size)
-        await handle.read(pkgBuf, 0, pkgEntry.size, dataOffset)
-        try {
-          const parsedPkg = JSON.parse(pkgBuf.toString('utf8')) as {
-            name?: string
-            version?: string
-            main?: string
-          }
-          pkgMeta = {
-            ...(parsedPkg.name ? { name: parsedPkg.name } : {}),
-            ...(parsedPkg.version ? { version: parsedPkg.version } : {}),
-            ...(parsedPkg.main ? { main: parsedPkg.main } : {})
-          }
-        } catch {
-          // Ignore malformed package.json inside ASAR
-        }
-      }
-    }
-
-    return {
-      headerSize: headerPayloadSize,
-      totalEntries,
-      sampleFiles,
-      ...(pkgMeta ? { packageJson: pkgMeta } : {})
-    }
-  } catch {
-    return null
-  } finally {
-    await handle.close().catch(() => undefined)
-  }
-}
-
-export class ReaHarnessToolkit {
+export class CodingAgentToolkit {
   async executeTerminal(
     args: Record<string, unknown>,
     signal?: AbortSignal
@@ -620,7 +390,7 @@ export class ReaHarnessToolkit {
         outputTruncated: outcome.outputTruncated,
         stdout: outcome.stdout,
         stderr: outcome.stderr,
-        _meta: TARGET_CONTENT_RESULT_META
+        _meta: UNTRUSTED_WORKSPACE_DATA_META
       }
     }
   }
@@ -636,15 +406,14 @@ export class ReaHarnessToolkit {
     const resolved = resolve(rawPath)
     const observation = await observeStableFile(resolved, signal)
 
-    if (observation.formatHint !== 'utf8-text' && observation.bytes > 0) {
+    if (observation.isBinary && observation.bytes > 0) {
       return {
         ok: true,
         status: 'confirmed',
-        message: `Arquivo binário observado (${observation.formatHint}): ${resolved} (${observation.bytes} bytes, SHA-256: ${observation.sha256}). Use rea_inspect para análise estrutural.`,
+        message: `Arquivo binário detectado em ${resolved} (${observation.bytes} bytes, SHA-256: ${observation.sha256}).`,
         details: {
           ...observation,
-          binary: true,
-          _meta: TARGET_CONTENT_RESULT_META
+          _meta: UNTRUSTED_WORKSPACE_DATA_META
         }
       }
     }
@@ -687,7 +456,7 @@ export class ReaHarnessToolkit {
         totalLines: allLines.length,
         truncated: endLine < allLines.length || observation.bytes > MAX_READ_BYTES,
         content: numbered,
-        _meta: TARGET_CONTENT_RESULT_META
+        _meta: UNTRUSTED_WORKSPACE_DATA_META
       }
     }
   }
@@ -918,107 +687,8 @@ export class ReaHarnessToolkit {
         path: rootDir,
         query,
         matches,
-        _meta: TARGET_CONTENT_RESULT_META
+        _meta: UNTRUSTED_WORKSPACE_DATA_META
       }
-    }
-  }
-
-  async inspectArtifactRea(
-    args: Record<string, unknown>,
-    signal?: AbortSignal
-  ): Promise<ToolExecutionResult> {
-    const rawPath = typeof args.path === 'string' ? args.path.trim() : ''
-    if (!rawPath) {
-      return { ok: false, status: 'failed', message: 'Informe o caminho do binário, ASAR, pacote ou diretório em path.' }
-    }
-    const resolved = resolve(rawPath)
-    const targetStat = await stat(resolved)
-
-    if (targetStat.isDirectory()) {
-      const asarCandidate = join(resolved, 'resources', 'app.asar')
-      const pkgCandidate = join(resolved, 'package.json')
-      const observations: Record<string, unknown> = {
-        targetPath: resolved,
-        kind: 'directory'
-      }
-      const asarInfo = await inspectAsarArchive(asarCandidate).catch(() => null)
-      if (asarInfo) {
-        observations.electronAsar = asarInfo
-      }
-      const pkgText = await readFile(pkgCandidate, 'utf8').catch(() => null)
-      if (pkgText) {
-        try {
-          const pkg = JSON.parse(pkgText) as Record<string, unknown>
-          observations.packageJson = {
-            name: pkg.name,
-            version: pkg.version,
-            main: pkg.main,
-            scripts: pkg.scripts ? Object.keys(pkg.scripts as Record<string, unknown>) : []
-          }
-        } catch {
-          // ignore
-        }
-      }
-      return {
-        ok: true,
-        status: 'confirmed',
-        message: `Inspeção REA de diretório concluída em ${resolved}: ${JSON.stringify(observations)}`,
-        details: {
-          ...observations,
-          _meta: TARGET_CONTENT_RESULT_META
-        }
-      }
-    }
-
-    const observation = await observeStableFile(resolved, signal)
-    const details: Record<string, unknown> = {
-      observation,
-      _meta: TARGET_CONTENT_RESULT_META
-    }
-    const summaryLines = [
-      `Evidência REA para ${basename(resolved)}:`,
-      `- Caminho: ${observation.path}`,
-      `- Formato detectado: ${observation.formatHint} (magic: 0x${observation.magicHex})`,
-      `- Tamanho: ${observation.bytes} bytes | SHA-256: ${observation.sha256}`
-    ]
-
-    if (observation.formatHint === 'pe-executable' || extname(resolved).toLowerCase() === '.exe' || extname(resolved).toLowerCase() === '.dll') {
-      const handle = await open(resolved, 'r')
-      try {
-        const sampleLen = Math.min(observation.bytes, 4 * 1024 * 1024)
-        const buf = Buffer.alloc(sampleLen)
-        await handle.read(buf, 0, sampleLen, 0)
-        const peInfo = inspectPeBinaryBuffer(buf)
-        if (peInfo) {
-          details.peAnalysis = peInfo
-          summaryLines.push(
-            `- Arquitetura PE: ${peInfo.machine} | Subsistema: ${peInfo.subsystem} | EntryPoint: ${peInfo.entryPointRva} | ImageBase: ${peInfo.imageBase}`,
-            `- Seções (${peInfo.sections.length}): ${peInfo.sections.map((s) => `${s.name} (entropia ${s.entropy})`).join(', ')}`,
-            `- DLLs importadas (${peInfo.importedDlls.length}): ${peInfo.importedDlls.slice(0, 10).join(', ')}`
-          )
-        }
-      } finally {
-        await handle.close().catch(() => undefined)
-      }
-    }
-
-    if (observation.formatHint === 'asar-archive' || extname(resolved).toLowerCase() === '.asar') {
-      const asarInfo = await inspectAsarArchive(resolved)
-      if (asarInfo) {
-        details.asarAnalysis = asarInfo
-        summaryLines.push(
-          `- Arquivo Electron ASAR: ${asarInfo.totalEntries} entradas empacotadas (header ${asarInfo.headerSize} B)`,
-          ...(asarInfo.packageJson ? [`- Pacote: ${asarInfo.packageJson.name ?? '?'}@${asarInfo.packageJson.version ?? '?'} (main: ${asarInfo.packageJson.main ?? '?'})`] : []),
-          `- Amostra de arquivos: ${asarInfo.sampleFiles.slice(0, 10).join(', ')}`
-        )
-      }
-    }
-
-    return {
-      ok: true,
-      status: 'confirmed',
-      message: summaryLines.join('\n'),
-      details
     }
   }
 }

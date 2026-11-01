@@ -5,7 +5,7 @@ import type {
   ToolExecutionResult,
   ToolExecutor
 } from './contracts'
-import { isProtectedSystemPath } from './rea-harness-toolkit'
+import { isProtectedSystemPath } from './coding-agent-toolkit'
 
 export type ToolConfirmationDecisionStatus = 'approved' | 'denied' | 'expired' | 'cancelled'
 
@@ -409,8 +409,7 @@ export function assessToolRisk(name: string, argumentsValue: unknown): ToolRiskA
       }
       return { kind: 'safe' }
     }
-    case 'read_file':
-    case 'rea_inspect': {
+    case 'read_file': {
       const targetPath = optionalString(args.path)
       if (!targetPath || isProtectedSystemPath(targetPath)) {
         return blocked('O caminho informado é inválido ou pertence a credenciais protegidas do sistema.')

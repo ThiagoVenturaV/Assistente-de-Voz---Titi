@@ -77,7 +77,7 @@ export const LAYA_INTENT_QUESTIONS = {
     instructions: 'Qual é o tipo de pedido do usuário?',
     criteria: {
       open_app_or_site:
-        'Comando imperativo para abrir aplicativo, acessar site, pesquisar na internet, rodar comando de terminal, ler/editar arquivos ou inspecionar binários com REA',
+        'Comando imperativo para abrir aplicativo, acessar site, pesquisar na internet, rodar comando no terminal, programar ou ler/editar arquivos',
       control_media_or_screen:
         'Comando imperativo para tocar/pausar música no Spotify, buscar código/arquivos ou clicar/observar a tela do Windows',
       system_datetime:
