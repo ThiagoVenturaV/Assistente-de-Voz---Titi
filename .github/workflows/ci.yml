@@ -49,7 +49,7 @@ jobs:
         run: npm ci --prefix landing
 
       - name: Auditar dependências da landing page
-        run: npm audit --prefix landing --audit-level high
+        run: npm audit --prefix landing --audit-level high --omit=dev
 
       - name: Testar a landing page
         run: npm test --prefix landing

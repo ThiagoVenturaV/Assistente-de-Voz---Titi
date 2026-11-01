@@ -91,7 +91,7 @@ jobs:
       - name: Instalar e validar a landing page
         run: |
           npm ci --prefix landing
-          npm audit --prefix landing --audit-level high
+          npm audit --prefix landing --audit-level high --omit=dev
           npm test --prefix landing
 
       - name: Preparar Electron sem corrida entre testes

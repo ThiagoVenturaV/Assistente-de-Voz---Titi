@@ -55,6 +55,7 @@ $archivePath = Join-Path $temporaryRoot 'llama-b11998-bin-win-cpu-x64.zip'
 
 $archiveUrl = 'https://github.com/ggml-org/llama.cpp/releases/download/b11998/llama-b11998-bin-win-cpu-x64.zip'
 $archiveSha256 = '2cdb7ff52769dff9bf19c4cf7d6b6e136e7b46249679d5d92ecd92631b8f7fb2'
+$licenseUrl = 'https://raw.githubusercontent.com/ggml-org/llama.cpp/b11998/LICENSE'
 
 $requiredBinFiles = [ordered]@{
     'llama-server.exe' = '3a192bd0dfb3aa56bc544b62cb0648d1ad8a9d9147df0e87132404645dce9fce'
@@ -149,7 +150,14 @@ if ($Force -or -not (Test-VerifiedBin)) {
     }
     New-Item -ItemType Directory -Force -Path $binRoot | Out-Null
     foreach ($entry in $requiredBinFiles.GetEnumerator()) {
-        Copy-Item -LiteralPath (Join-Path $extractTemp $entry.Key) -Destination (Join-Path $binRoot $entry.Key) -Force
+        $sourcePath = Join-Path $extractTemp $entry.Key
+        $destPath = Join-Path $binRoot $entry.Key
+        if ($entry.Key -eq 'LICENSE' -and -not (Test-Path -LiteralPath $sourcePath)) {
+            & curl.exe -L --fail --retry 3 -o $destPath $licenseUrl
+            if ($LASTEXITCODE -ne 0) { throw 'Falha ao baixar LICENSE do llama.cpp.' }
+        } else {
+            Copy-Item -LiteralPath $sourcePath -Destination $destPath -Force
+        }
     }
 }
 
