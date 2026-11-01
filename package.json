@@ -20,7 +20,7 @@
     "qa:packaged-transcription": "cmd.exe /d /c \"set ELECTRON_RUN_AS_NODE=1&& node_modules\\electron\\dist\\electron.exe scripts\\check-parakeet-streaming-worker.mjs %TEMP%\\titi-voice-long-qa.wav 15 release\\win-unpacked\\resources\"",
     "qa:packaged-tts": "cmd.exe /d /c \"set ELECTRON_RUN_AS_NODE=1&& node_modules\\electron\\dist\\electron.exe scripts\\check-packaged-supertonic.cjs release\\win-unpacked\\resources\"",
     "build": "npm run typecheck && electron-vite build",
-    "security:audit": "corepack pnpm audit --audit-level high && npm --prefix landing audit --audit-level high",
+    "security:audit": "corepack pnpm audit --prod --audit-level high && npm --prefix landing audit --audit-level high",
     "security:secrets": "node scripts/check-secrets.mjs",
     "verify:package": "node scripts/verify-package.mjs",
     "verify:signatures": "node scripts/verify-windows-signatures.mjs",
